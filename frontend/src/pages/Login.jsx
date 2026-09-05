@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useStore } from '../store';
+import DepthText from '../components/DepthText';
 import styles from './Login.module.css';
 
 export default function Login() {
@@ -20,6 +21,23 @@ export default function Login() {
 
   return (
     <div className={styles.loginPage}>
+      <DepthText
+        text="FRAME"
+        layers={150}
+        depth={1.4}
+        faceColor="#f8fafc"
+        depthColor="#000000"
+        tilt={15.5}
+        pointerTracking
+        smoothing={0.14}
+        perspective={200}
+        autoOrbit
+        orbitSpeed={0.8}
+        fontSize="clamp(3rem, 12vw, 12rem)"
+        fontWeight={50}
+        shadow
+        className={styles.depthText}
+      />
       <div className={styles.loginCard}>
         <div className={styles.loginHeader}>
           <div className={styles.logoMark}>
@@ -81,7 +99,7 @@ export default function Login() {
           </button>
         </form>
 
-        <div className={styles.registerSection}>
+        {/* <div className={styles.registerSection}>
           <p className={styles.registerText}>
             {t('auth.dontHaveAccount')}{' '}
             <Link
@@ -99,7 +117,7 @@ export default function Login() {
             Email: admin@demo.com<br />
             Password: demo123
           </p>
-        </div>
+        </div> */}
       </div>
     </div>
   );

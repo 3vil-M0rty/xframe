@@ -3,18 +3,72 @@
     display: flex;
     align-items: center;
     justify-content: center;
+    flex-direction: column;
     padding: 1rem;
-    background:
-        conic-gradient(from 90deg at 2px 2px, var(#0000 90deg, #ffffff 0)),
-        conic-gradient(from 90deg at 1px 1px, var(#0000 90deg, #ffffff 0)),
-        #000;
-    background-size: var(300px) var(300px), calc(var(300px)/5) calc(var(300px)/5);
+
+    background-color: #000000;
+
+    background-image:
+        /* Major vertical lines */
+        linear-gradient(
+            to right,
+            rgba(255, 255, 255, 0.22) 1px,
+            transparent 1px
+        ),
+
+        /* Minor vertical lines */
+        linear-gradient(
+            to right,
+            rgba(255, 255, 255, 0.07) 1px,
+            transparent 1px
+        ),
+
+        /* Major horizontal lines */
+        linear-gradient(
+            to bottom,
+            rgba(255, 255, 255, 0.22) 1px,
+            transparent 1px
+        ),
+
+        /* Minor horizontal lines */
+        linear-gradient(
+            to bottom,
+            rgba(255, 255, 255, 0.07) 1px,
+            transparent 1px
+        ),
+
+        /* Background gradient */
+        linear-gradient(
+            135deg,
+            #000000 0%,
+            #111111 45%,
+            #2a2a2a 70%,
+            #000000 100%
+        );
+
+    background-size:
+        84px 84px,
+        14px 14px,
+        84px 84px,
+        14px 14px,
+        100% 100%;
+
+    background-position:
+        0 0,
+        0 0,
+        0 0,
+        0 0,
+        0 0;
+}
+
+.depthText {
+    z-index: 999;
 }
 
 .loginCard {
     width: 100%;
     max-width: 28rem;
-    background: #ffffff;
+    backdrop-filter: blur(1px);
     border-radius: 0.5rem;
     box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1),
         0 10px 10px -5px rgba(0, 0, 0, 0.04);

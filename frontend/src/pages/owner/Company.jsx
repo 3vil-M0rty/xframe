@@ -1,0 +1,767 @@
+import {
+  getCompanies,
+  createCompany,
+  updateCompany,
+  uploadCompanyLogo,
+} from "../../services/companyService";
+
+import { useState, useEffect } from "react";
+import { useI18n } from "../../hooks/useI18n";
+
+import CollapsibleForm from "../../components/useful/CollapsibleForm";
+import ActionModal from "../../components/useful/ActionModal";
+import styles from "./Company.module.css";
+
+import {
+  Building2,
+  Users,
+  Pencil,
+  Plus,
+} from "lucide-react";
+
+export default function Company() {
+  const { t } = useI18n();
+
+  // ========================================
+  // COMPANY
+  // ========================================
+
+  const [company, setCompany] = useState(null);
+  const [initialLoading, setInitialLoading] = useState(true);
+
+  // ========================================
+  // MODE
+  // ========================================
+
+  const [mode, setMode] = useState(false);
+
+  // ========================================
+  // MODAL
+  // ========================================
+
+  const [modal, setModal] = useState({
+    open: false,
+    type: "confirm",
+    title: "",
+    message: "",
+  });
+
+  // ========================================
+  // SUBMIT LOADING
+  // ========================================
+
+  const [loading, setLoading] = useState(false);
+
+  // ========================================
+  // PENDING FORM DATA
+  // ========================================
+
+  const [pendingData, setPendingData] = useState(null);
+
+  // ========================================
+  // LOAD COMPANY
+  // ========================================
+
+  useEffect(() => {
+    const loadCompany = async () => {
+      try {
+        const companies = await getCompanies();
+
+        setCompany(companies?.[0] || null);
+      } catch (error) {
+        console.error(
+          "Failed to load company:",
+          error
+        );
+
+        setModal({
+          open: true,
+          type: "error",
+          title: t("company.loadFailTitle"),
+          message:
+            error.response?.data?.message ||
+            t("company.loadFailMessage"),
+        });
+      } finally {
+        setInitialLoading(false);
+      }
+    };
+
+    loadCompany();
+  }, [t]);
+
+  // ========================================
+  // FORM FIELDS
+  // ========================================
+
+  const companyFields = [
+    {
+      name: "name",
+      label: t("company.name"),
+      type: "text",
+      required: true,
+    },
+
+    {
+      name: "tradeName",
+      label: t("company.tradeName"),
+      type: "text",
+    },
+
+    {
+      name: "legalForm",
+      label: t("company.legalForm"),
+      type: "select",
+      required: true,
+      options: [
+        "SARL",
+        "SARL_AU",
+        "SA",
+        "SAS",
+        "SASU",
+        "SNC",
+        "SCS",
+        "SCA",
+        "SP",
+        "COOPERATIVE",
+        "ASSOCIATION",
+        "OTHER",
+      ],
+    },
+
+    {
+      name: "industry",
+      label: t("company.industry"),
+      type: "text",
+      required: true,
+    },
+
+    {
+      name: "ice",
+      label: t("company.ice"),
+      type: "text",
+      placeholder: "000000000000000",
+    },
+
+    {
+      name: "taxId",
+      label: t("company.taxId"),
+      type: "text",
+    },
+
+    {
+      name: "registrationNumber",
+      label: t("company.registrationNumber"),
+      type: "text",
+    },
+
+    {
+      name: "email",
+      label: t("company.email"),
+      type: "email",
+    },
+
+    {
+      name: "phone",
+      label: t("company.phone"),
+      type: "text",
+      placeholder: "+212 6XX XXX XXX",
+    },
+
+    {
+      name: "website",
+      label: t("company.website"),
+      type: "text",
+    },
+
+    {
+      name: "street",
+      label: t("company.street"),
+      type: "text",
+    },
+
+    {
+      name: "city",
+      label: t("company.city"),
+      type: "text",
+    },
+
+    {
+      name: "postalCode",
+      label: t("company.postalCode"),
+      type: "text",
+    },
+
+    // ========================================
+    // COMPANY LOGO
+    // ========================================
+
+    {
+      name: "logo",
+      label: t("company.logo"),
+      type: "file",
+      accept: "image/png,image/jpeg,image/webp,image/gif",
+    },
+  ];
+
+  // ========================================
+  // FORM BUTTONS
+  // ========================================
+
+  const companyButtons = [
+    {
+      label: t("common.cancel"),
+      type: "button",
+      variant: "secondary",
+      onClick: () => setMode(false),
+    },
+    {
+      label: t("common.reset"),
+      type: "reset",
+      variant: "secondary",
+    },
+
+    {
+      label:
+        mode === "create"
+          ? t("common.create")
+          : t("common.update"),
+      type: "submit",
+      variant: "primary",
+    },
+  ];
+
+  // ========================================
+  // FORM SUBMIT
+  // ========================================
+
+  const handleSubmit = (data) => {
+    setPendingData(data);
+
+    setModal({
+      open: true,
+      type: "confirm",
+
+      title:
+        mode === "create"
+          ? t("company.createTitle")
+          : `${t("common.update")} ${t("company.title")}`,
+
+      message:
+        mode === "create"
+          ? t("company.createSureMessage")
+          : t("company.updateSureMessage"),
+    });
+  };
+
+  // ========================================
+  // CONFIRM ACTION
+  // ========================================
+
+  const handleConfirm = async () => {
+    if (!pendingData) {
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      // ======================================
+      // GET LOGO FILE
+      // ======================================
+
+      const logo = pendingData.logo;
+
+      // ======================================
+      // COMPANY DATA
+      // ======================================
+
+      const payload = {
+        name: pendingData.name,
+        tradeName: pendingData.tradeName,
+        legalForm: pendingData.legalForm,
+        industry: pendingData.industry,
+        ice: pendingData.ice,
+        taxId: pendingData.taxId,
+        registrationNumber:
+          pendingData.registrationNumber,
+        email: pendingData.email,
+        phone: pendingData.phone,
+        website: pendingData.website,
+
+        address: {
+          street: pendingData.street,
+          city: pendingData.city,
+          postalCode: pendingData.postalCode,
+        },
+      };
+
+      // ======================================
+      // CREATE OR UPDATE COMPANY
+      // ======================================
+
+      let savedCompany;
+
+      if (mode === "create") {
+        savedCompany = await createCompany(payload);
+      } else {
+        savedCompany = await updateCompany(
+          company._id,
+          payload
+        );
+      }
+
+      // ======================================
+      // UPLOAD LOGO TO CLOUDINARY
+      // ======================================
+
+      let finalCompany = savedCompany;
+
+      if (logo instanceof File) {
+        const logoResponse =
+          await uploadCompanyLogo(
+            savedCompany._id,
+            logo
+          );
+
+        finalCompany = logoResponse.data;
+      }
+
+      // ======================================
+      // UPDATE UI
+      // ======================================
+
+      setCompany(finalCompany);
+      setMode(false);
+      setPendingData(null);
+
+      // ======================================
+      // SUCCESS
+      // ======================================
+
+      setLoading(false);
+
+      setModal({
+        open: true,
+        type: "success",
+
+        title:
+          mode === "create"
+            ? t("company.createSuccessTitle")
+            : `${t("common.update")} ${t("common.success")}`,
+
+        message:
+          mode === "create"
+            ? t("company.createSuccessMessage")
+            : t("company.updateSuccessMessage"),
+      });
+    } catch (error) {
+      console.error(
+        "Failed to save company:",
+        error.response?.data || error
+      );
+
+      setLoading(false);
+
+      setModal({
+        open: true,
+        type: "error",
+
+        title:
+          mode === "create"
+            ? t("company.createFailTitle")
+            : `${t("common.update")} ${t("common.fail")}`,
+
+        message:
+          error.response?.data?.message ||
+          error.message ||
+          t("company.saveFailMessage"),
+      });
+    }
+  };
+
+  // ========================================
+  // CLOSE MODAL
+  // ========================================
+
+  const handleCloseModal = () => {
+    if (loading) {
+      return;
+    }
+
+    setModal((prev) => ({
+      ...prev,
+      open: false,
+    }));
+
+    if (modal.type === "confirm") {
+      setPendingData(null);
+    }
+  };
+
+  // ========================================
+  // INITIAL LOADING
+  // ========================================
+
+  if (initialLoading) {
+    return (
+      <div className={styles.page}>
+        <div className={styles.loading}>
+          {t("common.loading")}
+        </div>
+      </div>
+    );
+  }
+
+  // ========================================
+  // INITIAL FORM VALUES
+  // ========================================
+
+  const initialFormValues = {
+    name: company?.name || "",
+    tradeName: company?.tradeName || "",
+    legalForm: company?.legalForm || "SARL",
+    industry: company?.industry || "",
+    ice: company?.ice || "",
+    taxId: company?.taxId || "",
+    registrationNumber:
+      company?.registrationNumber || "",
+    email: company?.email || "",
+    phone: company?.phone || "",
+    website: company?.website || "",
+
+    street: company?.address?.street || "",
+    city: company?.address?.city || "",
+    postalCode:
+      company?.address?.postalCode || "",
+  };
+
+  // ========================================
+  // RENDER
+  // ========================================
+
+  return (
+    <div className={styles.page}>
+
+      {/* ==================================
+          HEADER
+          ================================== */}
+
+      <div className={styles.header}>
+
+        <div>
+          <div className={styles.titleRow}>
+            <Building2 size={20} />
+
+            <h1>
+              {company
+                ? company.name
+                : t("company.title")}
+            </h1>
+          </div>
+
+          <p className={styles.subtitle}>
+            {company
+              ? t("company.subtitle")
+              : t("company.emptySubtitle")}
+          </p>
+        </div>
+
+        {company && !mode && (
+          <button
+            className={styles.editButton}
+            onClick={() => setMode("edit")}
+          >
+            <Pencil size={16} />
+
+            {t("common.edit")}
+          </button>
+        )}
+
+      </div>
+
+      {/* ==================================
+          EMPTY STATE
+          ================================== */}
+
+      {!company && !mode && (
+        <div className={styles.emptyState}>
+
+          <div className={styles.emptyIcon}>
+            <Building2 size={28} />
+          </div>
+
+          <h2>
+            {t("company.emptyTitle")}
+          </h2>
+
+          <p>
+            {t("company.emptyMessage")}
+          </p>
+
+          <button
+            className={styles.primaryButton}
+            onClick={() => setMode("create")}
+          >
+            <Plus size={16} />
+
+            {t("company.create")}
+          </button>
+
+        </div>
+      )}
+
+      {/* ==================================
+          FORM
+          ================================== */}
+
+      {mode && (
+        <div className={styles.formContainer}>
+
+          <CollapsibleForm
+            title={
+              mode === "create"
+                ? t("company.create")
+                : t("company.editTitle")
+            }
+
+            icon={<Building2 size={16} />}
+
+            fields={companyFields}
+
+            buttons={companyButtons}
+
+            onSubmit={handleSubmit}
+
+            initialValues={initialFormValues}
+          />
+
+
+        </div>
+      )}
+
+      {/* ==================================
+          COMPANY CARD
+          ================================== */}
+
+      {company && !mode && (
+        <div className={styles.companyCard}>
+
+          {/* ==================================
+              LOGO
+              ================================== */}
+
+          {company.logo?.url && (
+            <div className={styles.logoSection}>
+              <img
+                src={company.logo.url}
+                alt={company.name}
+                className={styles.logo}
+              />
+            </div>
+          )}
+
+          {/* ==================================
+              IDENTITY
+              ================================== */}
+
+          <div className={styles.section}>
+
+            <h2>
+              {t("company.section.identity")}
+            </h2>
+
+            <div className={styles.grid}>
+
+              <div className={styles.info}>
+                <span>
+                  {t("company.name")}
+                </span>
+
+                <strong>
+                  {company.name}
+                </strong>
+              </div>
+
+              <div className={styles.info}>
+                <span>
+                  {t("company.tradeName")}
+                </span>
+
+                <strong>
+                  {company.tradeName || "—"}
+                </strong>
+              </div>
+
+              <div className={styles.info}>
+                <span>
+                  {t("company.legalForm")}
+                </span>
+
+                <strong>
+                  {company.legalForm}
+                </strong>
+              </div>
+
+              <div className={styles.info}>
+                <span>
+                  {t("company.industry")}
+                </span>
+
+                <strong>
+                  {company.industry}
+                </strong>
+              </div>
+
+            </div>
+
+          </div>
+
+          {/* ==================================
+              LEGAL
+              ================================== */}
+
+          <div className={styles.section}>
+
+            <h2>
+              {t("company.section.legal")}
+            </h2>
+
+            <div className={styles.grid}>
+
+              <div className={styles.info}>
+                <span>
+                  {t("company.ice")}
+                </span>
+
+                <strong>
+                  {company.ice || "—"}
+                </strong>
+              </div>
+
+              <div className={styles.info}>
+                <span>
+                  {t("company.taxId")}
+                </span>
+
+                <strong>
+                  {company.taxId || "—"}
+                </strong>
+              </div>
+
+              <div className={styles.info}>
+                <span>
+                  {t("company.registrationNumber")}
+                </span>
+
+                <strong>
+                  {company.registrationNumber || "—"}
+                </strong>
+              </div>
+
+            </div>
+
+          </div>
+
+          {/* ==================================
+              CONTACT
+              ================================== */}
+
+          <div className={styles.section}>
+
+            <h2>
+              {t("company.section.contact")}
+            </h2>
+
+            <div className={styles.grid}>
+
+              <div className={styles.info}>
+                <span>
+                  {t("company.email")}
+                </span>
+
+                <strong>
+                  {company.email || "—"}
+                </strong>
+              </div>
+
+              <div className={styles.info}>
+                <span>
+                  {t("company.phone")}
+                </span>
+
+                <strong>
+                  {company.phone || "—"}
+                </strong>
+              </div>
+
+              <div className={styles.info}>
+                <span>
+                  {t("company.website")}
+                </span>
+
+                <strong>
+                  {company.website || "—"}
+                </strong>
+              </div>
+
+              <div className={styles.info}>
+                <span>
+                  {t("company.street")}
+                </span>
+
+                <strong>
+                  {company.address?.street || "—"}
+
+                  {company.address?.city
+                    ? `, ${company.address.city}`
+                    : ""}
+                </strong>
+              </div>
+
+            </div>
+
+          </div>
+
+          {/* ==================================
+              EMPLOYEE COUNT
+              ================================== */}
+
+          <div className={styles.employeeSection}>
+
+            <div className={styles.employeeIcon}>
+              <Users size={20} />
+            </div>
+
+            <div>
+              <span>
+                {t("company.employeeCount")}
+              </span>
+
+              <strong>
+                {company.employeeCount ?? 0}
+              </strong>
+            </div>
+
+          </div>
+
+        </div>
+      )}
+
+      {/* ==================================
+          ACTION MODAL
+          ================================== */}
+
+      <ActionModal
+        isOpen={modal.open}
+        type={modal.type}
+        title={modal.title}
+        message={modal.message}
+        loading={loading}
+        onConfirm={handleConfirm}
+        onClose={handleCloseModal}
+      />
+
+    </div>
+  );
+}

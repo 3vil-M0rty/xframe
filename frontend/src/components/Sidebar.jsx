@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { Link, useLocation } from 'react-router-dom'
 import {
   Settings2,
   Settings,
@@ -6,11 +7,13 @@ import {
   ChevronDown,
   ChevronRight,
   ChevronLeft,
-  LogOut
+  LogOut,
+  UserRoundCog
 } from 'lucide-react'
 import { useI18n } from '../hooks/useI18n'
 import api from '../services/api'
 import styles from './Sidebar.module.css'
+import LanguageSwitcher from './useful/LanguageSwitcher'
 
 export default function Sidebar() {
   const [isOpen, setIsOpen] = useState(true)
@@ -18,13 +21,14 @@ export default function Sidebar() {
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
   const { t } = useI18n()
+  const location = useLocation()
 
   // Fetch user data on mount
   useEffect(() => {
     const fetchUser = async () => {
       try {
         const token = localStorage.getItem('token')
-        
+
         if (!token) {
           console.error('❌ No token found in localStorage')
           setLoading(false)
@@ -33,8 +37,8 @@ export default function Sidebar() {
 
         // Use the api client instead of fetch - it has the correct baseURL!
         const response = await api.get('/users/me')
-        
-        
+
+
         if (response.data.success && response.data.data) {
           setUser(response.data.data)
         }
@@ -50,13 +54,19 @@ export default function Sidebar() {
 
   const menuItems = [
     {
-      id: 'admin',
-      label: t('sidebar.admin'),
+      id: 'organization',
+      label: t('sidebar.organization'),
       icon: Settings2,
       subsections: [
-        { label: t('sidebar.profile'), href: '#' },
-        { label: t('sidebar.preferences'), href: '#' },
-        { label: t('sidebar.integrations'), href: '#' }
+        { label: t('sidebar.company'), href: '/organization/company' },
+        { label: t('sidebar.users'), href: '/organization/users' },
+        { label: t('sidebar.departments'), href: '/organization/departments' },
+        { label: t('sidebar.jobPositions'), href: '/organization/job-positions' },
+        { label: t('sidebar.rolesPermissions'), href: '/organization/roles-permissions' },
+        { label: t('sidebar.locations'), href: '/organization/locations' },
+        { label: t('sidebar.documents'), href: '/organization/documents' },
+        { label: t('sidebar.preferences'), href: '/organization/preferences' },
+        { label: t('sidebar.integrations'), href: '/organization/integrations' },
       ]
     },
     {
@@ -64,18 +74,26 @@ export default function Sidebar() {
       label: t('sidebar.settings'),
       icon: Settings,
       subsections: [
-        { label: t('sidebar.companies'), href: '#' },
-        { label: t('sidebar.preferences'), href: '#' },
-        { label: t('sidebar.integrations'), href: '#' }
+        { label: t('sidebar.companies'), href: '/settings/companies' },
+        { label: t('sidebar.preferences'), href: '/settings/preferences' },
+        { label: t('sidebar.integrations'), href: '/settings/integrations' }
       ]
     },
     {
       id: 'help',
       label: t('sidebar.help'),
       icon: HelpCircle,
-      href: '#'
+      href: '/help'
     }
   ]
+
+  // Auto-expand whichever section contains the current route
+  useEffect(() => {
+    const match = menuItems.find((item) =>
+      item.subsections?.some((sub) => location.pathname === sub.href)
+    )
+    if (match) setExpandedSection(match.id)
+  }, [location.pathname])
 
   const toggleSection = (id) => {
     setExpandedSection(expandedSection === id ? null : id)
@@ -96,6 +114,7 @@ export default function Sidebar() {
     return colors[hash % colors.length]
   }
 
+  // This one SHOULD stay a full reload — it clears everything on logout
   const handleLogout = () => {
     localStorage.removeItem('token')
     localStorage.removeItem('user')
@@ -122,9 +141,9 @@ export default function Sidebar() {
         <div className={styles.header}>
           {user ? (
             <>
-              <div 
+              <div
                 className={styles.avatar}
-                style={{ 
+                style={{
                   backgroundColor: getAvatarColor(user?.firstName + user?.lastName)
                 }}
               >
@@ -147,6 +166,15 @@ export default function Sidebar() {
               {isOpen && <div className={styles.skeletonText}></div>}
             </>
           )}
+          {isOpen &&
+            <Link
+              to="/profile"
+              className={styles.footerBtn}
+              title={t('sidebar.profile')}
+            >
+              <UserRoundCog size={16} />
+            </Link>
+          }
         </div>
 
         {/* Navigation */}
@@ -178,10 +206,15 @@ export default function Sidebar() {
               {isOpen && item.subsections && expandedSection === item.id && (
                 <div className={styles.subsections}>
                   {item.subsections.map((sub, idx) => (
-                    <a key={idx} href={sub.href} className={styles.subItem}>
+                    <Link
+                      key={idx}
+                      to={sub.href}
+                      className={styles.subItem}
+                      style={location.pathname === sub.href ? { color: '#ffffff', fontWeight: 600 } : undefined}
+                    >
                       <span className={styles.subDot}></span>
                       {sub.label}
-                    </a>
+                    </Link>
                   ))}
                 </div>
               )}
@@ -197,8 +230,10 @@ export default function Sidebar() {
             title={t('sidebar.logout')}
           >
             <LogOut size={16} />
-            {isOpen && <span>{t('sidebar.logout')}</span>}
+            {/* {isOpen && <span>{t('sidebar.logout')}</span>} */}
           </button>
+          {isOpen && <LanguageSwitcher />}
+
         </div>
 
         {/* Toggle Button - Arrow on right edge */}

@@ -1,0 +1,423 @@
+.page {
+  width: 100%;
+  padding: 2rem;
+  color: #fff;
+}
+
+/* ========================================
+   HEADER
+   ======================================== */
+
+.header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 2rem;
+  margin-bottom: 2rem;
+}
+
+.titleRow {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+}
+
+.titleRow svg {
+  color: #aaa;
+}
+
+.titleRow h1 {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 600;
+}
+
+.subtitle {
+  margin: 0.5rem 0 0;
+  color: #777;
+  font-size: 0.9rem;
+}
+
+/* ========================================
+   BUTTONS
+   ======================================== */
+
+.primaryButton,
+.backButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-height: 40px;
+  padding: 0.65rem 1rem;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    background 0.2s ease,
+    border-color 0.2s ease,
+    transform 0.2s ease;
+}
+
+.primaryButton {
+  color: #000;
+  background: #fff;
+  border: 1px solid #fff;
+}
+
+.primaryButton:hover {
+  background: #e8e8e8;
+  transform: translateY(-1px);
+}
+
+.backButton {
+  margin-bottom: 1.5rem;
+  padding: 0.5rem 0;
+  color: #888;
+  background: transparent;
+  border: 0;
+}
+
+.backButton:hover {
+  color: #fff;
+}
+
+/* ========================================
+   EMPTY STATE
+   ======================================== */
+
+.emptyState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 420px;
+  padding: 3rem;
+  text-align: center;
+  border: 1px dashed rgba(255, 255, 255, 0.12);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.015);
+}
+
+.emptyIcon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 64px;
+  height: 64px;
+  margin-bottom: 1.25rem;
+  color: #aaa;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 50%;
+}
+
+.emptyState h2 {
+  margin: 0 0 0.5rem;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.emptyState p {
+  max-width: 420px;
+  margin: 0 0 1.5rem;
+  color: #777;
+  font-size: 0.9rem;
+  line-height: 1.6;
+}
+
+/* ========================================
+   USERS GRID
+   ======================================== */
+
+.usersGrid {
+  display: grid;
+  grid-template-columns: repeat(
+    auto-fill,
+    minmax(280px, 1fr)
+  );
+  gap: 1rem;
+}
+
+/* ========================================
+   USER CARD
+   ======================================== */
+
+.userCard {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 1rem;
+  width: 100%;
+  padding: 1.25rem;
+  text-align: left;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  cursor: pointer;
+  transition:
+    background 0.2s ease,
+    border-color 0.2s ease,
+    transform 0.2s ease;
+}
+
+.userCard:hover {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.16);
+  transform: translateY(-2px);
+}
+
+/* ========================================
+   AVATAR
+   ======================================== */
+
+.avatar,
+.avatarLarge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: #aaa;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 50%;
+}
+
+.avatar {
+  width: 44px;
+  height: 44px;
+}
+
+.avatarLarge {
+  width: 70px;
+  height: 70px;
+}
+
+/* ========================================
+   USER MAIN
+   ======================================== */
+
+.userMain {
+  min-width: 0;
+}
+
+.userMain h2 {
+  margin: 0 0 0.35rem;
+  overflow: hidden;
+  color: #eee;
+  font-size: 0.95rem;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.email {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  overflow: hidden;
+  color: #666;
+  font-size: 0.75rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ========================================
+   ROLE
+   ======================================== */
+
+.role {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.35rem 0.55rem;
+  color: #aaa;
+  font-size: 0.7rem;
+  white-space: nowrap;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 6px;
+}
+
+/* ========================================
+   USER DETAIL
+   ======================================== */
+
+.userDetail {
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.detailHeader {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+  padding: 2rem;
+  border-bottom: 1px solid
+    rgba(255, 255, 255, 0.07);
+}
+
+.detailHeader h1 {
+  margin: 0;
+  font-size: 1.3rem;
+  font-weight: 600;
+}
+
+.detailHeader p {
+  margin: 0.35rem 0 0;
+  color: #666;
+  font-size: 0.85rem;
+}
+
+/* ========================================
+   DETAIL SECTION
+   ======================================== */
+
+.section {
+  padding: 1.5rem;
+}
+
+.section h2 {
+  margin: 0 0 1.25rem;
+  color: #aaa;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(
+    2,
+    minmax(0, 1fr)
+  );
+  gap: 1.25rem;
+}
+
+.info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.info span {
+  color: #666;
+  font-size: 0.75rem;
+}
+
+.info strong {
+  color: #eee;
+  font-size: 0.9rem;
+  font-weight: 500;
+  word-break: break-word;
+}
+
+/* ========================================
+   FORM
+   ======================================== */
+
+.formContainer {
+  max-width: 100%;
+}
+
+/* ========================================
+   LOADING
+   ======================================== */
+
+.loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 400px;
+  color: #777;
+  font-size: 0.9rem;
+}
+
+/* ========================================
+   RESPONSIVE
+   ======================================== */
+
+@media (max-width: 700px) {
+  .page {
+    padding: 1rem;
+  }
+
+  .header {
+    flex-direction: column;
+  }
+
+  .primaryButton {
+    width: 100%;
+  }
+
+  .usersGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .userCard {
+    grid-template-columns: auto 1fr;
+  }
+
+  .role {
+    grid-column: 2;
+    width: fit-content;
+  }
+
+  .grid {
+    grid-template-columns: 1fr;
+  }
+
+  .detailHeader {
+    padding: 1.5rem;
+  }
+}
+
+
+.dangerZone {
+    display: flex;
+    justify-content: flex-end;
+    padding: 1.5rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.deleteButton {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+
+    min-height: 40px;
+    padding: 0.65rem 1rem;
+
+    color: #ff6b6b;
+    background: rgba(255, 80, 80, 0.06);
+
+    border: 1px solid rgba(255, 80, 80, 0.2);
+    border-radius: 8px;
+
+    font-size: 0.85rem;
+    font-weight: 600;
+
+    cursor: pointer;
+
+    transition:
+        background 0.2s ease,
+        border-color 0.2s ease,
+        color 0.2s ease,
+        transform 0.2s ease;
+}
+
+.deleteButton:hover {
+    color: #ff8585;
+    background: rgba(255, 80, 80, 0.12);
+    border-color: rgba(255, 80, 80, 0.35);
+}
+
+.deleteButton:active {
+    transform: translateY(1px);
+}

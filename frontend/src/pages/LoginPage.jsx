@@ -15,7 +15,7 @@ export default function LoginPage() {
     e.preventDefault()
     setError('')
     const result = await login(email, password)
-    if (result.success) navigate('/dashboard')
+    if (result.success) navigate('/profile')
     else setError(result.error || 'Login failed')
   }
 

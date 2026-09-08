@@ -1,0 +1,347 @@
+/* ========================================
+   ACTION MODAL
+   ======================================== */
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  padding: 1.5rem;
+
+  background: rgba(0, 0, 0, 0.58);
+
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+
+  animation: overlayIn 0.2s ease-out;
+}
+
+
+/* ========================================
+   MODAL
+   ======================================== */
+
+.modal {
+  position: relative;
+
+  width: min(100%, 380px);
+
+  padding: 2rem;
+
+  background: rgba(15, 15, 15, 0.94);
+
+  border: 1px solid rgba(255, 255, 255, 0.1);
+
+  border-radius: 14px;
+
+  box-shadow:
+    0 25px 80px rgba(0, 0, 0, 0.6),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+
+  text-align: center;
+
+  animation: modalIn 0.25s ease-out;
+}
+
+
+/* ========================================
+   CLOSE ICON
+   ======================================== */
+
+.closeIcon {
+  position: absolute;
+
+  top: 12px;
+  right: 12px;
+
+  width: 32px;
+  height: 32px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  padding: 0;
+
+  color: #666;
+
+  background: transparent;
+
+  border: none;
+  border-radius: 8px;
+
+  cursor: pointer;
+
+  transition:
+    color 0.2s ease,
+    background 0.2s ease;
+}
+
+.closeIcon:hover {
+  color: #fff;
+
+  background: rgba(255, 255, 255, 0.06);
+}
+
+
+/* ========================================
+   ICON
+   ======================================== */
+
+.iconWrapper {
+  width: 52px;
+  height: 52px;
+
+  margin: 0 auto 1.25rem;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  border-radius: 50%;
+}
+
+
+/* CONFIRM */
+
+.confirm {
+  color: #facc15;
+
+  background: rgba(250, 204, 21, 0.08);
+
+  border: 1px solid rgba(250, 204, 21, 0.2);
+}
+
+
+/* SUCCESS */
+
+.success {
+  color: #4ade80;
+
+  background: rgba(74, 222, 128, 0.08);
+
+  border: 1px solid rgba(74, 222, 128, 0.2);
+
+  box-shadow:
+    0 0 25px rgba(74, 222, 128, 0.08);
+}
+
+
+/* ERROR */
+
+.error {
+  color: #f87171;
+
+  background: rgba(248, 113, 113, 0.08);
+
+  border: 1px solid rgba(248, 113, 113, 0.2);
+
+  box-shadow:
+    0 0 25px rgba(248, 113, 113, 0.06);
+}
+
+
+/* ========================================
+   CONTENT
+   ======================================== */
+
+.content {
+  margin-bottom: 1.5rem;
+}
+
+.content h3 {
+  margin: 0 0 0.5rem;
+
+  color: #fff;
+
+  font-size: 1.1rem;
+  font-weight: 600;
+
+  letter-spacing: -0.01em;
+}
+
+.content p {
+  max-width: 290px;
+
+  margin: 0 auto;
+
+  color: #888;
+
+  font-size: 0.9rem;
+  line-height: 1.6;
+}
+
+
+/* ========================================
+   ACTIONS
+   ======================================== */
+
+.actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+
+  gap: 0.75rem;
+}
+
+
+/* ========================================
+   CANCEL
+   ======================================== */
+
+.cancelButton,
+.confirmButton,
+.successButton,
+.errorButton {
+  min-height: 40px;
+
+  padding: 0.7rem 1rem;
+
+  border-radius: 8px;
+
+  font-size: 0.85rem;
+  font-weight: 600;
+
+  cursor: pointer;
+
+  transition:
+    background 0.2s ease,
+    border-color 0.2s ease,
+    transform 0.2s ease,
+    opacity 0.2s ease;
+}
+
+.cancelButton {
+  color: #aaa;
+
+  background: rgba(255, 255, 255, 0.04);
+
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.cancelButton:hover {
+  color: #fff;
+
+  background: rgba(255, 255, 255, 0.07);
+}
+
+
+/* ========================================
+   CONFIRM
+   ======================================== */
+
+.confirmButton {
+  color: #000;
+
+  background: #fff;
+
+  border: 1px solid #fff;
+}
+
+.confirmButton:hover {
+  background: #e8e8e8;
+
+  transform: translateY(-1px);
+}
+
+
+/* ========================================
+   SUCCESS BUTTON
+   ======================================== */
+
+.successButton {
+  width: 100%;
+
+  color: #000;
+
+  background: #fff;
+
+  border: 1px solid #fff;
+}
+
+.successButton:hover {
+  background: #e8e8e8;
+
+  transform: translateY(-1px);
+}
+
+
+/* ========================================
+   ERROR BUTTON
+   ======================================== */
+
+.errorButton {
+  width: 100%;
+
+  color: #fff;
+
+  background: rgba(255, 255, 255, 0.05);
+
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.errorButton:hover {
+  background: rgba(255, 255, 255, 0.08);
+
+  transform: translateY(-1px);
+}
+
+
+/* ========================================
+   DISABLED
+   ======================================== */
+
+.cancelButton:disabled,
+.confirmButton:disabled {
+  cursor: not-allowed;
+
+  opacity: 0.5;
+
+  transform: none;
+}
+
+
+/* ========================================
+   LOADING
+   ======================================== */
+
+.spinner {
+  animation: spin 0.8s linear infinite;
+}
+
+
+/* ========================================
+   ANIMATIONS
+   ======================================== */
+
+@keyframes overlayIn {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes modalIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

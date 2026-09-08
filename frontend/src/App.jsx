@@ -2,24 +2,36 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { I18nProvider } from './context/i18nContext'
 import { AuthProvider } from './context/AuthContext'
 import LoginPage from './pages/LoginPage'
-import DashboardPage from './pages/DashboardPage'
+import Profile from './pages/Profile'
+import Company from './pages/owner/Company'
 import ProtectedRoute from './components/ProtectedRoute'
+import Layout from './components/Layout'
+import Users from './pages/owner/Users'
 
 export default function App() {
   return (
     <I18nProvider>
       <AuthProvider>
-        <BrowserRouter>
+        <BrowserRouter
+          future={{
+            v7_startTransition: true,
+            v7_relativeSplatPath: true,
+          }}>
           <Routes>
             <Route path="/" element={<LoginPage />} />
+
+            {/* Everything under here is auth-gated AND shares the sidebar */}
             <Route
-              path="/dashboard"
               element={
                 <ProtectedRoute>
-                  <DashboardPage />
+                  <Layout />
                 </ProtectedRoute>
               }
-            />
+            >
+              <Route path="/profile" element={<Profile />} />
+              <Route path="/organization/company" element={<Company />} />
+              <Route path="/organization/users" element={<Users />} />
+            </Route>
           </Routes>
         </BrowserRouter>
       </AuthProvider>

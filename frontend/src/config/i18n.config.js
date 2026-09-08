@@ -6,23 +6,156 @@ export const translations = {
       settings: 'Settings',
       help: 'Help & Support',
       profile: 'Profile',
-      preferences: 'Preferences',
-      integrations: 'Integrations',
       companies: 'Companies',
+      organization: "Organization",
+      company: "Company",
+      employees: "Employees",
+      users: "Users",
+      departments: "Departments",
+      jobPositions: "Job Positions",
+      rolesPermissions: "Roles & Permissions",
+      locations: "Locations",
+      documents: "Documents",
+      preferences: "Preferences",
+      integrations: "Integrations",
       dark: 'Dark',
       light: 'Light',
       logout: 'Logout',
       closeSidebar: 'Close sidebar',
       openSidebar: 'Open sidebar',
-      switchTheme: 'Switch to {theme} mode'
+      switchTheme: 'Switch to {theme} mode',
+      dashboard: 'Dashboard',
     },
     common: {
       welcome: 'Welcome',
       goodbye: 'Goodbye',
       loading: 'Loading...',
       error: 'Error',
-      success: 'Success'
-    }
+      fail: 'Fail',
+      success: 'Success',
+      update: 'Update',
+      cancel: 'Cancel',
+      confirm: 'Confirm',
+      close: 'Close',
+      edit: 'Edit',
+      reset: 'Reset',
+      create: "Create",
+    },
+    profile: {
+      settings: 'Settings',
+      firstName: 'First Name',
+      lastName: 'Last Name',
+      email: 'Email',
+      password: 'Password',
+      currentPassword: 'Current Password',
+      newPassword: 'New Password',
+      updateSureMessage: 'Are you sure you want to update your profile?',
+      updateFailMessage: "We couldn't update your profile. Please try again.",
+      updateSuccessMessage: "Your profile has been updated successfully.",
+      bothPasswords: "Both current password and new password are required.",
+      info: 'Information',
+    },
+    company: {
+      title: "Company",
+      subtitle: "Manage your company information",
+      emptySubtitle: "No company set up yet",
+      emptyTitle: "No company yet",
+      emptyMessage: "Set up your company profile to get started.",
+      create: "Create company",
+      editTitle: "Edit company",
+
+      name: "Company name",
+      tradeName: "Trade name",
+      legalForm: "Legal form",
+      industry: "Industry",
+      ice: "ICE",
+      taxId: "Tax ID",
+      registrationNumber: "Registration number",
+      email: "Email",
+      phone: "Phone",
+      website: "Website",
+      street: "Street",
+      city: "City",
+      postalCode: "Postal code",
+      logo: "Company logo",
+      employeeCount: "Employees",
+
+      section: {
+        identity: "Identity",
+        legal: "Legal information",
+        contact: "Contact",
+      },
+
+      createTitle: "Create company",
+      createSureMessage: "Are you sure you want to create this company?",
+      updateSureMessage: "Are you sure you want to save these changes?",
+
+      createSuccessTitle: "Company created",
+      createSuccessMessage: "The company was created successfully.",
+      updateSuccessMessage: "The company was updated successfully.",
+
+      createFailTitle: "Creation failed",
+      saveFailMessage: "Something went wrong while saving the company.",
+
+      loadFailTitle: "Loading failed",
+      loadFailMessage: "Could not load company information.",
+    },
+
+    users: {
+      title: "Users",
+      subtitle: "Manage user accounts and access.",
+
+      addUser: "Add User",
+      newUser: "New User",
+      createSubtitle: "Create a new user account.",
+
+      information: "User Information",
+
+      role: "Role",
+      status: "Status",
+      userId: "User ID",
+
+      roles: {
+        admin: "Administrator",
+        owner: 'Owner',
+        user: "User",
+      },
+
+      statuses: {
+        active: "Active",
+        inactive: "Inactive",
+        suspended: "Suspended",
+      },
+
+      emptyTitle: "No Users",
+      emptyMessage: "There are currently no users in your organization.",
+
+      backToUsers: "Users",
+
+      createTitle: "Create User",
+      createSureMessage: "Are you sure you want to create this user?",
+
+      createSuccessTitle: "User Created",
+      createSuccessMessage: "The user has been created successfully.",
+
+      createFailTitle: "Creation Failed",
+      createFailMessage: "We couldn't create the user.",
+
+      loadFailTitle: "Loading Failed",
+      loadFailMessage: "We couldn't load the users. Please try again.",
+      deleteUser: "Delete user",
+      deleteTitle: "Delete user",
+      deleteSureMessage:
+        "Are you sure you want to delete this user? This action cannot be undone.",
+      deleteSuccessTitle: "User deleted",
+      deleteSuccessMessage:
+        "The user was deleted successfully.",
+      deleteFailTitle: "Deletion failed",
+      deleteFailMessage:
+        "Something went wrong while deleting the user.",
+    },
+
+
   },
   fr: {
     sidebar: {
@@ -46,7 +179,52 @@ export const translations = {
       loading: 'Chargement...',
       error: 'Erreur',
       success: 'Succès'
-    }
+    },
+    company: {
+      title: "Entreprise",
+      subtitle: "Gérez les informations de votre entreprise",
+      emptySubtitle: "Aucune entreprise configurée",
+      emptyTitle: "Aucune entreprise",
+      emptyMessage: "Configurez le profil de votre entreprise pour commencer.",
+      create: "Créer l'entreprise",
+      editTitle: "Modifier l'entreprise",
+
+      name: "Nom de l'entreprise",
+      tradeName: "Nom commercial",
+      legalForm: "Forme juridique",
+      industry: "Secteur d'activité",
+      ice: "ICE",
+      taxId: "Identifiant fiscal",
+      registrationNumber: "Registre de commerce",
+      email: "E-mail",
+      phone: "Téléphone",
+      website: "Site web",
+      street: "Rue",
+      city: "Ville",
+      postalCode: "Code postal",
+      logo: "Logo de l'entreprise",
+      employeeCount: "Employés",
+
+      section: {
+        identity: "Identité",
+        legal: "Informations légales",
+        contact: "Contact",
+      },
+
+      createTitle: "Créer l'entreprise",
+      createSureMessage: "Voulez-vous vraiment créer cette entreprise ?",
+      updateSureMessage: "Voulez-vous vraiment enregistrer ces modifications ?",
+
+      createSuccessTitle: "Entreprise créée",
+      createSuccessMessage: "L'entreprise a été créée avec succès.",
+      updateSuccessMessage: "L'entreprise a été mise à jour avec succès.",
+
+      createFailTitle: "Échec de la création",
+      saveFailMessage: "Une erreur est survenue lors de l'enregistrement.",
+
+      loadFailTitle: "Échec du chargement",
+      loadFailMessage: "Impossible de charger les informations de l'entreprise.",
+    },
   },
   ar: {
     sidebar: {

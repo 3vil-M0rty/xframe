@@ -1,178 +1,505 @@
-const mongoose = require('mongoose');
+const mongoose = require("mongoose");
 
 const companySchema = new mongoose.Schema(
   {
-    // Legal Name
+    // =========================================================
+    // BASIC COMPANY INFORMATION
+    // =========================================================
+
     name: {
       type: String,
-      required: [true, 'Company name is required'],
+      required: [true, "Company name is required"],
       trim: true,
-      minlength: 2
+      minlength: [2, "Company name must contain at least 2 characters"],
+      maxlength: [200, "Company name cannot exceed 200 characters"],
     },
 
-    // Moroccan Legal Form (Forme Juridique)
+    tradeName: {
+      type: String,
+      trim: true,
+      maxlength: [200, "Trade name cannot exceed 200 characters"],
+    },
+
+    shortName: {
+      type: String,
+      trim: true,
+      uppercase: true,
+      maxlength: [50, "Short name cannot exceed 50 characters"],
+    },
+
+    description: {
+      type: String,
+      trim: true,
+      maxlength: [2000, "Description cannot exceed 2000 characters"],
+    },
+
+    // =========================================================
+    // LEGAL INFORMATION - MOROCCO
+    // =========================================================
+
     legalForm: {
       type: String,
-      enum: ['SARL', 'SA', 'EIRL', 'SARUE', 'SCS', 'SNC', 'Cooperative', 'Association'],
-      required: true,
-      default: 'SARL',
-      description: 'SARL: Société à Responsabilité Limitée, SA: Société Anonyme, EIRL: Entreprise Individuelle, etc'
+      enum: [
+        "SARL",
+        "SARL_AU",
+        "SA",
+        "SAS",
+        "SASU",
+        "SNC",
+        "SCS",
+        "SCA",
+        "SP",
+        "COOPERATIVE",
+        "ASSOCIATION",
+        "OTHER",
+      ],
+      required: [true, "Legal form is required"],
+      default: "SARL",
     },
 
-    // Moroccan Registration Number (CNSS)
-    registrationNumber: {
+    legalFormOther: {
       type: String,
-      unique: true,
-      sparse: true,
-      description: 'Numéro de Registre de Commerce et d\'Industrie (RCCI)'
+      trim: true,
+      maxlength: 100,
     },
 
-    // Tax Identification (IF - Identifiant Fiscal)
+    // Identifiant Commun de l'Entreprise
+    ice: {
+      type: String,
+      trim: true,
+      uppercase: true,
+      match: [/^\d{15}$/, "ICE must contain exactly 15 digits"],
+    },
+
+    // Identifiant Fiscal
     taxId: {
       type: String,
-      unique: true,
-      sparse: true,
-      description: 'Identifiant Fiscal Morocco'
+      trim: true,
+      uppercase: true,
     },
 
-    // Business Sector
+    // Registre de Commerce
+    registrationNumber: {
+      type: String,
+      trim: true,
+      uppercase: true,
+    },
+
+    registrationCity: {
+      type: String,
+      trim: true,
+    },
+
+    registrationDate: {
+      type: Date,
+    },
+
+    // CNSS employer registration
+    cnssNumber: {
+      type: String,
+      trim: true,
+      uppercase: true,
+    },
+
+    // Professional tax / taxe professionnelle
+    professionalTaxNumber: {
+      type: String,
+      trim: true,
+      uppercase: true,
+    },
+
+    // Tax office
+    taxOffice: {
+      type: String,
+      trim: true,
+    },
+
+    // =========================================================
+    // BUSINESS INFORMATION
+    // =========================================================
+
     industry: {
       type: String,
-      required: true
+      required: [true, "Industry is required"],
+      trim: true,
     },
 
-    description: String,
+    businessActivity: {
+      type: String,
+      trim: true,
+      maxlength: 500,
+    },
 
-    // Contact Information
+    activityCode: {
+      type: String,
+      trim: true,
+    },
+
+    website: {
+      type: String,
+      trim: true,
+      lowercase: true,
+    },
+
+    // =========================================================
+    // CONTACT INFORMATION
+    // =========================================================
+
     email: {
       type: String,
+      trim: true,
       lowercase: true,
-      sparse: true,
-      match: [/^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/, 'Invalid email']
+      match: [
+        /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
+        "Invalid email address",
+      ],
     },
 
-    // Moroccan Phone Format
     phone: {
       type: String,
-      sparse: true,
-      match: [/^(\+212|0)[1-9]\d{8}$/, 'Invalid Moroccan phone number'],
-      description: 'Format: +212XXXXXXXXX or 0XXXXXXXXX'
+      trim: true,
+      match: [
+        /^(?:\+212|0)(?:[5-7]\d{8})$/,
+        "Invalid Moroccan phone number",
+      ],
     },
 
-    // Address in Morocco
+    secondaryPhone: {
+      type: String,
+      trim: true,
+      match: [
+        /^(?:\+212|0)(?:[5-7]\d{8})$/,
+        "Invalid Moroccan phone number",
+      ],
+    },
+
+    fax: {
+      type: String,
+      trim: true,
+    },
+
+    // =========================================================
+    // ADDRESS
+    // =========================================================
+
     address: {
-      street: String,
-      city: String,
+      street: {
+        type: String,
+        trim: true,
+      },
+
+      additionalLine: {
+        type: String,
+        trim: true,
+      },
+
+      neighborhood: {
+        type: String,
+        trim: true,
+      },
+
+      city: {
+        type: String,
+        trim: true,
+      },
+
       region: {
         type: String,
         enum: [
-          'Dakhla-Oued Ed-Dahab',
-          'Laâyoune-Sakia El Hamra',
-          'Souss-Massa',
-          'Béni Mellal-Khénifra',
-          'Casablanca-Settat',
-          'Fès-Meknès',
-          'Rabat-Salé-Kénitra',
-          'Marrakech-Safi',
-          'Drâa-Tafilalet',
-          'Tanger-Tétouan-Al Hoceïma',
-          'Oriental'
-        ]
+          "Dakhla-Oued Ed-Dahab",
+          "Laâyoune-Sakia El Hamra",
+          "Souss-Massa",
+          "Guelmim-Oued Noun",
+          "Drâa-Tafilalet",
+          "Oriental",
+          "Fès-Meknès",
+          "Rabat-Salé-Kénitra",
+          "Béni Mellal-Khénifra",
+          "Casablanca-Settat",
+          "Marrakech-Safi",
+          "Tanger-Tétouan-Al Hoceïma",
+        ],
       },
-      zipCode: String
+
+      postalCode: {
+        type: String,
+        trim: true,
+      },
+
+      country: {
+        type: String,
+        trim: true,
+        default: "Morocco",
+      },
+
+      countryCode: {
+        type: String,
+        trim: true,
+        uppercase: true,
+        default: "MA",
+      },
     },
 
-    website: String,
+    // =========================================================
+    // GEOLOCATION
+    // =========================================================
 
-    // Company Logo
+    location: {
+      latitude: {
+        type: Number,
+        min: -90,
+        max: 90,
+      },
+
+      longitude: {
+        type: Number,
+        min: -180,
+        max: 180,
+      },
+    },
+
+    // =========================================================
+    // COMPANY LOGO - CLOUDINARY
+    // =========================================================
+
     logo: {
-      url: String,
-      publicId: String
+      url: {
+        type: String,
+        trim: true,
+      },
+
+      publicId: {
+        type: String,
+        trim: true,
+      },
+
+      format: {
+        type: String,
+        trim: true,
+      },
+
+      width: {
+        type: Number,
+        min: 0,
+      },
+
+      height: {
+        type: Number,
+        min: 0,
+      },
+
+      uploadedAt: {
+        type: Date,
+      },
     },
 
-    // Size Classification
+    // =========================================================
+    // COMPANY SIZE
+    // =========================================================
+
     size: {
       type: String,
-      enum: ['Startup', 'Small', 'Medium', 'Large', 'Enterprise'],
-      default: 'Small'
+      enum: [
+        "micro",
+        "small",
+        "medium",
+        "large",
+        "enterprise",
+      ],
+      default: "small",
     },
 
+    // Do NOT use this as the source of truth for employees.
+    // It can be maintained as a cached/statistical value later.
     employeeCount: {
       type: Number,
-      min: 1,
-      default: 1
+      min: 0,
+      default: 0,
     },
 
-    // Fiscal Year (Exercice Comptable)
+    // =========================================================
+    // FISCAL / ACCOUNTING SETTINGS
+    // =========================================================
+
     fiscalYear: {
       startMonth: {
         type: Number,
         min: 1,
         max: 12,
-        default: 1
+        default: 1,
       },
+
       startDay: {
         type: Number,
         min: 1,
         max: 31,
-        default: 1
-      }
+        default: 1,
+      },
     },
 
-    // Currency (Devises Acceptées)
     currency: {
       type: String,
-      enum: ['MAD', 'USD', 'EUR'],
-      default: 'MAD'
+      enum: ["MAD", "EUR", "USD"],
+      default: "MAD",
     },
 
-    // Branding Settings
-    settings: {
-      theme: {
-        primaryColor: { type: String, default: '#3b82f6' },
-        secondaryColor: { type: String, default: '#10b981' }
+    // =========================================================
+    // COMPANY BANKING INFORMATION
+    // =========================================================
+
+    bank: {
+      bankName: {
+        type: String,
+        trim: true,
       },
+
+      accountName: {
+        type: String,
+        trim: true,
+      },
+
+      rib: {
+        type: String,
+        trim: true,
+      },
+
+      iban: {
+        type: String,
+        trim: true,
+      },
+
+      swift: {
+        type: String,
+        trim: true,
+        uppercase: true,
+      },
+    },
+
+    // =========================================================
+    // BRANDING
+    // =========================================================
+
+    branding: {
+      primaryColor: {
+        type: String,
+        trim: true,
+        default: "#3b82f6",
+      },
+
+      secondaryColor: {
+        type: String,
+        trim: true,
+        default: "#10b981",
+      },
+
+      accentColor: {
+        type: String,
+        trim: true,
+      },
+
+      darkMode: {
+        type: Boolean,
+        default: true,
+      },
+    },
+
+    // =========================================================
+    // LANGUAGE / REGIONAL SETTINGS
+    // =========================================================
+
+    localization: {
       language: {
         type: String,
-        enum: ['fr', 'ar', 'en'],
-        default: 'fr'
-      }
+        enum: ["fr", "ar", "en"],
+        default: "fr",
+      },
+
+      timezone: {
+        type: String,
+        default: "Africa/Casablanca",
+      },
+
+      dateFormat: {
+        type: String,
+        default: "DD/MM/YYYY",
+      },
+
+      timeFormat: {
+        type: String,
+        enum: ["12h", "24h"],
+        default: "24h",
+      },
     },
 
-    // Ownership
+    // =========================================================
+    // COMPANY OWNER
+    // =========================================================
+
     owner: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
-      required: true
+      ref: "User",
+      required: [true, "Company owner is required"],
+    },
+
+    // =========================================================
+    // COMPANY STATUS
+    // =========================================================
+
+    status: {
+      type: String,
+      enum: [
+        "pending",
+        "active",
+        "suspended",
+        "inactive",
+        "archived",
+      ],
+      default: "active",
     },
 
     isActive: {
       type: Boolean,
-      default: true
+      default: true,
     },
 
-    createdAt: {
-      type: Date,
-      default: Date.now
+    // =========================================================
+    // AUDIT
+    // =========================================================
+
+    createdBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
     },
 
-    updatedAt: {
-      type: Date,
-      default: Date.now
-    }
+    updatedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+    },
   },
-  { timestamps: true }
+  {
+    timestamps: true,
+  }
 );
 
-// Update timestamp on save
-companySchema.pre('save', function (next) {
-  this.updatedAt = new Date();
-  next();
-});
+// =============================================================
+// INDEXES
+// =============================================================
 
-// Indexes for performance
 companySchema.index({ owner: 1 });
-companySchema.index({ registrationNumber: 1 });
-companySchema.index({ taxId: 1 });
+companySchema.index({ name: 1 });
+companySchema.index({ ice: 1 }, { unique: true, sparse: true });
+companySchema.index({ taxId: 1 }, { unique: true, sparse: true });
+companySchema.index(
+  { registrationNumber: 1 },
+  { unique: true, sparse: true }
+);
+companySchema.index({ cnssNumber: 1 }, { unique: true, sparse: true });
+companySchema.index({ status: 1 });
+companySchema.index({ "address.city": 1 });
+companySchema.index({ industry: 1 });
 
-module.exports = mongoose.model('Company', companySchema);
+// =============================================================
+// EXPORT
+// =============================================================
+
+module.exports = mongoose.model("Company", companySchema);

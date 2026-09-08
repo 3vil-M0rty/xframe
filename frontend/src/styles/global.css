@@ -111,7 +111,10 @@ h1, h2, h3, h4, h5, h6 {
   line-height: var(--line-height-tight);
   margin-bottom: var(--spacing-md);
 }
-
+::selection {
+  background: rgba(0, 0, 0, 1);
+  color: #fff;
+}
 h1 { font-size: var(--font-4xl); }
 h2 { font-size: var(--font-3xl); }
 h3 { font-size: var(--font-2xl); }

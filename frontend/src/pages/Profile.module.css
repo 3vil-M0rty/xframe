@@ -1,17 +1,3 @@
-.container {
-  display: flex;
-  height: 100vh;
-  background: var(--color-bg-secondary);
-}
-
-.main {
-  flex: 1;
-  padding: var(--spacing-2xl);
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-}
-
 .empty {
   flex: 1;
   display: flex;
@@ -35,6 +21,11 @@
   margin-bottom: var(--spacing-2xl);
 }
 
+.rows {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
 .emptyButton {
   display: inline-flex;
   align-items: center;

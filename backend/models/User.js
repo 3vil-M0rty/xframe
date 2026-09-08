@@ -20,7 +20,10 @@ const userSchema = new mongoose.Schema(
       required: [true, 'Email is required'],
       unique: true,
       lowercase: true,
-      match: [/^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/, 'Invalid email']
+      match: [
+        /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
+        "Invalid email",
+      ],
     },
 
     password: {
@@ -32,24 +35,17 @@ const userSchema = new mongoose.Schema(
 
     role: {
       type: String,
-      enum: ['admin', 'owner'],
-      default: 'owner'
+      enum: ['admin', 'owner', 'user'],
+      default: 'staff'
     },
 
-    isActive: {
-      type: Boolean,
-      default: true
-    },
-
-    createdAt: {
-      type: Date,
-      default: Date.now
-    },
-
-    updatedAt: {
-      type: Date,
-      default: Date.now
+    status: {
+      type: String,
+      enum: ["active", "inactive", "suspended"],
+      default: "active"
     }
+
+
   },
   { timestamps: true }
 );

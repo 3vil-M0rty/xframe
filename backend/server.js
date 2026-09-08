@@ -4,9 +4,8 @@ const cors = require('cors');
 require('dotenv').config();
 
 const authRoutes = require('./routes/auth');
-const companyRoutes = require('./routes/companies');
 const userRoutes = require('./routes/users');
-
+const companyRoutes = require("./routes/companies");  
 
 const app = express();
 
@@ -20,10 +19,18 @@ mongoose
   .then(() => console.log('✓ Connected to MongoDB'))
   .catch(err => console.error('MongoDB connection error:', err));
 
+const cookieParser = require('cookie-parser');
+app.use(cookieParser());
+app.use(cors({
+  origin: 'http://localhost:5173',
+  credentials: true  // ← Important!
+}));
+
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/companies', companyRoutes);
 app.use('/api/users', userRoutes);
+app.use("/api/companies", companyRoutes);
 
 // Health check
 app.get('/health', (req, res) => {

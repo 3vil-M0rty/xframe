@@ -1,0 +1,736 @@
+/* ============================================================
+   EMPLOYEES PAGE
+   Page-specific styles only. Shared layout/button/empty-state/
+   grid/detail-card primitives live once in src/styles/global.css
+   (composed in below) and the employee card itself now lives in
+   components/employee/EmployeeCard.module.css.
+   ============================================================ */
+
+
+/* ============================================================
+   PAGE / HEADER
+   ============================================================ */
+
+.page {
+    composes: pageShell from global;
+}
+
+.header {
+    composes: pageHeader from global;
+}
+
+.titleRow {
+    composes: pageTitleRow from global;
+}
+
+.subtitle {
+    composes: pageSubtitle from global;
+}
+
+
+/* ============================================================
+   BUTTONS
+   ============================================================ */
+
+.primaryButton {
+    composes: btnPrimary from global;
+}
+
+.backButton {
+    composes: btnBack from global;
+}
+
+.secondaryButton,
+.editButton,
+.editDetailButton {
+    composes: btnEdit from global;
+}
+
+.deleteButton,
+.dangerButton {
+    composes: btnDelete from global;
+}
+
+
+/* ============================================================
+   TOOLBAR
+   ============================================================ */
+
+.toolbar {
+    display: grid;
+
+    grid-template-columns:
+        minmax(220px, 280px)
+        minmax(280px, 1fr);
+
+    align-items: end;
+
+    gap: 14px;
+
+    margin-bottom: 18px;
+}
+
+
+/* ============================================================
+   COMPANY SELECTOR
+   ============================================================ */
+
+.companySelector {
+    display: flex;
+    flex-direction: column;
+
+    gap: 7px;
+}
+
+.companySelector label {
+    color: var(--color-text-secondary);
+
+    font-size: 0.72rem;
+    font-weight: 600;
+
+    letter-spacing: 0.01em;
+}
+
+.searchWrapper {
+    min-width: 0;
+}
+
+
+/* ============================================================
+   COMPANY INFO
+   ============================================================ */
+
+.companyInfo {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+
+    gap: 16px;
+
+    padding: 13px 16px;
+    margin-bottom: 18px;
+
+    border: 1px solid var(--color-border);
+    border-radius: 10px;
+
+    background: var(--color-bg-secondary);
+}
+
+.companyInfoHeader {
+    display: flex;
+    align-items: center;
+
+    gap: 10px;
+
+    min-width: 0;
+
+    color: var(--color-text-secondary);
+}
+
+.companyInfoHeader strong {
+    display: block;
+
+    overflow: hidden;
+
+    color: var(--color-text-primary);
+
+    font-size: 0.85rem;
+    font-weight: 650;
+
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.companyInfoHeader span {
+    display: flex;
+    align-items: center;
+
+    gap: 5px;
+
+    margin-top: 2px;
+
+    color: var(--color-text-tertiary);
+
+    font-size: 0.72rem;
+}
+
+.companyStats span {
+    flex-shrink: 0;
+
+    padding: 4px 9px;
+
+    border: 1px solid var(--color-border);
+    border-radius: 999px;
+
+    color: var(--color-text-secondary);
+
+    background: var(--color-bg-primary);
+
+    font-size: 0.7rem;
+    font-weight: 600;
+}
+
+
+/* ============================================================
+   FORM
+   ============================================================ */
+
+.formContainer {
+    composes: formShell from global;
+}
+
+.formArea {
+    width: 100%;
+}
+
+.formTopBar {
+    display: flex;
+    align-items: center;
+
+    gap: 14px;
+
+    margin-bottom: 16px;
+}
+
+.formTopBar span {
+    color: var(--color-text-secondary);
+
+    font-size: 0.8rem;
+    font-weight: 600;
+}
+
+
+/* ============================================================
+   FORM EXTRAS
+   ============================================================ */
+
+.formExtras {
+    display: grid;
+
+    grid-template-columns:
+        minmax(220px, 0.7fr)
+        minmax(320px, 1.3fr);
+
+    gap: 18px;
+
+    margin-bottom: 18px;
+    padding-bottom: 18px;
+
+    border-bottom: 1px solid var(--color-border);
+}
+
+.formExtraSection {
+    display: flex;
+    flex-direction: column;
+
+    gap: 8px;
+
+    min-width: 0;
+}
+
+.formExtraHeader {
+    display: flex;
+    align-items: center;
+
+    gap: 7px;
+
+    color: var(--color-text-secondary);
+
+    font-size: 0.72rem;
+    font-weight: 600;
+
+    letter-spacing: 0.01em;
+}
+
+
+/* ============================================================
+   PHOTO UPLOAD
+   ============================================================ */
+
+.photoUpload {
+    display: flex;
+    align-items: center;
+
+    gap: 16px;
+
+    min-height: 120px;
+
+    padding: 14px;
+    margin-top: 4px;
+
+    border: 1px dashed var(--color-border);
+    border-radius: 10px;
+
+    background: var(--color-bg-primary);
+}
+
+.photoPreview {
+    composes: avatarCircleLg from global;
+
+    width: 86px;
+    height: 86px;
+    flex: 0 0 86px;
+}
+
+.photoPreview img {
+    width: 100%;
+    height: 100%;
+
+    display: block;
+
+    object-fit: cover;
+}
+
+.photoActions {
+    display: flex;
+    flex-wrap: wrap;
+
+    gap: 7px;
+}
+
+
+/* ============================================================
+   PHOTO BUTTONS
+   ============================================================ */
+
+.photoButton,
+.removePhotoButton {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+
+    gap: 8px;
+
+    min-height: 36px;
+
+    padding: 0 12px;
+
+    border-radius: 8px;
+
+    font-family: inherit;
+    font-size: 0.8rem;
+    font-weight: 600;
+    line-height: 1;
+
+    white-space: nowrap;
+
+    cursor: pointer;
+
+    transition:
+        background 0.18s ease,
+        border-color 0.18s ease,
+        color 0.18s ease;
+}
+
+.photoButton svg,
+.removePhotoButton svg {
+    flex-shrink: 0;
+}
+
+.photoButton {
+    color: var(--color-text-primary);
+
+    background: var(--color-bg-secondary);
+
+    border: 1px solid var(--color-border);
+}
+
+.photoButton:hover {
+    background: var(--color-bg-hover);
+    border-color: var(--color-text-secondary);
+}
+
+.removePhotoButton {
+    color: var(--color-text-secondary);
+
+    background: transparent;
+
+    border: 1px solid var(--color-border);
+}
+
+.removePhotoButton:hover {
+    color: var(--color-danger);
+
+    border-color: var(--color-danger);
+
+    background: rgba(255, 0, 0, 0.06);
+}
+
+
+/* ============================================================
+   EMPLOYEE GRID
+   (the card itself lives in
+   components/employee/EmployeeCard.module.css)
+   ============================================================ */
+
+.employeeGrid {
+    composes: autoFillGrid from global;
+}
+
+
+/* ============================================================
+   EMPTY STATE
+   ============================================================ */
+
+.emptyState {
+    composes: emptyStateBlock from global;
+}
+
+.emptyIcon {
+    composes: emptyStateIcon from global;
+}
+
+
+/* ============================================================
+   DETAIL HEADER
+   ============================================================ */
+
+.detailHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+
+    gap: 18px;
+
+    margin-bottom: 18px;
+}
+
+.detailActions {
+    display: flex;
+    gap: 8px;
+}
+
+
+/* ============================================================
+   PROFILE CARD
+   ============================================================ */
+
+.profileCard {
+    composes: detailCard from global;
+
+    display: flex;
+    align-items: center;
+
+    gap: 1.25rem;
+
+    padding: 2rem;
+}
+
+.profilePhoto {
+    composes: avatarCircleLg from global;
+    flex-shrink: 0;
+}
+
+.profilePhoto img {
+    width: 100%;
+    height: 100%;
+
+    object-fit: cover;
+}
+
+.profileMain {
+    min-width: 0;
+}
+
+.profileNameRow {
+    display: flex;
+    align-items: center;
+
+    gap: 10px;
+}
+
+.profileNameRow h1 {
+    margin: 0;
+
+    font-size: 1.3rem;
+    font-weight: 600;
+}
+
+.profileJob {
+    margin: 0.35rem 0 0;
+
+    color: #777;
+
+    font-size: 0.85rem;
+}
+
+.profileMeta {
+    display: flex;
+    flex-wrap: wrap;
+
+    gap: 10px;
+
+    margin-top: 10px;
+}
+
+.profileMeta span {
+    display: inline-flex;
+    align-items: center;
+
+    gap: 5px;
+
+    color: var(--color-text-tertiary);
+
+    font-size: 0.75rem;
+}
+
+
+/* ============================================================
+   STATUS BADGE (employee detail header)
+   ============================================================ */
+
+.statusBadge {
+    display: inline-flex;
+    align-items: center;
+    flex-shrink: 0;
+    padding: 4px 8px;
+    border: 1px solid var(--color-border);
+    border-radius: 999px;
+    color: var(--color-text-tertiary);
+    background: var(--color-bg-primary);
+    font-size: 0.68rem;
+    font-weight: 600;
+    text-transform: capitalize;
+    white-space: nowrap;
+}
+
+.statusActive {
+    color: #d8d8d8;
+    border-color: rgba(255, 255, 255, 0.18);
+    background: rgba(255, 255, 255, 0.07);
+}
+
+.statusInactive {
+    opacity: 0.7;
+}
+
+
+/* ============================================================
+   DETAIL GRID
+   ============================================================ */
+
+.detailGrid {
+    composes: detailGrid from global;
+}
+
+.detailSection {
+    composes: detailSection from global;
+}
+
+.sectionTitle {
+    margin-bottom: 10px;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 5px;
+}
+
+.infoGrid {
+    display: grid;
+
+    grid-template-columns:
+        repeat(
+            2,
+            minmax(0, 1fr)
+        );
+
+    gap: 1.25rem;
+}
+
+.infoGrid > div {
+    min-width: 0;
+
+    padding: 11px 12px;
+
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+
+    background: var(--color-bg-primary);
+}
+
+.infoGrid label,
+.infoGrid > div > label {
+    display: block;
+
+    margin-bottom: 0.35rem;
+
+    color: #666;
+
+    font-size: 0.75rem;
+}
+
+.infoGrid span {
+    display: flex;
+    align-items: center;
+
+    gap: 6px;
+
+    color: #eee;
+
+    font-size: 0.9rem;
+    font-weight: 500;
+
+    word-break: break-word;
+}
+
+.fullWidth {
+    grid-column: 1 / -1;
+}
+
+.fullWidthSection {
+    grid-column: 1 / -1;
+}
+
+
+/* ============================================================
+   COMPANY DETAIL
+   ============================================================ */
+
+.companyDetail {
+    display: flex;
+    flex-direction: column;
+
+    gap: 6px;
+}
+
+.companyDetail strong {
+    color: var(--color-text-primary);
+
+    font-size: 0.9rem;
+}
+
+.companyDetail span {
+    display: flex;
+    align-items: center;
+
+    gap: 6px;
+
+    color: var(--color-text-tertiary);
+
+    font-size: 0.78rem;
+}
+
+
+/* ============================================================
+   NOTES
+   ============================================================ */
+
+.notes {
+    margin: 0;
+
+    color: var(--color-text-secondary);
+
+    font-size: 0.85rem;
+    line-height: 1.6;
+
+    white-space: pre-wrap;
+}
+
+
+/* ============================================================
+   LOADING
+   ============================================================ */
+
+.loading {
+    composes: loadingState from global;
+}
+
+
+/* ============================================================
+   ERROR
+   ============================================================ */
+
+.errorMessage {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+
+    gap: 12px;
+
+    padding: 12px 16px;
+    margin-bottom: 16px;
+
+    border: 1px solid rgba(255, 80, 80, 0.25);
+    border-radius: 10px;
+
+    background: rgba(255, 80, 80, 0.06);
+
+    color: #ff8585;
+
+    font-size: 0.82rem;
+}
+
+.errorMessage button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    color: inherit;
+
+    background: transparent;
+
+    border: 0;
+
+    cursor: pointer;
+}
+
+
+/* ============================================================
+   RESPONSIVE
+   ============================================================ */
+
+@media (max-width: 1000px) {
+    .formExtras {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 900px) {
+    .detailGrid,
+    .infoGrid {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 760px) {
+    .toolbar {
+        grid-template-columns: 1fr;
+    }
+
+    .companyInfo {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+}
+
+@media (max-width: 700px) {
+    .detailHeader {
+        flex-direction: column;
+        align-items: flex-start;
+
+        gap: 10px;
+    }
+
+    .detailActions {
+        width: 100%;
+    }
+
+    .detailActions button {
+        flex: 1;
+    }
+
+    .profileCard {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+}
+
+@media (max-width: 480px) {
+    .detailHeader {
+        padding: 1.25rem;
+    }
+
+    .detailSection {
+        padding: 1.25rem;
+    }
+}

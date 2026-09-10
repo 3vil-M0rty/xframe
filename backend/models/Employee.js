@@ -3,94 +3,74 @@ const mongoose = require("mongoose");
 const employeeSchema = new mongoose.Schema(
     {
         // =========================================================
-        // 1. USER ACCOUNT
-        // =========================================================
-        // Optional.
-        //
-        // Not every employee needs an application account.
-        //
-        // If the employee has an account:
-        // employee.user -> User
-        //
-        // If not:
-        // employee.user = null
-        // =========================================================
-
-        user: {
-            type: mongoose.Schema.Types.ObjectId,
-            ref: "User",
-            default: null,
-        },
-
-        permissions: {
-            allow: [
-                {
-                    type: String,
-                    trim: true,
-                },
-            ],
-
-            deny: [
-                {
-                    type: String,
-                    trim: true,
-                },
-            ],
-        },
-
-        // =========================================================
-        // 2. COMPANY
-        // =========================================================
-        // Important if your application is multi-company.
-        // Every employee belongs to one company.
+        // COMPANY / LOGIN
         // =========================================================
 
         company: {
             type: mongoose.Schema.Types.ObjectId,
             ref: "Company",
-            required: true,
+            required: [true, "Company is required"],
+            index: true,
         },
 
+        // Optional login account
+        // Not every employee needs access to FRAME.
+
         // =========================================================
-        // 3. INTERNAL EMPLOYEE IDENTIFICATION
+        // EMPLOYEE IDENTIFICATION
         // =========================================================
 
         employeeNumber: {
             type: String,
-            required: true,
+            required: [true, "Employee number is required"],
             trim: true,
             uppercase: true,
         },
 
-        // =========================================================
-        // 4. PERSONAL INFORMATION
-        // =========================================================
-
         firstName: {
             type: String,
-            required: true,
+            required: [true, "First name is required"],
             trim: true,
+            maxlength: 100,
         },
 
         lastName: {
             type: String,
-            required: true,
+            required: [true, "Last name is required"],
             trim: true,
+            maxlength: 100,
+        },
+
+        photo: {
+            url: {
+                type: String,
+                default: null,
+            },
+            publicId: {
+                type: String,
+                default: null,
+            },
         },
 
         firstNameArabic: {
             type: String,
             trim: true,
+            maxlength: 100,
         },
 
         lastNameArabic: {
             type: String,
             trim: true,
+            maxlength: 100,
         },
+
+        // =========================================================
+        // PERSONAL INFORMATION
+        // =========================================================
 
         gender: {
             type: String,
-            enum: ["male", "female"],
+            enum: ["male", "female", "other"],
         },
 
         dateOfBirth: {
@@ -102,21 +82,10 @@ const employeeSchema = new mongoose.Schema(
             trim: true,
         },
 
-        countryOfBirth: {
-            type: String,
-            trim: true,
-        },
-
         nationality: {
             type: String,
-            required: true,
             trim: true,
-        },
-
-        nationalityType: {
-            type: String,
-            enum: ["moroccan", "foreign"],
-            required: true,
+            default: "Moroccan",
         },
 
         maritalStatus: {
@@ -126,73 +95,58 @@ const employeeSchema = new mongoose.Schema(
                 "married",
                 "divorced",
                 "widowed",
+                "other",
             ],
+            default: "single",
         },
 
-        numberOfChildren: {
+        numberOfDependents: {
             type: Number,
             min: 0,
             default: 0,
         },
 
         // =========================================================
-        // 5. IDENTITY DOCUMENTS
+        // IDENTITY DOCUMENTS
         // =========================================================
 
-        // Moroccan CIN
         cin: {
             type: String,
             trim: true,
             uppercase: true,
         },
 
-        cinIssueDate: {
-            type: Date,
-        },
-
-        cinExpiryDate: {
-            type: Date,
-        },
-
-        // Foreign employee passport
         passportNumber: {
             type: String,
             trim: true,
             uppercase: true,
         },
 
-        passportIssueDate: {
-            type: Date,
-        },
-
         passportExpiryDate: {
             type: Date,
         },
 
-        passportIssuingCountry: {
+        // Useful for foreign employees
+        workPermitNumber: {
             type: String,
             trim: true,
         },
 
-        // Foreign employee residence permit
-        residencePermitNumber: {
-            type: String,
-            trim: true,
-        },
-
-        residencePermitIssueDate: {
-            type: Date,
-        },
-
-        residencePermitExpiryDate: {
+        workPermitExpiryDate: {
             type: Date,
         },
 
         // =========================================================
-        // 6. CONTACT INFORMATION
+        // CONTACT
         // =========================================================
 
         personalEmail: {
+            type: String,
+            trim: true,
+            lowercase: true,
+        },
+
+        workEmail: {
             type: String,
             trim: true,
             lowercase: true,
@@ -209,7 +163,7 @@ const employeeSchema = new mongoose.Schema(
         },
 
         // =========================================================
-        // 7. ADDRESS
+        // ADDRESS
         // =========================================================
 
         address: {
@@ -223,12 +177,12 @@ const employeeSchema = new mongoose.Schema(
                 trim: true,
             },
 
-            postalCode: {
+            region: {
                 type: String,
                 trim: true,
             },
 
-            region: {
+            postalCode: {
                 type: String,
                 trim: true,
             },
@@ -241,7 +195,7 @@ const employeeSchema = new mongoose.Schema(
         },
 
         // =========================================================
-        // 8. EMERGENCY CONTACT
+        // EMERGENCY CONTACT
         // =========================================================
 
         emergencyContact: {
@@ -268,18 +222,12 @@ const employeeSchema = new mongoose.Schema(
         },
 
         // =========================================================
-        // 9. EMPLOYMENT INFORMATION
+        // EMPLOYMENT
         // =========================================================
 
         hireDate: {
             type: Date,
-            required: true,
-        },
-
-        // Used when seniority starts from a date different
-        // from the actual contract/hire date.
-        seniorityDate: {
-            type: Date,
+            required: [true, "Hire date is required"],
         },
 
         terminationDate: {
@@ -290,97 +238,53 @@ const employeeSchema = new mongoose.Schema(
             type: String,
             enum: [
                 "active",
+                "inactive",
                 "on_leave",
                 "suspended",
                 "terminated",
-                "resigned",
-                "retired",
             ],
             default: "active",
+            index: true,
         },
 
-        terminationReason: {
+        employmentType: {
+            type: String,
+            enum: [
+                "permanent",
+                "fixed_term",
+                "temporary",
+                "intern",
+                "apprentice",
+                "freelance",
+                "part_time",
+                "other",
+            ],
+            default: "permanent",
+        },
+
+        // =========================================================
+        // JOB INFORMATION
+        // =========================================================
+
+        jobTitle: {
             type: String,
             trim: true,
         },
-
-        // =========================================================
-        // 10. ORGANIZATION
-        // =========================================================
-        //
-        // Department
-        //     ↓
-        // Job Category
-        //     ↓
-        // Job Position
-        //
-        // Example:
-        //
-        // department: "production"
-        // jobCategory: "aluminium"
-        // jobPosition: "aluminium_fabricator"
-        // =========================================================
 
         department: {
             type: String,
-            enum: [
-                "management",
-                "administration",
-                "human_resources",
-                "finance",
-                "commercial",
-                "engineering",
-                "production",
-                "quality",
-                "maintenance",
-                "logistics",
-                "warehouse",
-                "installation",
-                "construction",
-                "it",
-                "security",
-                "other",
-            ],
+            trim: true,
         },
 
-        // This should remain flexible because different companies
-        // can have different categories.
-        //
-        // Examples:
-        // aluminium
-        // vitrage
-        // laquage
-        // finance
-        // accounting
-        // sales
-        // maintenance
-        // etc.
-        jobCategory: {
+        service: {
             type: String,
             trim: true,
         },
 
-        // Actual position.
-        //
-        // This remains a String rather than an enum so the company
-        // can create its own positions without modifying the backend.
-        //
-        // Examples:
-        // Aluminium Fabricator
-        // Accountant
-        // Production Manager
-        // CNC Operator
-        // Welder
-        // Driver
-        // etc.
-        jobPosition: {
+        position: {
             type: String,
             trim: true,
         },
-
-        // =========================================================
-        // 11. MANAGEMENT HIERARCHY
-        // =========================================================
 
         manager: {
             type: mongoose.Schema.Types.ObjectId,
@@ -389,7 +293,7 @@ const employeeSchema = new mongoose.Schema(
         },
 
         // =========================================================
-        // 12. WORK LOCATION
+        // WORK LOCATION
         // =========================================================
 
         workLocation: {
@@ -398,165 +302,54 @@ const employeeSchema = new mongoose.Schema(
         },
 
         // =========================================================
-        // 13. CONTRACT
+        // CNSS / TAX INFORMATION
         // =========================================================
 
-        contractType: {
+        cnssNumber: {
             type: String,
-            enum: [
-                "cdi",
-                "cdd",
-                "interim",
-                "apprenticeship",
-                "internship",
-                "part_time",
-                "other",
-            ],
-            required: true,
+            trim: true,
+            uppercase: true,
         },
 
-        contractNumber: {
+        cnssRegistrationDate: {
+            type: Date,
+        },
+
+        taxIdentificationNumber: {
             type: String,
             trim: true,
         },
 
-        contractStartDate: {
-            type: Date,
-        },
-
-        contractEndDate: {
-            type: Date,
-        },
-
-        // =========================================================
-        // 14. PROBATION PERIOD
-        // =========================================================
-
-        probationPeriodStart: {
-            type: Date,
-        },
-
-        probationPeriodEnd: {
-            type: Date,
+        // Professional / tax information
+        taxStatus: {
+            type: String,
+            enum: [
+                "taxable",
+                "non_taxable",
+                "exempt",
+            ],
+            default: "taxable",
         },
 
         // =========================================================
-        // 15. WORKING TIME
+        // FAMILY / TAX DEPENDENTS
         // =========================================================
 
-        workingHoursPerWeek: {
-            type: Number,
-            min: 0,
-        },
-
-        workingDaysPerWeek: {
-            type: Number,
-            min: 0,
-            max: 7,
-        },
-
-        // =========================================================
-        // 16. CNSS
-        // =========================================================
-
-        cnss: {
-            isRegistered: {
-                type: Boolean,
-                default: false,
-            },
-
-            number: {
-                type: String,
-                trim: true,
-            },
-
-            registrationDate: {
-                type: Date,
-            },
-
-            status: {
-                type: String,
-                enum: [
-                    "not_registered",
-                    "pending",
-                    "active",
-                    "inactive",
-                ],
-                default: "not_registered",
-            },
-        },
-
-        // =========================================================
-        // 17. TAX / IR
-        // =========================================================
-
-        tax: {
-            taxId: {
-                type: String,
-                trim: true,
-            },
-
-            taxResidence: {
-                type: String,
-                trim: true,
-            },
-
-            familyStatus: {
-                type: String,
-                enum: [
-                    "single",
-                    "married",
-                    "divorced",
-                    "widowed",
-                ],
-            },
-
-            dependents: {
+        familyStatus: {
+            numberOfChildren: {
                 type: Number,
                 min: 0,
                 default: 0,
             },
-        },
 
-        // =========================================================
-        // 18. SALARY / PAYROLL
-        // =========================================================
-
-        salary: {
-            baseSalary: {
-                type: Number,
-                min: 0,
-            },
-
-            salaryType: {
-                type: String,
-                enum: [
-                    "monthly",
-                    "daily",
-                    "hourly",
-                ],
-                default: "monthly",
-            },
-
-            currency: {
-                type: String,
-                uppercase: true,
-                default: "MAD",
-            },
-
-            paymentFrequency: {
-                type: String,
-                enum: [
-                    "monthly",
-                    "weekly",
-                    "daily",
-                ],
-                default: "monthly",
+            spouseWorking: {
+                type: Boolean,
+                default: false,
             },
         },
 
         // =========================================================
-        // 19. BANK INFORMATION
+        // BANKING
         // =========================================================
 
         bank: {
@@ -565,7 +358,7 @@ const employeeSchema = new mongoose.Schema(
                 trim: true,
             },
 
-            accountHolder: {
+            accountName: {
                 type: String,
                 trim: true,
             },
@@ -582,175 +375,70 @@ const employeeSchema = new mongoose.Schema(
         },
 
         // =========================================================
-        // 20. FOREIGN EMPLOYEE
-        // =========================================================
-        //
-        // Used only when nationalityType === "foreign".
+        // PAYMENT SETTINGS
         // =========================================================
 
-        foreignWorker: {
-            workAuthorizationRequired: {
-                type: Boolean,
-                default: false,
-            },
+        paymentMethod: {
+            type: String,
+            enum: [
+                "bank_transfer",
+                "cash",
+                "check",
+            ],
+            default: "bank_transfer",
+        },
 
-            workAuthorizationNumber: {
+        // =========================================================
+        // WORK SCHEDULE
+        // =========================================================
+
+        workSchedule: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "WorkSchedule",
+            default: null,
+        },
+
+        // =========================================================
+        // PROFILE
+        // =========================================================
+
+        photo: {
+            url: {
                 type: String,
                 trim: true,
             },
 
-            workAuthorizationIssueDate: {
-                type: Date,
-            },
-
-            workAuthorizationExpiryDate: {
-                type: Date,
-            },
-
-            workContractVisaNumber: {
-                type: String,
-                trim: true,
-            },
-
-            workContractVisaDate: {
-                type: Date,
-            },
-
-            homeCountry: {
+            publicId: {
                 type: String,
                 trim: true,
             },
         },
-
-        // =========================================================
-        // 21. EDUCATION / QUALIFICATIONS
-        // =========================================================
-
-        educationLevel: {
-            type: String,
-            trim: true,
-        },
-
-        diploma: {
-            type: String,
-            trim: true,
-        },
-
-        specialization: {
-            type: String,
-            trim: true,
-        },
-
-        yearsOfExperience: {
-            type: Number,
-            min: 0,
-        },
-
-        // =========================================================
-        // 22. PROFESSIONAL CONTACT
-        // =========================================================
-
-        professionalEmail: {
-            type: String,
-            trim: true,
-            lowercase: true,
-        },
-
-        internalPhone: {
-            type: String,
-            trim: true,
-        },
-
-        // =========================================================
-        // 23. LEAVE BALANCE
-        // =========================================================
-
-        leaveBalance: {
-            annual: {
-                type: Number,
-                min: 0,
-                default: 0,
-            },
-
-            sick: {
-                type: Number,
-                min: 0,
-                default: 0,
-            },
-
-            other: {
-                type: Number,
-                min: 0,
-                default: 0,
-            },
-        },
-
-        // =========================================================
-        // 24. EMPLOYEE DOCUMENTS
-        // =========================================================
-
-        documents: [
-            {
-                type: {
-                    type: String,
-                    enum: [
-                        "cin",
-                        "passport",
-                        "residence_permit",
-                        "work_authorization",
-                        "employment_contract",
-                        "diploma",
-                        "certificate",
-                        "medical_certificate",
-                        "bank_document",
-                        "other",
-                    ],
-                },
-
-                name: {
-                    type: String,
-                    trim: true,
-                },
-
-                fileUrl: {
-                    type: String,
-                    trim: true,
-                },
-
-                issueDate: {
-                    type: Date,
-                },
-
-                expiryDate: {
-                    type: Date,
-                },
-
-                uploadedAt: {
-                    type: Date,
-                    default: Date.now,
-                },
-            },
-        ],
-
-        // =========================================================
-        // 25. NOTES
-        // =========================================================
 
         notes: {
             type: String,
             trim: true,
+            maxlength: 5000,
         },
 
         // =========================================================
-        // 26. ACTIVE RECORD
+        // SYSTEM
         // =========================================================
 
         isActive: {
             type: Boolean,
             default: true,
         },
-    },
 
+        createdBy: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "User",
+        },
+
+        updatedBy: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "User",
+        },
+    },
     {
         timestamps: true,
     }
@@ -760,53 +448,34 @@ const employeeSchema = new mongoose.Schema(
 // INDEXES
 // =============================================================
 
-// Employee number should be unique PER COMPANY
+// Employee number must be unique INSIDE a company
 employeeSchema.index(
     { company: 1, employeeNumber: 1 },
     { unique: true }
 );
 
-// CIN can be searched quickly
-employeeSchema.index({ cin: 1 });
+// These should not necessarily be globally unique
+// because the same CIN/CNSS should only be unique within
+// the company's employee records.
+employeeSchema.index(
+    { company: 1, cin: 1 },
+    {
+        unique: true,
+        sparse: true,
+    }
+);
 
-// CNSS number
-employeeSchema.index({ "cnss.number": 1 });
+employeeSchema.index(
+    { company: 1, cnssNumber: 1 },
+    {
+        unique: true,
+        sparse: true,
+    }
+);
 
-// User account
-employeeSchema.index({ user: 1 });
-
-// Company employees
-employeeSchema.index({ company: 1 });
-
-// Search employees by name
-employeeSchema.index({
-    lastName: 1,
-    firstName: 1,
-});
-
-// Filter employees
-employeeSchema.index({
-    employmentStatus: 1,
-});
-
-employeeSchema.index({
-    contractType: 1,
-});
-
-employeeSchema.index({
-    department: 1,
-});
-
-employeeSchema.index({
-    jobCategory: 1,
-});
-
-employeeSchema.index({
-    jobPosition: 1,
-});
-
-// =============================================================
-// EXPORT
-// =============================================================
+employeeSchema.index({ company: 1, employmentStatus: 1 });
+employeeSchema.index({ company: 1, department: 1 });
+employeeSchema.index({ company: 1, hireDate: 1 });
+employeeSchema.index({ company: 1, lastName: 1 });
 
 module.exports = mongoose.model("Employee", employeeSchema);

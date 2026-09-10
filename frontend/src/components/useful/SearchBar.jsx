@@ -11,7 +11,6 @@ export default function SearchBar({
   suggestions = []
 }) {
   const [value, setValue] = useState('')
-  const [isFocused, setIsFocused] = useState(false)
   const [showSuggestions, setShowSuggestions] = useState(false)
 
   const handleChange = (e) => {
@@ -34,7 +33,7 @@ export default function SearchBar({
 
   return (
     <div className={styles.container}>
-      <div className={`${styles.searchBox} ${isFocused ? styles.focused : ''}`}>
+      <div className={styles.searchBox}>
         <Search size={18} className={styles.icon} />
         <input
           type="text"
@@ -42,11 +41,9 @@ export default function SearchBar({
           value={value}
           onChange={handleChange}
           onFocus={() => {
-            setIsFocused(true)
             if (suggestions.length > 0) setShowSuggestions(true)
           }}
           onBlur={() => {
-            setIsFocused(false)
             setTimeout(() => setShowSuggestions(false), 200)
           }}
           className={styles.input}

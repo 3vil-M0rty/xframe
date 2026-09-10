@@ -4,6 +4,8 @@ const router = express.Router();
 const Company = require("../models/Company");
 const auth = require("../middleware/auth");
 const upload = require("../middleware/uploadMiddleware");
+const { requireAdminOrOwner } = require("../middleware/permissionMiddleware");
+const { canManageCompany } = require("../permissions/permissions");
 
 const {
   uploadImage,
@@ -13,13 +15,12 @@ const {
 // ======================================================
 // HELPER
 // ======================================================
+// Record-level check: admin can manage any company, owner can
+// only manage companies they own. Kept as a thin wrapper around
+// the shared permission module so every route in this file
+// (and any future one) agrees on the same rule.
 
-const canManage = (req, company) => {
-  return (
-    req.user.role === "admin" ||
-    company.owner.toString() === req.user.id
-  );
-};
+const canManage = (req, company) => canManageCompany(req.user, company);
 
 // ======================================================
 // GET ALL COMPANIES
@@ -85,9 +86,10 @@ router.get("/:id", auth, async (req, res) => {
 
 // ======================================================
 // CREATE COMPANY
+// Only admin and owner may create a company.
 // ======================================================
 
-router.post("/", auth, async (req, res) => {
+router.post("/", auth, requireAdminOrOwner, async (req, res) => {
   try {
     const company = await Company.create({
       ...req.body,
@@ -127,7 +129,7 @@ router.post("/", auth, async (req, res) => {
 // UPDATE COMPANY
 // ======================================================
 
-router.put("/:id", auth, async (req, res) => {
+router.put("/:id", auth, requireAdminOrOwner, async (req, res) => {
   try {
     const company = await Company.findById(req.params.id);
 
@@ -200,6 +202,7 @@ router.put("/:id", auth, async (req, res) => {
 router.post(
   "/:id/logo",
   auth,
+  requireAdminOrOwner,
   upload.single("logo"),
   async (req, res) => {
     try {
@@ -284,6 +287,7 @@ router.post(
 router.delete(
   "/:id/logo",
   auth,
+  requireAdminOrOwner,
   async (req, res) => {
     try {
       const company = await Company.findById(req.params.id);
@@ -339,7 +343,7 @@ router.delete(
 // DELETE COMPANY
 // ======================================================
 
-router.delete("/:id", auth, async (req, res) => {
+router.delete("/:id", auth, requireAdminOrOwner, async (req, res) => {
   try {
     const company = await Company.findById(req.params.id);
 

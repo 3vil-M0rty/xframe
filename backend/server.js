@@ -6,11 +6,11 @@ require('dotenv').config();
 const authRoutes = require('./routes/auth');
 const userRoutes = require('./routes/users');
 const companyRoutes = require("./routes/companies");  
+const employeeRoutes = require("./routes/employees");
 
 const app = express();
 
 // Middleware
-app.use(cors());
 app.use(express.json());
 
 // Connect to MongoDB
@@ -30,7 +30,7 @@ app.use(cors({
 app.use('/api/auth', authRoutes);
 app.use('/api/companies', companyRoutes);
 app.use('/api/users', userRoutes);
-app.use("/api/companies", companyRoutes);
+app.use("/api/employees", employeeRoutes);
 
 // Health check
 app.get('/health', (req, res) => {

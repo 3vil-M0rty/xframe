@@ -2,14 +2,21 @@ import {
   getCompanies,
   createCompany,
   updateCompany,
+  deleteCompany,
   uploadCompanyLogo,
 } from "../../services/companyService";
 
 import { useState, useEffect } from "react";
 import { useI18n } from "../../hooks/useI18n";
+import { useAuth } from "../../hooks/useAuth";
+import {
+  canCreateCompany,
+  canManageCompany,
+} from "../../utils/permissions";
 
 import CollapsibleForm from "../../components/useful/CollapsibleForm";
 import ActionModal from "../../components/useful/ActionModal";
+
 import styles from "./Company.module.css";
 
 import {
@@ -17,17 +24,67 @@ import {
   Users,
   Pencil,
   Plus,
+  Trash2,
 } from "lucide-react";
 
 export default function Company() {
   const { t } = useI18n();
+  const { user } = useAuth();
+
+  // ========================================
+  // TRANSLATE BACKEND MESSAGES
+  // ========================================
+
+  const translateApiMessage = (message) => {
+    const messages = {
+      "Company not found":
+        t("company.errors.notFound"),
+
+      "Not authorized to view this company":
+        t("company.errors.viewNotAuthorized"),
+
+      "Not authorized to update this company":
+        t("company.errors.updateNotAuthorized"),
+
+      "Not authorized to delete this company":
+        t("company.errors.deleteNotAuthorized"),
+
+      "A company with this ICE, tax ID, registration number, or CNSS number already exists":
+        t("company.errors.duplicateCompany"),
+
+      "Error creating company":
+        t("company.errors.createFailed"),
+
+      "Error updating company":
+        t("company.errors.updateFailed"),
+
+      "Error deleting company":
+        t("company.errors.deleteFailed"),
+
+      "Company logo not found":
+        t("company.errors.logoNotFound"),
+
+      "Please select a logo":
+        t("company.errors.logoRequired"),
+
+      "Error uploading company logo":
+        t("company.errors.logoUploadFailed"),
+
+      "Error deleting company logo":
+        t("company.errors.logoDeleteFailed"),
+    };
+
+    return messages[message] || message;
+  };
 
   // ========================================
   // COMPANY
   // ========================================
 
   const [company, setCompany] = useState(null);
-  const [initialLoading, setInitialLoading] = useState(true);
+
+  const [initialLoading, setInitialLoading] =
+    useState(true);
 
   // ========================================
   // MODE
@@ -47,6 +104,18 @@ export default function Company() {
   });
 
   // ========================================
+  // MODAL ACTION
+  // ========================================
+
+  const [modalAction, setModalAction] =
+    useState(null);
+
+  // Possible values:
+  //
+  // "save"
+  // "delete"
+
+  // ========================================
   // SUBMIT LOADING
   // ========================================
 
@@ -56,7 +125,8 @@ export default function Company() {
   // PENDING FORM DATA
   // ========================================
 
-  const [pendingData, setPendingData] = useState(null);
+  const [pendingData, setPendingData] =
+    useState(null);
 
   // ========================================
   // LOAD COMPANY
@@ -78,9 +148,10 @@ export default function Company() {
           open: true,
           type: "error",
           title: t("company.loadFailTitle"),
-          message:
+          message: translateApiMessage(
             error.response?.data?.message ||
-            t("company.loadFailMessage"),
+            t("company.loadFailMessage")
+          ),
         });
       } finally {
         setInitialLoading(false);
@@ -200,7 +271,8 @@ export default function Company() {
       name: "logo",
       label: t("company.logo"),
       type: "file",
-      accept: "image/png,image/jpeg,image/webp,image/gif",
+      accept:
+        "image/png,image/jpeg,image/webp,image/gif",
     },
   ];
 
@@ -213,8 +285,14 @@ export default function Company() {
       label: t("common.cancel"),
       type: "button",
       variant: "secondary",
-      onClick: () => setMode(false),
+
+      onClick: () => {
+        setMode(false);
+        setPendingData(null);
+        setModalAction(null);
+      },
     },
+
     {
       label: t("common.reset"),
       type: "reset",
@@ -226,6 +304,7 @@ export default function Company() {
         mode === "create"
           ? t("common.create")
           : t("common.update"),
+
       type: "submit",
       variant: "primary",
     },
@@ -238,6 +317,8 @@ export default function Company() {
   const handleSubmit = (data) => {
     setPendingData(data);
 
+    setModalAction("save");
+
     setModal({
       open: true,
       type: "confirm",
@@ -245,7 +326,9 @@ export default function Company() {
       title:
         mode === "create"
           ? t("company.createTitle")
-          : `${t("common.update")} ${t("company.title")}`,
+          : `${t("common.update")} ${t(
+            "company.title"
+          )}`,
 
       message:
         mode === "create"
@@ -255,10 +338,30 @@ export default function Company() {
   };
 
   // ========================================
-  // CONFIRM ACTION
+  // DELETE COMPANY
   // ========================================
 
-  const handleConfirm = async () => {
+  const handleDeleteCompany = () => {
+    if (!company) {
+      return;
+    }
+
+    setModalAction("delete");
+
+    setModal({
+      open: true,
+      type: "confirm",
+      title: t("company.deleteTitle"),
+      message: t("company.deleteSureMessage"),
+    });
+  };
+
+  // ========================================
+  // CONFIRM SAVE
+  // CREATE OR UPDATE
+  // ========================================
+
+  const handleConfirmSave = async () => {
     if (!pendingData) {
       return;
     }
@@ -283,8 +386,10 @@ export default function Company() {
         industry: pendingData.industry,
         ice: pendingData.ice,
         taxId: pendingData.taxId,
+
         registrationNumber:
           pendingData.registrationNumber,
+
         email: pendingData.email,
         phone: pendingData.phone,
         website: pendingData.website,
@@ -303,16 +408,18 @@ export default function Company() {
       let savedCompany;
 
       if (mode === "create") {
-        savedCompany = await createCompany(payload);
+        savedCompany =
+          await createCompany(payload);
       } else {
-        savedCompany = await updateCompany(
-          company._id,
-          payload
-        );
+        savedCompany =
+          await updateCompany(
+            company._id,
+            payload
+          );
       }
 
       // ======================================
-      // UPLOAD LOGO TO CLOUDINARY
+      // UPLOAD LOGO
       // ======================================
 
       let finalCompany = savedCompany;
@@ -332,14 +439,18 @@ export default function Company() {
       // ======================================
 
       setCompany(finalCompany);
+
       setMode(false);
+
       setPendingData(null);
+
+      setModalAction(null);
+
+      setLoading(false);
 
       // ======================================
       // SUCCESS
       // ======================================
-
-      setLoading(false);
 
       setModal({
         open: true,
@@ -348,12 +459,18 @@ export default function Company() {
         title:
           mode === "create"
             ? t("company.createSuccessTitle")
-            : `${t("common.update")} ${t("common.success")}`,
+            : `${t("common.update")} ${t(
+              "common.success"
+            )}`,
 
         message:
           mode === "create"
-            ? t("company.createSuccessMessage")
-            : t("company.updateSuccessMessage"),
+            ? t(
+              "company.createSuccessMessage"
+            )
+            : t(
+              "company.updateSuccessMessage"
+            ),
       });
     } catch (error) {
       console.error(
@@ -370,13 +487,107 @@ export default function Company() {
         title:
           mode === "create"
             ? t("company.createFailTitle")
-            : `${t("common.update")} ${t("common.fail")}`,
+            : `${t("common.update")} ${t(
+              "common.fail"
+            )}`,
 
-        message:
+        message: translateApiMessage(
           error.response?.data?.message ||
           error.message ||
-          t("company.saveFailMessage"),
+          t("company.saveFailMessage")
+        ),
       });
+    }
+  };
+
+  // ========================================
+  // CONFIRM DELETE
+  // ========================================
+
+  const handleConfirmDelete = async () => {
+    if (!company) {
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      // ======================================
+      // DELETE COMPANY
+      // ======================================
+
+      await deleteCompany(company._id);
+
+      // ======================================
+      // REMOVE COMPANY FROM UI
+      // ======================================
+
+      setCompany(null);
+
+      // ======================================
+      // CLEAR STATE
+      // ======================================
+
+      setModalAction(null);
+
+      setPendingData(null);
+
+      setLoading(false);
+
+      // ======================================
+      // SUCCESS
+      // ======================================
+
+      setModal({
+        open: true,
+        type: "success",
+
+        title: t(
+          "company.deleteSuccessTitle"
+        ),
+
+        message: t(
+          "company.deleteSuccessMessage"
+        ),
+      });
+    } catch (error) {
+      console.error(
+        "Failed to delete company:",
+        error.response?.data || error
+      );
+
+      setLoading(false);
+
+      setModal({
+        open: true,
+        type: "error",
+
+        title: t(
+          "company.deleteFailTitle"
+        ),
+
+        message: translateApiMessage(
+          error.response?.data?.message ||
+          error.message ||
+          t("company.deleteFailMessage")
+        ),
+      });
+    }
+  };
+
+  // ========================================
+  // CONFIRM MODAL ACTION
+  // ========================================
+
+  const handleConfirm = async () => {
+    if (modalAction === "save") {
+      await handleConfirmSave();
+      return;
+    }
+
+    if (modalAction === "delete") {
+      await handleConfirmDelete();
+      return;
     }
   };
 
@@ -396,6 +607,7 @@ export default function Company() {
 
     if (modal.type === "confirm") {
       setPendingData(null);
+      setModalAction(null);
     }
   };
 
@@ -419,19 +631,40 @@ export default function Company() {
 
   const initialFormValues = {
     name: company?.name || "",
-    tradeName: company?.tradeName || "",
-    legalForm: company?.legalForm || "SARL",
-    industry: company?.industry || "",
-    ice: company?.ice || "",
-    taxId: company?.taxId || "",
+
+    tradeName:
+      company?.tradeName || "",
+
+    legalForm:
+      company?.legalForm || "SARL",
+
+    industry:
+      company?.industry || "",
+
+    ice:
+      company?.ice || "",
+
+    taxId:
+      company?.taxId || "",
+
     registrationNumber:
       company?.registrationNumber || "",
-    email: company?.email || "",
-    phone: company?.phone || "",
-    website: company?.website || "",
 
-    street: company?.address?.street || "",
-    city: company?.address?.city || "",
+    email:
+      company?.email || "",
+
+    phone:
+      company?.phone || "",
+
+    website:
+      company?.website || "",
+
+    street:
+      company?.address?.street || "",
+
+    city:
+      company?.address?.city || "",
+
     postalCode:
       company?.address?.postalCode || "",
   };
@@ -451,6 +684,7 @@ export default function Company() {
 
         <div>
           <div className={styles.titleRow}>
+
             <Building2 size={20} />
 
             <h1>
@@ -458,24 +692,60 @@ export default function Company() {
                 ? company.name
                 : t("company.title")}
             </h1>
+
           </div>
 
           <p className={styles.subtitle}>
             {company
               ? t("company.subtitle")
-              : t("company.emptySubtitle")}
+              : t(
+                "company.emptySubtitle"
+              )}
           </p>
         </div>
 
-        {company && !mode && (
-          <button
-            className={styles.editButton}
-            onClick={() => setMode("edit")}
-          >
-            <Pencil size={16} />
+        {/* ==================================
+            HEADER ACTIONS
+            ================================== */}
 
-            {t("common.edit")}
-          </button>
+        {company && !mode && canManageCompany(user, company) && (
+          <div className={styles.headerActions}>
+
+            {/* EDIT */}
+
+            <button
+              type="button"
+              className={
+                styles.editButton
+              }
+              onClick={() =>
+                setMode("edit")
+              }
+            >
+              <Pencil size={16} />
+
+              {t("common.edit")}
+            </button>
+
+            {/* DELETE */}
+
+            <button
+              type="button"
+              className={
+                styles.deleteButton
+              }
+              onClick={
+                handleDeleteCompany
+              }
+            >
+              <Trash2 size={16} />
+
+              {t(
+                "company.deleteCompany"
+              )}
+            </button>
+
+          </div>
         )}
 
       </div>
@@ -492,21 +762,32 @@ export default function Company() {
           </div>
 
           <h2>
-            {t("company.emptyTitle")}
+            {t(
+              "company.emptyTitle"
+            )}
           </h2>
 
           <p>
-            {t("company.emptyMessage")}
+            {t(
+              "company.emptyMessage"
+            )}
           </p>
 
-          <button
-            className={styles.primaryButton}
-            onClick={() => setMode("create")}
-          >
-            <Plus size={16} />
+          {canCreateCompany(user) && (
+            <button
+              type="button"
+              className={
+                styles.primaryButton
+              }
+              onClick={() =>
+                setMode("create")
+              }
+            >
+              <Plus size={16} />
 
-            {t("company.create")}
-          </button>
+              {t("company.create")}
+            </button>
+          )}
 
         </div>
       )}
@@ -516,16 +797,24 @@ export default function Company() {
           ================================== */}
 
       {mode && (
-        <div className={styles.formContainer}>
+        <div
+          className={
+            styles.formContainer
+          }
+        >
 
           <CollapsibleForm
             title={
               mode === "create"
                 ? t("company.create")
-                : t("company.editTitle")
+                : t(
+                  "company.editTitle"
+                )
             }
 
-            icon={<Building2 size={16} />}
+            icon={
+              <Building2 size={16} />
+            }
 
             fields={companyFields}
 
@@ -533,9 +822,10 @@ export default function Company() {
 
             onSubmit={handleSubmit}
 
-            initialValues={initialFormValues}
+            initialValues={
+              initialFormValues
+            }
           />
-
 
         </div>
       )}
@@ -545,18 +835,28 @@ export default function Company() {
           ================================== */}
 
       {company && !mode && (
-        <div className={styles.companyCard}>
+        <div
+          className={
+            styles.companyCard
+          }
+        >
 
           {/* ==================================
               LOGO
               ================================== */}
 
           {company.logo?.url && (
-            <div className={styles.logoSection}>
+            <div
+              className={
+                styles.logoSection
+              }
+            >
               <img
                 src={company.logo.url}
                 alt={company.name}
-                className={styles.logo}
+                className={
+                  styles.logo
+                }
               />
             </div>
           )}
@@ -565,17 +865,33 @@ export default function Company() {
               IDENTITY
               ================================== */}
 
-          <div className={styles.section}>
+          <div
+            className={
+              styles.section
+            }
+          >
 
             <h2>
-              {t("company.section.identity")}
+              {t(
+                "company.section.identity"
+              )}
             </h2>
 
-            <div className={styles.grid}>
+            <div
+              className={
+                styles.grid
+              }
+            >
 
-              <div className={styles.info}>
+              <div
+                className={
+                  styles.info
+                }
+              >
                 <span>
-                  {t("company.name")}
+                  {t(
+                    "company.name"
+                  )}
                 </span>
 
                 <strong>
@@ -583,19 +899,32 @@ export default function Company() {
                 </strong>
               </div>
 
-              <div className={styles.info}>
+              <div
+                className={
+                  styles.info
+                }
+              >
                 <span>
-                  {t("company.tradeName")}
+                  {t(
+                    "company.tradeName"
+                  )}
                 </span>
 
                 <strong>
-                  {company.tradeName || "—"}
+                  {company.tradeName ||
+                    "—"}
                 </strong>
               </div>
 
-              <div className={styles.info}>
+              <div
+                className={
+                  styles.info
+                }
+              >
                 <span>
-                  {t("company.legalForm")}
+                  {t(
+                    "company.legalForm"
+                  )}
                 </span>
 
                 <strong>
@@ -603,9 +932,15 @@ export default function Company() {
                 </strong>
               </div>
 
-              <div className={styles.info}>
+              <div
+                className={
+                  styles.info
+                }
+              >
                 <span>
-                  {t("company.industry")}
+                  {t(
+                    "company.industry"
+                  )}
                 </span>
 
                 <strong>
@@ -621,41 +956,74 @@ export default function Company() {
               LEGAL
               ================================== */}
 
-          <div className={styles.section}>
+          <div
+            className={
+              styles.section
+            }
+          >
 
             <h2>
-              {t("company.section.legal")}
+              {t(
+                "company.section.legal"
+              )}
             </h2>
 
-            <div className={styles.grid}>
+            <div
+              className={
+                styles.grid
+              }
+            >
 
-              <div className={styles.info}>
+              <div
+                className={
+                  styles.info
+                }
+              >
                 <span>
-                  {t("company.ice")}
+                  {t(
+                    "company.ice"
+                  )}
                 </span>
 
                 <strong>
-                  {company.ice || "—"}
+                  {company.ice ||
+                    "—"}
                 </strong>
               </div>
 
-              <div className={styles.info}>
+              <div
+                className={
+                  styles.info
+                }
+              >
                 <span>
-                  {t("company.taxId")}
+                  {t(
+                    "company.taxId"
+                  )}
                 </span>
 
                 <strong>
-                  {company.taxId || "—"}
+                  {company.taxId ||
+                    "—"}
                 </strong>
               </div>
 
-              <div className={styles.info}>
+              <div
+                className={
+                  styles.info
+                }
+              >
                 <span>
-                  {t("company.registrationNumber")}
+                  {t(
+                    "company.registrationNumber"
+                  )}
                 </span>
 
                 <strong>
-                  {company.registrationNumber || "—"}
+                  {
+                    company.registrationNumber ||
+                    "—"
+                  }
                 </strong>
               </div>
 
@@ -667,53 +1035,94 @@ export default function Company() {
               CONTACT
               ================================== */}
 
-          <div className={styles.section}>
+          <div
+            className={
+              styles.section
+            }
+          >
 
             <h2>
-              {t("company.section.contact")}
+              {t(
+                "company.section.contact"
+              )}
             </h2>
 
-            <div className={styles.grid}>
+            <div
+              className={
+                styles.grid
+              }
+            >
 
-              <div className={styles.info}>
+              <div
+                className={
+                  styles.info
+                }
+              >
                 <span>
-                  {t("company.email")}
+                  {t(
+                    "company.email"
+                  )}
                 </span>
 
                 <strong>
-                  {company.email || "—"}
+                  {company.email ||
+                    "—"}
                 </strong>
               </div>
 
-              <div className={styles.info}>
+              <div
+                className={
+                  styles.info
+                }
+              >
                 <span>
-                  {t("company.phone")}
+                  {t(
+                    "company.phone"
+                  )}
                 </span>
 
                 <strong>
-                  {company.phone || "—"}
+                  {company.phone ||
+                    "—"}
                 </strong>
               </div>
 
-              <div className={styles.info}>
+              <div
+                className={
+                  styles.info
+                }
+              >
                 <span>
-                  {t("company.website")}
+                  {t(
+                    "company.website"
+                  )}
                 </span>
 
                 <strong>
-                  {company.website || "—"}
+                  {company.website ||
+                    "—"}
                 </strong>
               </div>
 
-              <div className={styles.info}>
+              <div
+                className={
+                  styles.info
+                }
+              >
                 <span>
-                  {t("company.street")}
+                  {t(
+                    "company.street"
+                  )}
                 </span>
 
                 <strong>
-                  {company.address?.street || "—"}
+                  {
+                    company.address
+                      ?.street || "—"
+                  }
 
-                  {company.address?.city
+                  {company.address
+                    ?.city
                     ? `, ${company.address.city}`
                     : ""}
                 </strong>
@@ -727,20 +1136,33 @@ export default function Company() {
               EMPLOYEE COUNT
               ================================== */}
 
-          <div className={styles.employeeSection}>
+          <div
+            className={
+              styles.employeeSection
+            }
+          >
 
-            <div className={styles.employeeIcon}>
+            <div
+              className={
+                styles.employeeIcon
+              }
+            >
               <Users size={20} />
             </div>
 
             <div>
+
               <span>
-                {t("company.employeeCount")}
+                {t(
+                  "company.employeeCount"
+                )}
               </span>
 
               <strong>
-                {company.employeeCount ?? 0}
+                {company.employeeCount ??
+                  0}
               </strong>
+
             </div>
 
           </div>

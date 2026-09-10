@@ -1,0 +1,144 @@
+/* ============================================================
+   UserCard — page-agnostic styles for a single user card.
+   Shared card/avatar/pill/button primitives are composed from
+   src/styles/global.css so they stay in sync with EmployeeCard
+   and any other resource card in the app.
+   ============================================================ */
+
+.userCard {
+    composes: resourceCard from global;
+
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-rows: auto auto;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    text-align: left;
+}
+
+/* ---------- Card actions (edit/delete overlay) ---------- */
+
+.cardActions {
+    composes: cardActionsOverlay from global;
+}
+
+.editUserButton {
+    composes: cardActionIconBtn from global;
+}
+
+.deleteUserButton {
+    composes: cardActionIconBtnDanger from global;
+}
+
+/* ---------- Avatar ---------- */
+
+.avatar {
+    composes: avatarCircle from global;
+    grid-row: 1;
+}
+
+/* ---------- Main info ---------- */
+
+.userMain {
+    min-width: 0;
+    padding-right: 38px;
+}
+
+.userMain h2 {
+    margin: 0 0 0.4rem;
+    overflow: hidden;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--color-text-primary);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.email {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    margin-top: 5px;
+    color: var(--color-text-tertiary);
+    font-size: var(--font-xs);
+}
+
+.email svg {
+    flex-shrink: 0;
+}
+
+.email span {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* ---------- Meta row (role / department / status) ---------- */
+
+.userMeta {
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+    flex-wrap: wrap;
+    padding-top: 2px;
+}
+
+.role,
+.department,
+.status {
+    composes: pillTag from global;
+}
+
+/* ---------- Responsive ---------- */
+
+@media (max-width: 700px) {
+    .userCard {
+        grid-template-columns: auto minmax(0, 1fr);
+        padding: 14px;
+    }
+
+    .userMain {
+        padding-right: 40px;
+    }
+
+    .userMeta {
+        flex-wrap: wrap;
+        gap: 5px;
+    }
+}
+
+@media (max-width: 480px) {
+    .userCard {
+        gap: 10px;
+        padding: 12px;
+    }
+
+    .avatar {
+        width: 36px;
+        height: 36px;
+    }
+
+    .userMain h2 {
+        font-size: 0.8rem;
+    }
+
+    .email {
+        font-size: 0.68rem;
+    }
+
+    .userMeta {
+        width: 100%;
+        gap: 5px;
+    }
+
+    .role,
+    .department,
+    .status {
+        font-size: 0.7rem;
+        padding: 4px 7px;
+    }
+}

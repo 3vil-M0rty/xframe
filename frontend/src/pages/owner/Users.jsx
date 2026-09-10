@@ -1,30 +1,44 @@
 import {
     getUsers,
     createUser,
+    updateUser,
     deleteUser,
 } from "../../services/userService";
 
 import { useState, useEffect } from "react";
 import { useI18n } from "../../hooks/useI18n";
+import { useAuth } from "../../hooks/useAuth";
+import {
+    canCreateUser,
+    canManageUser,
+    canDeleteUser,
+} from "../../utils/permissions";
 
 import CollapsibleForm from "../../components/useful/CollapsibleForm";
 import ActionModal from "../../components/useful/ActionModal";
 import Breadcrumbs from "../../components/useful/Breadcrumbs";
-
+import SearchBar from "../../components/useful/SearchBar";
+import Pagination from "../../components/useful/Pagination";
+import UserCard from "../../components/user/UserCard";
+import { useDebouncedValue } from "../../hooks/useDebouncedValue";
 import styles from "./Users.module.css";
 
 import {
     Users as UsersIcon,
     UserPlus,
     User,
-    Mail,
-    Shield,
     ArrowLeft,
     Trash2,
+    Edit,
 } from "lucide-react";
+
+// Cards per page. Keeping this modest (instead of loading every
+// user at once) is what keeps the grid fast as the user list grows.
+const USERS_PAGE_SIZE = 12;
 
 export default function Users() {
     const { t } = useI18n();
+    const { user: currentUser } = useAuth();
 
     const translateApiMessage = (message) => {
         const messages = {
@@ -76,9 +90,35 @@ export default function Users() {
 
     // ========================================
     // MODE
+    // false | create | edit
     // ========================================
 
     const [mode, setMode] = useState(false);
+    const [search, setSearch] = useState("");
+
+    // Debounced so typing in the search box doesn't fire a network
+    // request on every keystroke.
+    const debouncedSearch = useDebouncedValue(search, 400);
+
+    // ========================================
+    // PAGINATION
+    // Keeps the grid capped at USERS_PAGE_SIZE cards per page
+    // instead of always rendering the entire user list.
+    // ========================================
+
+    const [page, setPage] = useState(1);
+    const [pagination, setPagination] = useState({
+        total: 0,
+        page: 1,
+        limit: USERS_PAGE_SIZE,
+        pages: 1,
+    });
+
+    // Reset to page 1 whenever the (debounced) search term changes,
+    // so a new search doesn't land on a now out-of-range page.
+    useEffect(() => {
+        setPage(1);
+    }, [debouncedSearch]);
 
     // ========================================
     // MODAL
@@ -93,6 +133,7 @@ export default function Users() {
 
     // ========================================
     // MODAL ACTION
+    // create | edit | delete
     // ========================================
 
     const [modalAction, setModalAction] =
@@ -100,10 +141,17 @@ export default function Users() {
 
     // ========================================
     // SUBMIT LOADING
+    // (spinner state for the create/edit/delete confirm modal —
+    // kept separate from the grid's own fetch spinner below so the
+    // two never interfere with each other)
     // ========================================
 
     const [loading, setLoading] =
         useState(false);
+
+    // Grid fetch spinner (search / pagination), separate from the
+    // ActionModal's `loading` above.
+    const [gridLoading, setGridLoading] = useState(false);
 
     // ========================================
     // PENDING FORM DATA
@@ -112,17 +160,40 @@ export default function Users() {
     const [pendingData, setPendingData] =
         useState(null);
 
+
     // ========================================
     // LOAD USERS
+    // Search/pagination are done server-side (see userService.js)
+    // so the grid only ever holds one page of cards at a time.
     // ========================================
 
     useEffect(() => {
+        let cancelled = false;
+
         const loadUsers = async () => {
             try {
-                const data = await getUsers();
+                if (!initialLoading) {
+                    setGridLoading(true);
+                }
+
+                const { users: data, pagination: paginationData } =
+                    await getUsers({
+                        search: debouncedSearch,
+                        page,
+                        limit: USERS_PAGE_SIZE,
+                    });
+
+                if (cancelled) {
+                    return;
+                }
 
                 setUsers(data || []);
+                setPagination(paginationData);
             } catch (error) {
+                if (cancelled) {
+                    return;
+                }
+
                 console.error(
                     "Failed to load users:",
                     error
@@ -138,12 +209,20 @@ export default function Users() {
                     ),
                 });
             } finally {
-                setInitialLoading(false);
+                if (!cancelled) {
+                    setInitialLoading(false);
+                    setGridLoading(false);
+                }
             }
         };
 
         loadUsers();
-    }, [t]);
+
+        return () => {
+            cancelled = true;
+        };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [debouncedSearch, page, t]);
 
     // ========================================
     // FORM FIELDS
@@ -171,13 +250,19 @@ export default function Users() {
             required: true,
         },
 
-        {
-            name: "password",
-            label: t("profile.password"),
-            type: "password",
-            required: true,
-            placeholder: "••••••••",
-        },
+        // Password is only needed when creating.
+        // The backend update route does not change password.
+        ...(mode === "create"
+            ? [
+                {
+                    name: "password",
+                    label: t("profile.password"),
+                    type: "password",
+                    required: true,
+                    placeholder: "••••••••",
+                },
+            ]
+            : []),
 
         {
             name: "role",
@@ -220,13 +305,110 @@ export default function Users() {
                 },
             ],
         },
+
+        {
+            name: "department",
+            label: t("users.department"),
+            type: "select",
+            required: true,
+            options: [
+                {
+                    value: "management",
+                    label: t("users.departments.management"),
+                },
+                {
+                    value: "hr",
+                    label: t("users.departments.hr"),
+                },
+                {
+                    value: "finance",
+                    label: t("users.departments.finance"),
+                },
+                {
+                    value: "accounting",
+                    label: t("users.departments.accounting"),
+                },
+                {
+                    value: "sales",
+                    label: t("users.departments.sales"),
+                },
+                {
+                    value: "purchasing",
+                    label: t("users.departments.purchasing"),
+                },
+                {
+                    value: "marketing",
+                    label: t("users.departments.marketing"),
+                },
+                {
+                    value: "production",
+                    label: t("users.departments.production"),
+                },
+                {
+                    value: "production_planning",
+                    label: t("users.departments.production_planning"),
+                },
+                {
+                    value: "quality_control",
+                    label: t("users.departments.quality_control"),
+                },
+                {
+                    value: "maintenance",
+                    label: t("users.departments.maintenance"),
+                },
+                {
+                    value: "warehouse",
+                    label: t("users.departments.warehouse"),
+                },
+                {
+                    value: "logistics",
+                    label: t("users.departments.logistics"),
+                },
+                {
+                    value: "procurement",
+                    label: t("users.departments.procurement"),
+                },
+                {
+                    value: "engineering",
+                    label: t("users.departments.engineering"),
+                },
+                {
+                    value: "design",
+                    label: t("users.departments.design"),
+                },
+                {
+                    value: "research_development",
+                    label: t("users.departments.research_development"),
+                },
+                {
+                    value: "it",
+                    label: t("users.departments.it"),
+                },
+                {
+                    value: "customer_service",
+                    label: t("users.departments.customer_service"),
+                },
+                {
+                    value: "administration",
+                    label: t("users.departments.administration"),
+                },
+                {
+                    value: "health_safety_environment",
+                    label: t("users.departments.health_safety_environment"),
+                },
+                {
+                    value: "security",
+                    label: t("users.departments.security"),
+                },
+            ],
+        },
     ];
 
     // ========================================
-    // FORM BUTTONS
+    // CREATE FORM BUTTONS
     // ========================================
 
-    const userButtons = [
+    const createButtons = [
         {
             label: t("common.cancel"),
             type: "button",
@@ -252,10 +434,61 @@ export default function Users() {
     ];
 
     // ========================================
-    // FORM SUBMIT
+    // EDIT FORM BUTTONS
     // ========================================
 
-    const handleSubmit = (data) => {
+    const editButtons = [
+        {
+            label: t("common.cancel"),
+            type: "button",
+            variant: "secondary",
+            onClick: () => {
+                setMode(false);
+                setPendingData(null);
+                setModalAction(null);
+            },
+        },
+
+        {
+            label: t("common.reset"),
+            type: "reset",
+            variant: "secondary",
+        },
+
+        {
+            label: t("common.update"),
+            type: "submit",
+            variant: "primary",
+        },
+    ];
+
+    // ========================================
+    // OPEN CREATE MODE
+    // ========================================
+
+    const handleCreateUser = () => {
+        setSelectedUser(null);
+        setMode("create");
+        setPendingData(null);
+        setModalAction(null);
+    };
+
+    // ========================================
+    // OPEN EDIT MODE
+    // ========================================
+
+    const handleEditUser = (user) => {
+        setSelectedUser(user);
+        setMode("edit");
+        setPendingData(null);
+        setModalAction(null);
+    };
+
+    // ========================================
+    // CREATE FORM SUBMIT
+    // ========================================
+
+    const handleSubmitCreate = (data) => {
         setPendingData(data);
         setModalAction("create");
 
@@ -286,6 +519,7 @@ export default function Users() {
                 password: pendingData.password,
                 role: pendingData.role,
                 status: pendingData.status,
+                department: pendingData.department,
             });
 
             // Add new user to list
@@ -334,14 +568,119 @@ export default function Users() {
     };
 
     // ========================================
-    // DELETE USER
+    // EDIT FORM SUBMIT
     // ========================================
 
-    const handleDeleteUser = () => {
+    const handleSubmitUpdate = (data) => {
         if (!selectedUser) {
             return;
         }
 
+        setPendingData(data);
+        setModalAction("edit");
+
+        setModal({
+            open: true,
+            type: "confirm",
+            title: t("users.updateTitle"),
+            message: t("users.updateSureMessage"),
+        });
+    };
+
+    // ========================================
+    // CONFIRM UPDATE
+    // ========================================
+
+    const handleConfirmUpdate = async () => {
+        if (!selectedUser || !pendingData) {
+            return;
+        }
+
+        setLoading(true);
+
+        try {
+            const updatedUser = await updateUser(
+                selectedUser._id,
+                {
+                    firstName: pendingData.firstName,
+                    lastName: pendingData.lastName,
+                    email: pendingData.email,
+                    role: pendingData.role,
+                    status: pendingData.status,
+                    department: pendingData.department,
+                }
+            );
+
+            // Update user inside users list
+            setUsers((prev) =>
+                prev.map((user) =>
+                    user._id === updatedUser._id
+                        ? updatedUser
+                        : user
+                )
+            );
+
+            // Update selected user
+            setSelectedUser(updatedUser);
+
+            // Close edit mode
+            setMode(false);
+
+            // Clear pending data
+            setPendingData(null);
+
+            // Clear modal action
+            setModalAction(null);
+
+            setLoading(false);
+
+            setModal({
+                open: true,
+                type: "success",
+                title: t("users.updateSuccessTitle"),
+                message: t("users.updateSuccessMessage"),
+            });
+
+        } catch (error) {
+            console.error(
+                "Failed to update user:",
+                error.response?.data || error
+            );
+
+            setLoading(false);
+
+            setModal({
+                open: true,
+                type: "error",
+                title: t("users.updateFailTitle"),
+                message: translateApiMessage(
+                    error.response?.data?.message ||
+                    error.message ||
+                    t("users.updateFailMessage")
+                ),
+            });
+        }
+    };
+
+    // ========================================
+    // DELETE USER
+    // Accepts the target user explicitly so this can be triggered
+    // both from the detail view's Danger Zone (passing
+    // `selectedUser`) and directly from a card in the grid
+    // (passing that card's `user`), without forcing navigation
+    // into the detail view first.
+    // ========================================
+
+    const [deleteTarget, setDeleteTarget] = useState(null);
+
+    const handleDeleteUser = (user) => {
+        const target = user || selectedUser;
+
+        if (!target) {
+            return;
+        }
+
+        setDeleteTarget(target);
         setModalAction("delete");
 
         setModal({
@@ -357,25 +696,30 @@ export default function Users() {
     // ========================================
 
     const handleConfirmDelete = async () => {
-        if (!selectedUser) {
+        if (!deleteTarget) {
             return;
         }
 
         setLoading(true);
 
         try {
-            await deleteUser(selectedUser._id);
+            await deleteUser(deleteTarget._id);
 
             // Remove deleted user from list
             setUsers((prev) =>
                 prev.filter(
                     (user) =>
-                        user._id !== selectedUser._id
+                        user._id !== deleteTarget._id
                 )
             );
 
-            // Clear selected user
-            setSelectedUser(null);
+            // Clear selected user if we deleted the one being viewed
+            setSelectedUser((prev) =>
+                prev && prev._id === deleteTarget._id ? null : prev
+            );
+
+            // Clear delete target
+            setDeleteTarget(null);
 
             // Clear modal action
             setModalAction(null);
@@ -420,6 +764,11 @@ export default function Users() {
             return;
         }
 
+        if (modalAction === "edit") {
+            await handleConfirmUpdate();
+            return;
+        }
+
         if (modalAction === "delete") {
             await handleConfirmDelete();
             return;
@@ -443,6 +792,7 @@ export default function Users() {
         if (modal.type === "confirm") {
             setPendingData(null);
             setModalAction(null);
+            setDeleteTarget(null);
         }
     };
 
@@ -501,6 +851,18 @@ export default function Users() {
             default:
                 return role || "—";
         }
+    };
+
+    // ========================================
+    // FORMAT DEPARTMENT
+    // ========================================
+
+    const getDepartmentLabel = (department) => {
+        if (!department) {
+            return "—";
+        }
+
+        return t(`users.departments.${department}`);
     };
 
     // ========================================
@@ -564,8 +926,8 @@ export default function Users() {
                             <UserPlus size={16} />
                         }
                         fields={userFields}
-                        buttons={userButtons}
-                        onSubmit={handleSubmit}
+                        buttons={createButtons}
+                        onSubmit={handleSubmitCreate}
                         defaultOpen={true}
                         initialValues={{
                             firstName: "",
@@ -574,6 +936,108 @@ export default function Users() {
                             password: "",
                             role: "user",
                             status: "active",
+                            department: "administration",
+                        }}
+                    />
+                </div>
+
+                <ActionModal
+                    isOpen={modal.open}
+                    type={modal.type}
+                    title={modal.title}
+                    message={modal.message}
+                    loading={loading}
+                    onConfirm={handleConfirm}
+                    onClose={handleCloseModal}
+                />
+
+            </div>
+        );
+    }
+
+    // ========================================
+    // EDIT USER
+    // ========================================
+
+    if (mode === "edit" && selectedUser) {
+        return (
+            <div className={styles.page}>
+
+                <Breadcrumbs
+                    items={[
+                        {
+                            id: "users",
+                            label: t("users.title"),
+                        },
+                        {
+                            id: selectedUser._id,
+                            label:
+                                `${selectedUser.firstName} ${selectedUser.lastName}`,
+                        },
+                        {
+                            id: "edit",
+                            label: t("users.editUser"),
+                        },
+                    ]}
+                    onNavigate={
+                        handleBreadcrumbNavigate
+                    }
+                />
+
+                <button
+                    type="button"
+                    className={styles.backButton}
+                    onClick={() => {
+                        setMode(false);
+                        setPendingData(null);
+                        setModalAction(null);
+                    }}
+                >
+                    <ArrowLeft size={16} />
+
+                    {t("users.backToUsers")}
+                </button>
+
+                <div className={styles.header}>
+                    <div>
+                        <div className={styles.titleRow}>
+                            <Edit size={20} />
+
+                            <h1>
+                                {t("users.editUser")}
+                            </h1>
+                        </div>
+
+                        <p className={styles.subtitle}>
+                            {t("users.editSubtitle")}
+                        </p>
+                    </div>
+                </div>
+
+                <div className={styles.formContainer}>
+                    <CollapsibleForm
+                        title={`${selectedUser.firstName} ${selectedUser.lastName}`}
+                        icon={
+                            <Edit size={16} />
+                        }
+                        fields={userFields}
+                        buttons={editButtons}
+                        onSubmit={handleSubmitUpdate}
+                        defaultOpen={true}
+                        initialValues={{
+                            firstName:
+                                selectedUser.firstName || "",
+                            lastName:
+                                selectedUser.lastName || "",
+                            email:
+                                selectedUser.email || "",
+                            role:
+                                selectedUser.role || "user",
+                            status:
+                                selectedUser.status || "active",
+                            department:
+                                selectedUser.department ||
+                                "administration",
                         }}
                     />
                 </div>
@@ -653,6 +1117,20 @@ export default function Users() {
                             </p>
                         </div>
 
+                        {canManageUser(currentUser, selectedUser) && (
+                            <button
+                                type="button"
+                                className={styles.editDetailButton}
+                                onClick={() =>
+                                    handleEditUser(selectedUser)
+                                }
+                            >
+                                <Edit size={16} />
+
+                                {t("common.edit")}
+                            </button>
+                        )}
+
                     </div>
 
                     {/* ==================================
@@ -720,6 +1198,18 @@ export default function Users() {
 
                             <div className={styles.info}>
                                 <span>
+                                    {t("users.department")}
+                                </span>
+
+                                <strong>
+                                    {getDepartmentLabel(
+                                        selectedUser.department
+                                    )}
+                                </strong>
+                            </div>
+
+                            <div className={styles.info}>
+                                <span>
                                     {t("users.status")}
                                 </span>
 
@@ -751,23 +1241,25 @@ export default function Users() {
                         DANGER ZONE
                     ================================== */}
 
-                    <div className={styles.dangerZone}>
+                    {canDeleteUser(currentUser, selectedUser) && (
+                        <div className={styles.dangerZone}>
 
-                        <button
-                            type="button"
-                            className={
-                                styles.deleteButton
-                            }
-                            onClick={
-                                handleDeleteUser
-                            }
-                        >
-                            <Trash2 size={16} />
+                            <button
+                                type="button"
+                                className={
+                                    styles.deleteButton
+                                }
+                                onClick={() =>
+                                    handleDeleteUser(selectedUser)
+                                }
+                            >
+                                <Trash2 size={16} />
 
-                            {t("users.deleteUser")}
-                        </button>
+                                {t("users.deleteUser")}
+                            </button>
 
-                    </div>
+                        </div>
+                    )}
 
                 </div>
 
@@ -832,19 +1324,38 @@ export default function Users() {
                     </p>
                 </div>
 
-                <button
-                    type="button"
-                    className={styles.primaryButton}
-                    onClick={() =>
-                        setMode("create")
-                    }
-                >
-                    <UserPlus size={16} />
+                {canCreateUser(currentUser) && (
+                    <button
+                        type="button"
+                        className={styles.primaryButton}
+                        onClick={handleCreateUser}
+                    >
+                        <UserPlus size={16} />
 
-                    {t("users.addUser")}
-                </button>
+                        {t("users.addUser")}
+                    </button>
+                )}
 
             </div>
+
+            {/* ==================================
+                TOOLBAR (always visible once loaded, so the
+                search box stays available even when a search
+                returns zero results)
+            ================================== */}
+
+            {!initialLoading && (
+                <div className={styles.toolbar}>
+                    <div className={styles.searchWrapper}>
+                        <SearchBar
+                            placeholder={t("users.toolbar.searchPlaceholder")}
+                            onSearch={setSearch}
+                            onClear={() => setSearch("")}
+                            isLoading={loading}
+                        />
+                    </div>
+                </div>
+            )}
 
             {/* ==================================
                 EMPTY STATE
@@ -858,26 +1369,30 @@ export default function Users() {
                     </div>
 
                     <h2>
-                        {t("users.emptyTitle")}
+                        {search
+                            ? t("users.emptySearchTitle")
+                            : t("users.emptyTitle")}
                     </h2>
 
                     <p>
-                        {t("users.emptyMessage")}
+                        {search
+                            ? t("users.emptySearchMessage")
+                            : t("users.emptyMessage")}
                     </p>
 
-                    <button
-                        type="button"
-                        className={
-                            styles.primaryButton
-                        }
-                        onClick={() =>
-                            setMode("create")
-                        }
-                    >
-                        <UserPlus size={16} />
+                    {!search && canCreateUser(currentUser) && (
+                        <button
+                            type="button"
+                            className={
+                                styles.primaryButton
+                            }
+                            onClick={handleCreateUser}
+                        >
+                            <UserPlus size={16} />
 
-                        {t("users.addUser")}
-                    </button>
+                            {t("users.addUser")}
+                        </button>
+                    )}
 
                 </div>
             )}
@@ -887,75 +1402,36 @@ export default function Users() {
             ================================== */}
 
             {users.length > 0 && (
-                <div className={styles.usersGrid}>
+                <>
+                    <div className={styles.usersGrid}>
 
-                    {users.map((user) => (
-                        <button
-                            type="button"
-                            key={user._id}
-                            className={styles.userCard}
-                            onClick={() =>
-                                setSelectedUser(user)
-                            }
-                        >
+                        {users.map((user) => (
+                            <UserCard
+                                key={user._id}
+                                user={user}
+                                canEdit={canManageUser(currentUser, user)}
+                                canDelete={canDeleteUser(currentUser, user)}
+                                onSelect={setSelectedUser}
+                                onEdit={handleEditUser}
+                                onDelete={handleDeleteUser}
+                                getRoleLabel={getRoleLabel}
+                                getDepartmentLabel={getDepartmentLabel}
+                                getStatusLabel={getStatusLabel}
+                                editLabel={t("users.editUser")}
+                                deleteLabel={t("users.deleteUser")}
+                            />
+                        ))}
 
-                            {/* AVATAR */}
+                    </div>
 
-                            <div className={styles.avatar}>
-                                <User size={20} />
-                            </div>
-
-                            {/* USER INFO */}
-
-                            <div className={styles.userMain}>
-
-                                <h2>
-                                    {user.firstName}{" "}
-                                    {user.lastName}
-                                </h2>
-
-                                <div
-                                    className={
-                                        styles.email
-                                    }
-                                >
-                                    <Mail size={13} />
-
-                                    {user.email}
-                                </div>
-
-                            </div>
-
-                            {/* ROLE */}
-
-                            <div
-                                className={
-                                    styles.role
-                                }
-                            >
-                                <Shield size={13} />
-
-                                {getRoleLabel(
-                                    user.role
-                                )}
-                            </div>
-
-                            {/* STATUS */}
-
-                            <div
-                                className={
-                                    styles.status
-                                }
-                            >
-                                {getStatusLabel(
-                                    user.status
-                                )}
-                            </div>
-
-                        </button>
-                    ))}
-
-                </div>
+                    <Pagination
+                        page={pagination.page}
+                        pages={pagination.pages}
+                        total={pagination.total}
+                        limit={pagination.limit}
+                        onPageChange={setPage}
+                    />
+                </>
             )}
 
             {/* ==================================

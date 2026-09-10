@@ -1,195 +1,106 @@
+/* ============================================================
+   Company page — page-specific styles only.
+   Shared layout/button/empty-state/detail-card/loading/danger-
+   zone rules live once in src/styles/global.css and are pulled
+   in below via `composes ... from global`, so there's no more
+   copy-pasted CSS between this file and Users.module.css /
+   Employees.module.css.
+   ============================================================ */
+
 .page {
-  width: 100%;
-  padding: 2rem;
-  color: #fff;
+  composes: pageShell from global;
 }
 
 .header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 2rem;
-  margin-bottom: 2rem;
+  composes: pageHeader from global;
+}
+
+.headerActions {
+  composes: pageHeaderActions from global;
 }
 
 .titleRow {
-  display: flex;
-  align-items: center;
-  gap: 0.7rem;
-}
-
-.titleRow svg {
-  color: #aaa;
-}
-
-.titleRow h1 {
-  margin: 0;
-  font-size: 1.5rem;
-  font-weight: 600;
+  composes: pageTitleRow from global;
 }
 
 .subtitle {
-  margin: 0.5rem 0 0;
-  color: #777;
-  font-size: 0.9rem;
+  composes: pageSubtitle from global;
 }
 
-.editButton,
-.primaryButton,
-.cancelButton {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  min-height: 40px;
-  padding: 0.65rem 1rem;
-  border-radius: 8px;
-  font-size: 0.85rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition:
-    background 0.2s ease,
-    border-color 0.2s ease,
-    transform 0.2s ease;
-}
+/* ---------- Buttons ---------- */
 
 .editButton {
-  color: #fff;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.editButton:hover {
-  background: rgba(255, 255, 255, 0.08);
+  composes: btnEdit from global;
 }
 
 .primaryButton {
-  color: #000;
-  background: #fff;
-  border: 1px solid #fff;
-}
-
-.primaryButton:hover {
-  background: #e8e8e8;
-  transform: translateY(-1px);
+  composes: btnPrimary from global;
 }
 
 .cancelButton {
-  margin-top: 1rem;
-  color: #aaa;
-  background: transparent;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  composes: btnCancel from global;
 }
 
-.cancelButton:hover {
-  color: #fff;
-  background: rgba(255, 255, 255, 0.05);
+.deleteButton {
+  composes: btnDelete from global;
 }
+
+.backButton {
+  composes: btnBack from global;
+}
+
+/* ---------- Empty state ---------- */
 
 .emptyState {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-
-  min-height: 420px;
-  padding: 3rem;
-
-  text-align: center;
-
-  border: 1px dashed rgba(255, 255, 255, 0.12);
-  border-radius: 14px;
-
-  background: rgba(255, 255, 255, 0.015);
+  composes: emptyStateBlock from global;
 }
 
 .emptyIcon {
+  composes: emptyStateIcon from global;
+}
+
+/* ---------- Form ---------- */
+
+.formContainer {
+  composes: formShell from global;
+}
+
+/* ---------- Company card / detail ---------- */
+
+.companyCard {
+  composes: detailCard from global;
+}
+
+.logoSection {
   display: flex;
   align-items: center;
   justify-content: center;
 
-  width: 64px;
-  height: 64px;
-  margin-bottom: 1.25rem;
+  padding: 1.5rem;
 
-  color: #aaa;
-
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 50%;
-}
-
-.emptyState h2 {
-  margin: 0 0 0.5rem;
-  font-size: 1.1rem;
-  font-weight: 600;
-}
-
-.emptyState p {
-  max-width: 420px;
-  margin: 0 0 1.5rem;
-
-  color: #777;
-  font-size: 0.9rem;
-  line-height: 1.6;
-}
-
-.formContainer {
-  max-width: 100%;
-}
-
-.companyCard {
-  overflow: hidden;
-
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 14px;
-
-  background: rgba(255, 255, 255, 0.02);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+  background: rgba(255, 255, 255, 0.015);
 }
 
 .logo {
   max-width: 200px;
+  max-height: 120px;
+  object-fit: contain;
 }
 
 .section {
-  padding: 1.5rem;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
-}
-
-.section h2 {
-  margin: 0 0 1.25rem;
-
-  color: #aaa;
-
-  font-size: 0.75rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
+  composes: detailSection from global;
 }
 
 .grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 1.25rem;
+  composes: detailGrid from global;
 }
 
 .info {
-  display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
+  composes: detailInfo from global;
 }
 
-.info span {
-  color: #666;
-  font-size: 0.75rem;
-}
-
-.info strong {
-  color: #eee;
-  font-size: 0.9rem;
-  font-weight: 500;
-  word-break: break-word;
-}
+/* ---------- Employee count block (page-specific, no equivalent elsewhere) ---------- */
 
 .employeeSection {
   display: flex;
@@ -232,30 +143,21 @@
   font-weight: 600;
 }
 
+/* ---------- Loading / danger zone ---------- */
+
 .loading {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-
-  min-height: 400px;
-
-  color: #777;
-  font-size: 0.9rem;
+  composes: loadingState from global;
 }
 
+.dangerZone {
+  composes: dangerZoneBlock from global;
+}
+
+/* ---------- Responsive (page-specific overrides only —
+   shared breakpoints for .page/.header/.btnPrimary/.grid
+   already live in global.css) ---------- */
+
 @media (max-width: 700px) {
-  .page {
-    padding: 1rem;
-  }
-
-  .header {
-    flex-direction: column;
-  }
-
-  .grid {
-    grid-template-columns: 1fr;
-  }
-
   .editButton {
     width: 100%;
   }

@@ -1,6 +1,137 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Eye, EyeOff } from "lucide-react";
+import { createPortal } from "react-dom";
+
 import styles from "./CollapsibleForm.module.css";
+
+// ========================================
+// CUSTOM SELECT (styled dropdown, replaces native <select>)
+// ========================================
+
+function CustomSelect({ id, value, onSelect, options = [], placeholder }) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [menuStyle, setMenuStyle] = useState(null);
+
+  const wrapperRef = useRef(null);
+  const triggerRef = useRef(null);
+  const menuRef = useRef(null);
+
+  const updatePosition = () => {
+    const trigger = triggerRef.current;
+    if (!trigger) return;
+
+    const rect = trigger.getBoundingClientRect();
+    const viewportHeight = window.innerHeight;
+
+    const maxMenuHeight = 220;
+    const spaceBelow = viewportHeight - rect.bottom;
+    const shouldFlip = spaceBelow < maxMenuHeight && rect.top > spaceBelow;
+
+    setMenuStyle({
+      position: "fixed",
+      left: rect.left,
+      width: rect.width,
+      ...(shouldFlip
+        ? { bottom: viewportHeight - rect.top + 4 }
+        : { top: rect.bottom + 4 }),
+      maxHeight: maxMenuHeight,
+    });
+  };
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    updatePosition();
+
+    const handleReposition = () => updatePosition();
+
+    window.addEventListener("scroll", handleReposition, true);
+    window.addEventListener("resize", handleReposition);
+
+    return () => {
+      window.removeEventListener("scroll", handleReposition, true);
+      window.removeEventListener("resize", handleReposition);
+    };
+  }, [isOpen]);
+
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (
+        wrapperRef.current &&
+        !wrapperRef.current.contains(e.target) &&
+        menuRef.current &&
+        !menuRef.current.contains(e.target)
+      ) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const normalizedOptions = options.map((option) =>
+    typeof option === "object" ? option : { value: option, label: option }
+  );
+
+  const selected = normalizedOptions.find((option) => option.value === value);
+
+  return (
+    <div className={styles.customSelect} ref={wrapperRef}>
+      <button
+        type="button"
+        id={id}
+        ref={triggerRef}
+        className={`${styles.customSelectTrigger} ${isOpen ? styles.customSelectTriggerOpen : ""
+          }`}
+        onClick={() => setIsOpen((prev) => !prev)}
+        aria-haspopup="listbox"
+        aria-expanded={isOpen}
+      >
+        <span
+          className={
+            selected ? styles.customSelectValue : styles.customSelectPlaceholder
+          }
+        >
+          {selected ? selected.label : placeholder || "Select..."}
+        </span>
+        <span
+          className={`${styles.customSelectChevron} ${isOpen ? styles.customSelectChevronOpen : ""
+            }`}
+        >
+          ↓
+        </span>
+      </button>
+
+      {isOpen &&
+        menuStyle &&
+        createPortal(
+          <ul
+            ref={menuRef}
+            className={styles.customSelectOptions}
+            style={menuStyle}
+            role="listbox"
+          >
+            {normalizedOptions.map((option) => (
+              <li
+                key={option.value}
+                role="option"
+                aria-selected={option.value === value}
+                className={`${styles.customSelectOption} ${option.value === value ? styles.customSelectOptionActive : ""
+                  }`}
+                onClick={() => {
+                  onSelect(option.value);
+                  setIsOpen(false);
+                }}
+              >
+                {option.label}
+              </li>
+            ))}
+          </ul>,
+          document.body
+        )}
+    </div>
+  );
+}
 
 export default function CollapsibleForm({
   title = "Form",
@@ -19,7 +150,6 @@ export default function CollapsibleForm({
 
   const [formData, setFormData] = useState(initialValues);
 
-  // Keep form synchronized when initialValues change
   useEffect(() => {
     setFormData(initialValues);
   }, [initialValues]);
@@ -35,27 +165,26 @@ export default function CollapsibleForm({
   // ========================================
 
   const handleChange = (e) => {
-    const {
-      name,
-      value,
-      type,
-      checked,
-      files,
-    } = e.target;
+    const { name, value, type, checked, files } = e.target;
 
     setFormData((prev) => ({
       ...prev,
-
       ...(type === "file"
-        ? {
-            [name]: files?.[0] || null,
-          }
-        : {
-            [name]:
-              type === "checkbox"
-                ? checked
-                : value,
-          }),
+        ? { [name]: files?.[0] || null }
+        : { [name]: type === "checkbox" ? checked : value }),
+    }));
+  };
+
+  // ========================================
+  // HANDLE CUSTOM SELECT CHANGES
+  // (mirrors handleChange but for the custom dropdown,
+  // which has no native input event to read from)
+  // ========================================
+
+  const handleSelectChange = (name, value) => {
+    setFormData((prev) => ({
+      ...prev,
+      [name]: value,
     }));
   };
 
@@ -65,8 +194,6 @@ export default function CollapsibleForm({
 
   const resetForm = () => {
     setFormData(initialValues);
-
-    // Also hide any visible passwords
     setShowPasswords({});
   };
 
@@ -87,7 +214,6 @@ export default function CollapsibleForm({
 
   const handleSubmit = (e) => {
     e.preventDefault();
-
     if (onSubmit) {
       onSubmit(formData);
     }
@@ -96,16 +222,10 @@ export default function CollapsibleForm({
   return (
     <div className={styles.formContainer}>
 
-      {/* ==============================
-          HEADER
-          ============================== */}
-
       <button
         type="button"
         className={styles.formHeader}
-        onClick={() =>
-          setIsOpen((prev) => !prev)
-        }
+        onClick={() => setIsOpen((prev) => !prev)}
       >
         <span className={styles.formTitle}>
           {icon}
@@ -113,52 +233,32 @@ export default function CollapsibleForm({
         </span>
 
         <span
-          className={`${styles.chevron} ${
-            isOpen ? styles.chevronOpen : ""
-          }`}
+          className={`${styles.chevron} ${isOpen ? styles.chevronOpen : ""
+            }`}
         >
           ↓
         </span>
       </button>
 
-      {/* ==============================
-          FORM CONTENT
-          ============================== */}
-
       <div
-        className={`${styles.formContent} ${
-          isOpen ? styles.formContentOpen : ""
-        }`}
+        className={`${styles.formContent} ${isOpen ? styles.formContentOpen : ""
+          }`}
       >
         <form onSubmit={handleSubmit}>
 
-          {/* ==============================
-              FIELDS
-              ============================== */}
-
           <div className={styles.fields}>
-
             {fields.map((field) => (
               <div
                 key={field.name}
-                className={`${styles.field} ${
-                  field.fullWidth ? styles.fullWidth : ""
-                }`}
+                className={`${styles.field} ${field.fullWidth ? styles.fullWidth : ""
+                  }`}
               >
-
-                {/* LABEL */}
-
                 <label htmlFor={field.name}>
                   {field.label}
-
                   {field.required && (
-                    <span className={styles.required}>
-                      *
-                    </span>
+                    <span className={styles.required}>*</span>
                   )}
                 </label>
-
-                {/* TEXTAREA */}
 
                 {field.type === "textarea" && (
                   <textarea
@@ -172,44 +272,19 @@ export default function CollapsibleForm({
                   />
                 )}
 
-                {/* SELECT */}
+                {/* SELECT — now a styled custom dropdown */}
 
                 {field.type === "select" && (
-                  <select
+                  <CustomSelect
                     id={field.name}
-                    name={field.name}
                     value={formData[field.name] ?? ""}
-                    onChange={handleChange}
-                    required={field.required}
-                  >
-                    <option value="">
-                      {field.placeholder || "Select..."}
-                    </option>
-
-                    {field.options?.map((option) => {
-                      const value =
-                        typeof option === "object"
-                          ? option.value
-                          : option;
-
-                      const label =
-                        typeof option === "object"
-                          ? option.label
-                          : option;
-
-                      return (
-                        <option
-                          key={value}
-                          value={value}
-                        >
-                          {label}
-                        </option>
-                      );
-                    })}
-                  </select>
+                    onSelect={(value) =>
+                      handleSelectChange(field.name, value)
+                    }
+                    options={field.options}
+                    placeholder={field.placeholder}
+                  />
                 )}
-
-                {/* CHECKBOX */}
 
                 {field.type === "checkbox" && (
                   <label className={styles.checkbox}>
@@ -217,46 +292,30 @@ export default function CollapsibleForm({
                       type="checkbox"
                       id={field.name}
                       name={field.name}
-                      checked={
-                        formData[field.name] || false
-                      }
+                      checked={formData[field.name] || false}
                       onChange={handleChange}
                     />
-
-                    <span>
-                      {field.checkboxLabel}
-                    </span>
+                    <span>{field.checkboxLabel}</span>
                   </label>
                 )}
-
-                {/* PASSWORD */}
 
                 {field.type === "password" && (
                   <div className={styles.passwordWrapper}>
                     <input
                       id={field.name}
                       name={field.name}
-                      type={
-                        showPasswords[field.name]
-                          ? "text"
-                          : "password"
-                      }
+                      type={showPasswords[field.name] ? "text" : "password"}
                       placeholder={field.placeholder}
                       value={formData[field.name] ?? ""}
                       onChange={handleChange}
                       required={field.required}
                     />
-
                     <button
                       type="button"
                       className={styles.passwordToggle}
-                      onClick={() =>
-                        togglePassword(field.name)
-                      }
+                      onClick={() => togglePassword(field.name)}
                       aria-label={
-                        showPasswords[field.name]
-                          ? "Hide password"
-                          : "Show password"
+                        showPasswords[field.name] ? "Hide password" : "Show password"
                       }
                     >
                       {showPasswords[field.name] ? (
@@ -268,8 +327,6 @@ export default function CollapsibleForm({
                   </div>
                 )}
 
-                {/* FILE */}
-
                 {field.type === "file" && (
                   <div className={styles.fileWrapper}>
                     <input
@@ -280,7 +337,6 @@ export default function CollapsibleForm({
                       onChange={handleChange}
                       required={field.required}
                     />
-
                     {formData[field.name] instanceof File && (
                       <small className={styles.fileName}>
                         {formData[field.name].name}
@@ -289,8 +345,6 @@ export default function CollapsibleForm({
                   </div>
                 )}
 
-                {/* NORMAL INPUT */}
-
                 {![
                   "textarea",
                   "select",
@@ -298,60 +352,44 @@ export default function CollapsibleForm({
                   "password",
                   "file",
                 ].includes(field.type) && (
-                  <input
-                    id={field.name}
-                    name={field.name}
-                    type={field.type || "text"}
-                    placeholder={field.placeholder}
-                    value={formData[field.name] ?? ""}
-                    onChange={handleChange}
-                    required={field.required}
-                  />
-                )}
-
-                {/* HELP TEXT */}
+                    <input
+                      id={field.name}
+                      name={field.name}
+                      type={field.type || "text"}
+                      placeholder={field.placeholder}
+                      value={formData[field.name] ?? ""}
+                      onChange={handleChange}
+                      required={field.required}
+                    />
+                  )}
 
                 {field.helpText && (
                   <small className={styles.helpText}>
                     {field.helpText}
                   </small>
                 )}
-
               </div>
             ))}
-
           </div>
-
-          {/* ==============================
-              BUTTONS
-              ============================== */}
 
           {buttons.length > 0 && (
             <div className={styles.actions}>
-
               {buttons.map((button) => (
-
                 <button
                   key={button.label}
                   type={button.type || "button"}
-                  className={`${styles.button} ${
-                    styles[button.variant || "primary"]
-                  }`}
+                  className={`${styles.button} ${styles[button.variant || "primary"]
+                    }`}
                   onClick={
-                    button.type === "reset"
-                      ? resetForm
-                      : button.onClick
+                    button.type === "reset" ? resetForm : button.onClick
                   }
                   disabled={button.disabled}
                 >
                   {button.label}
                 </button>
-
               ))}
-
             </div>
           )}
-
         </form>
       </div>
     </div>

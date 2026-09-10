@@ -1,0 +1,121 @@
+/* ============================================================
+   EmployeeCard — page-agnostic styles for a single employee card.
+   Shared card/button primitives are composed from
+   src/styles/global.css so they stay in sync with UserCard and
+   any other resource card in the app.
+   ============================================================ */
+
+.employeeCard {
+    composes: resourceCard from global;
+}
+
+.employeeCardTop {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+/* ---------- Avatar (photo or fallback icon) ---------- */
+
+.employeeAvatar {
+    composes: avatarCircle from global;
+    overflow: hidden;
+}
+
+.employeeAvatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+/* ---------- Body ---------- */
+
+.employeeCardBody h3 {
+    margin: 0 0 0.4rem;
+    overflow: hidden;
+    color: var(--color-text-primary);
+    font-size: 0.9rem;
+    font-weight: 600;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.employeeJob {
+    margin: 0 0 8px;
+    color: var(--color-text-secondary);
+    font-size: 0.78rem;
+}
+
+.employeeMeta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.employeeMetaItem {
+    composes: pillTag from global;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* ---------- Status badge ---------- */
+
+.statusBadge {
+    display: inline-flex;
+    align-items: center;
+    flex-shrink: 0;
+    padding: 4px 8px;
+    border: 1px solid var(--color-border);
+    border-radius: 999px;
+    color: var(--color-text-tertiary);
+    background: var(--color-bg-primary);
+    font-size: 0.62rem;
+    font-weight: 600;
+    text-transform: capitalize;
+    white-space: nowrap;
+}
+
+.statusActive {
+    color: #d8d8d8;
+    border-color: rgba(255, 255, 255, 0.18);
+    background: rgba(255, 255, 255, 0.07);
+}
+
+.statusInactive {
+    opacity: 0.7;
+}
+
+/* ---------- Footer actions (view / edit / delete) ---------- */
+
+.employeeCardActions {
+    composes: cardFooterActions from global;
+}
+
+.actionButton {
+    composes: cardFooterActionBtn from global;
+}
+
+.actionButtonDanger {
+    composes: cardFooterActionBtnDanger from global;
+}
+
+/* ---------- Responsive ---------- */
+
+@media (max-width: 480px) {
+    .employeeCard {
+        padding: 12px;
+    }
+
+    .employeeAvatar {
+        width: 40px;
+        height: 40px;
+    }
+
+    .employeeCardBody h3 {
+        font-size: 0.82rem;
+    }
+}

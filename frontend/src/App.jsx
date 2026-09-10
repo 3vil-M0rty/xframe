@@ -7,6 +7,8 @@ import Company from './pages/owner/Company'
 import ProtectedRoute from './components/ProtectedRoute'
 import Layout from './components/Layout'
 import Users from './pages/owner/Users'
+import Employees from './pages/hr/Employees'
+import './styles/global.css';
 
 export default function App() {
   return (
@@ -31,6 +33,7 @@ export default function App() {
               <Route path="/profile" element={<Profile />} />
               <Route path="/organization/company" element={<Company />} />
               <Route path="/organization/users" element={<Users />} />
+              <Route path="/hr/employees" element={<Employees />} />
             </Route>
           </Routes>
         </BrowserRouter>

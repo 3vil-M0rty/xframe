@@ -102,6 +102,24 @@ body {
   --line-height-tight: 1.2;
   --line-height-normal: 1.5;
   --line-height-relaxed: 1.75;
+
+  /* ------------------------------------------------------
+     Brand / semantic aliases
+     ------------------------------------------------------
+     A handful of components (CompanyForm, CompanyCard,
+     Profile, LoginPage) reference --color-primary(-dark/-light)
+     and --color-error, but those tokens were never defined
+     here — meaning every rule using them was silently
+     invalid CSS and had NO visual effect. These aliases wire
+     them up to the closest existing token so those components
+     render as originally intended. Nothing about this changes
+     any class that was already working; it only fixes rules
+     that were previously inert.
+     ------------------------------------------------------ */
+  --color-primary: var(--color-info);
+  --color-primary-dark: #2f6fd1;
+  --color-primary-light: var(--color-info-light);
+  --color-error: var(--color-danger);
 }
 
 /* Typography */
@@ -167,6 +185,8 @@ input:focus, textarea:focus, select:focus {
   border-color: var(--color-text-primary);
   box-shadow: 0 0 0 2px var(--color-grey-300);
 }
+
+
 
 input::placeholder {
   color: var(--color-text-tertiary);
@@ -250,3 +270,515 @@ input::placeholder {
   background: var(--color-info-light);
   color: var(--color-info);
 }
+
+/* ============================================================
+   RESOURCE PAGE COMPONENT LIBRARY
+   ============================================================
+   Shared building blocks for "manage a resource" screens
+   (Company, Users, and any future admin screen — Departments,
+   Roles, etc.). These classes used to be copy-pasted, almost
+   byte-for-byte, into Company.module.css and Users.module.css.
+   They now live here once. The page-level .module.css files
+   pull them in with CSS Modules' `composes ... from global`,
+   so `styles.pageShell` etc. still works exactly as before in
+   JSX — nothing in Company.jsx / Users.jsx needed to change.
+
+   Naming: everything here is prefixed to avoid clashing with
+   any other global class in the app.
+   ============================================================ */
+
+/* ---------- Page shell & header ---------- */
+
+.pageShell {
+  width: 100%;
+  padding: 2rem;
+  color: #fff;
+}
+
+.pageHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 2rem;
+  margin-bottom: 2rem;
+}
+
+.pageHeaderActions {
+  display: flex;
+  gap: 5px;
+}
+
+.pageTitleRow {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+}
+
+.pageTitleRow svg {
+  color: #aaa;
+}
+
+.pageTitleRow h1 {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 600;
+}
+
+.pageSubtitle {
+  margin: 0.5rem 0 0;
+  color: #777;
+  font-size: 0.9rem;
+}
+
+/* ---------- Buttons ---------- */
+
+.btnBase {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-height: 40px;
+  padding: 0.65rem 1rem;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    background 0.2s ease,
+    border-color 0.2s ease,
+    transform 0.2s ease;
+}
+
+.btnPrimary {
+  composes: btnBase;
+  color: #000;
+  background: #fff;
+  border: 1px solid #fff;
+}
+
+.btnPrimary:hover {
+  background: #e8e8e8;
+  transform: translateY(-1px);
+}
+
+.btnEdit {
+  composes: btnBase;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.btnEdit:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.btnCancel {
+  composes: btnBase;
+  margin-top: 1rem;
+  color: #aaa;
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.btnCancel:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.btnDelete {
+  composes: btnBase;
+  color: #ff8585;
+  background: rgba(255, 80, 80, 0.06);
+  border: 1px solid rgba(255, 80, 80, 0.2);
+}
+
+.btnDelete:hover {
+  color: #fff;
+  background: rgba(255, 60, 60, 0.15);
+  border-color: rgba(255, 70, 70, 0.45);
+}
+
+.btnDelete:active {
+  transform: translateY(1px);
+}
+
+.btnBack {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-height: 40px;
+  margin-bottom: 1.5rem;
+  padding: 0.5rem 0;
+  color: #888;
+  background: transparent;
+  border: 0;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: color 0.2s ease;
+}
+
+.btnBack:hover {
+  color: #fff;
+}
+
+
+
+/* ---------- Empty state ---------- */
+
+.emptyStateBlock {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 420px;
+  padding: 3rem;
+  text-align: center;
+  border: 1px dashed rgba(255, 255, 255, 0.12);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.015);
+}
+
+.emptyStateIcon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 64px;
+  height: 64px;
+  margin-bottom: 1.25rem;
+  color: #aaa;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 50%;
+}
+
+.emptyStateBlock h2 {
+  margin: 0 0 0.5rem;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.emptyStateBlock p {
+  max-width: 420px;
+  margin: 0 0 1.5rem;
+  color: #777;
+  font-size: 0.9rem;
+  line-height: 1.6;
+}
+
+/* ---------- Detail card (company profile / user profile) ---------- */
+
+.detailCard {
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.detailSection {
+  padding: 1.5rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.detailSection h2 {
+  margin: 0 0 1.25rem;
+  color: #aaa;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.detailGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1.25rem;
+}
+
+.detailInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.detailInfo span {
+  color: #666;
+  font-size: 0.75rem;
+}
+
+.detailInfo strong {
+  color: #eee;
+  font-size: 0.9rem;
+  font-weight: 500;
+  word-break: break-word;
+}
+
+/* ---------- Form wrapper ---------- */
+
+.formShell {
+  max-width: 100%;
+}
+
+/* ---------- Loading ---------- */
+
+.loadingState {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 400px;
+  color: #777;
+  font-size: 0.9rem;
+}
+
+/* ---------- Danger zone ---------- */
+
+.dangerZoneBlock {
+  display: flex;
+  justify-content: flex-end;
+  padding: 1.5rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+/* ---------- Toolbar spacing (search bar row above a grid) ---------- */
+
+.toolbarBlock {
+  margin-bottom: 20px;
+}
+
+/* ---------- Auto-fill card grid (Users, Employees, ...) ---------- */
+
+.autoFillGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+  gap: 1rem;
+}
+
+/* ---------- Clickable resource card (Users, Employees, ...) ----------
+   Page-specific inner layout (grid-template-columns, flex, etc.) is
+   added locally on top of this via `composes`. */
+
+.resourceCard {
+  position: relative;
+  min-width: 0;
+  padding: 16px;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  background: var(--color-bg-primary);
+  color: var(--color-text-primary);
+  cursor: pointer;
+  transition:
+    background 0.2s ease,
+    border-color 0.2s ease,
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.resourceCard:hover {
+  background: var(--color-bg-secondary);
+  border-color: var(--color-text-tertiary);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
+}
+
+/* ---------- Avatar circles ---------- */
+
+.avatarCircle,
+.avatarCircleLg {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  overflow: hidden;
+  color: #aaa;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 50%;
+}
+
+.avatarCircle {
+  width: 48px;
+  height: 48px;
+}
+
+.avatarCircleLg {
+  width: 70px;
+  height: 70px;
+}
+
+/* ---------- Card overlay actions (edit/delete icon buttons that
+   fade in on hover, pinned to the top-right corner of a card —
+   used by UserCard, EmployeeCard, CompanyCard, ...) ---------- */
+
+.cardActionsOverlay {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  z-index: 1;
+}
+
+.cardActionIconBtn {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 1px solid var(--color-border);
+  border-radius: 7px;
+  background: var(--color-bg-primary);
+  color: var(--color-text-tertiary);
+  cursor: pointer;
+  opacity: 0;
+  transform: translateY(-2px);
+  transition:
+    opacity 0.2s ease,
+    transform 0.2s ease,
+    background 0.2s ease,
+    color 0.2s ease,
+    border-color 0.2s ease;
+}
+
+.resourceCard:hover .cardActionIconBtn,
+.cardActionIconBtn:focus-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.cardActionIconBtn:hover {
+  background: var(--color-bg-tertiary);
+  color: var(--color-text-primary);
+  border-color: var(--color-text-tertiary);
+}
+
+.cardActionIconBtn:active {
+  transform: scale(0.95);
+}
+
+.cardActionIconBtnDanger {
+  composes: cardActionIconBtn;
+  color: #ff6b6b;
+  background: rgba(255, 80, 80, 0.06);
+  border-color: rgba(255, 80, 80, 0.2);
+}
+
+.cardActionIconBtnDanger:hover {
+  color: #ff8585;
+  background: rgba(255, 80, 80, 0.12);
+  border-color: rgba(255, 80, 80, 0.35);
+}
+
+/* ---------- Card footer actions (a row of small text+icon buttons
+   under a card's content, separated by a top border — used by
+   EmployeeCard's view/edit/delete row) ---------- */
+
+.cardFooterActions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--color-border);
+}
+
+.cardFooterActionBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 32px;
+  padding: 0 9px;
+  color: var(--color-text-secondary);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  font-family: inherit;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    background 0.18s ease,
+    border-color 0.18s ease,
+    color 0.18s ease;
+}
+
+.cardFooterActionBtn:hover {
+  color: var(--color-text-primary);
+  background: var(--color-bg-hover);
+  border-color: var(--color-border);
+}
+
+.cardFooterActionBtnDanger {
+  composes: cardFooterActionBtn;
+  color: #ff8585;
+}
+
+.cardFooterActionBtnDanger:hover {
+  color: #fff;
+  background: rgba(255, 60, 60, 0.15);
+  border-color: rgba(255, 70, 70, 0.45);
+}
+
+/* ---------- Pill tag (role / department / status / meta chip) ---------- */
+
+.pillTag {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 8px;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  background: var(--color-bg-secondary);
+  color: var(--color-text-secondary);
+  font-size: 0.72rem;
+  font-weight: 500;
+}
+
+/* ---------- Responsive ---------- */
+
+@media (max-width: 900px) {
+  .autoFillGrid {
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  }
+}
+
+@media (max-width: 700px) {
+  .pageShell {
+    padding: 1rem;
+  }
+
+  .pageHeader {
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .btnPrimary {
+    width: 100%;
+  }
+
+  .detailGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .autoFillGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .cardActionIconBtn {
+    opacity: 1;
+    transform: none;
+    width: 34px;
+    height: 34px;
+  }
+}
+
+@media (max-width: 480px) {
+  .pageShell {
+    padding: 0.75rem;
+  }
+}
+

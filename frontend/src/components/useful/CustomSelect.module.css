@@ -1,0 +1,200 @@
+/* ============================================================
+   CUSTOM SELECT
+   Reusable FRAME dropdown
+   ============================================================ */
+
+.customSelect {
+  position: relative;
+  width: 100%;
+}
+
+.customSelectTrigger {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-sm);
+
+  min-height: 40px;
+  padding: var(--spacing-sm);
+
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+
+  background: var(--color-bg-primary);
+  color: var(--color-text-primary);
+
+  font-family: inherit;
+  font-size: var(--font-xs);
+  font-weight: var(--font-regular);
+
+  text-align: left;
+
+  cursor: pointer;
+
+  transition:
+    border-color 0.2s ease,
+    background 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.customSelectTrigger:hover {
+  border-color: var(--color-text-secondary);
+  background: var(--color-bg-hover);
+}
+
+.customSelectTriggerOpen {
+  border-color: var(--color-text-secondary);
+
+  box-shadow:
+    0 0 0 2px rgba(255, 255, 255, 0.08);
+}
+
+.customSelectTrigger:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* ============================================================
+   VALUE
+   ============================================================ */
+
+.customSelectValue {
+  overflow: hidden;
+
+  color: var(--color-text-primary);
+
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.customSelectPlaceholder {
+  overflow: hidden;
+
+  color: var(--color-text-tertiary);
+
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ============================================================
+   CHEVRON
+   ============================================================ */
+
+.customSelectChevron {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  flex-shrink: 0;
+
+  width: 20px;
+  height: 20px;
+
+  color: var(--color-text-secondary);
+
+  font-size: var(--font-xs);
+
+  transition:
+    transform 0.2s ease;
+}
+
+.customSelectChevronOpen {
+  transform: rotate(180deg);
+}
+
+/* ============================================================
+   OPTIONS MENU
+   ============================================================ */
+
+.customSelectOptions {
+  z-index: 10000;
+
+  display: flex;
+  flex-direction: column;
+
+  gap: 2px;
+
+  overflow-y: auto;
+
+  margin: 0;
+  padding: 6px;
+
+  list-style: none;
+
+  background: var(--color-bg-tertiary);
+
+  border: 1px solid var(--color-border);
+
+  border-radius: var(--radius-md);
+
+  box-shadow:
+    0 8px 24px var(--color-shadow);
+
+  scrollbar-width: thin;
+}
+
+/* ============================================================
+   OPTION
+   ============================================================ */
+
+.customSelectOption {
+  padding: 10px var(--spacing-sm);
+
+  border-radius: var(--radius-sm, 6px);
+
+  color: var(--color-text-primary);
+
+  font-size: var(--font-xs);
+
+  cursor: pointer;
+
+  transition:
+    background 0.15s ease,
+    color 0.15s ease;
+}
+
+.customSelectOption:hover {
+  background: var(--color-bg-hover);
+  color: var(--color-text-primary);
+}
+
+.customSelectOptionActive {
+  background: rgba(255, 255, 255, 0.12);
+
+  color: var(--color-text-primary);
+
+  font-weight: var(--font-medium);
+}
+
+/* ============================================================
+   EMPTY
+   ============================================================ */
+
+.customSelectEmpty {
+  padding: 10px var(--spacing-sm);
+
+  color: var(--color-text-tertiary);
+
+  font-size: var(--font-xs);
+
+  text-align: center;
+}
+
+/* ============================================================
+   DISABLED
+   ============================================================ */
+
+.disabled {
+  cursor: not-allowed;
+}
+
+/* ============================================================
+   RESPONSIVE
+   ============================================================ */
+
+@media (max-width: 700px) {
+  .customSelectOptions {
+    max-height: 200px;
+  }
+}

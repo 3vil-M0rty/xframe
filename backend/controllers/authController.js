@@ -24,7 +24,18 @@ exports.login = async (req, res) => {
 
     // Generate token
     const token = jwt.sign(
-      { id: user._id, email: user.email, role: user.role },
+      {
+        id: user._id,
+        email: user.email,
+        role: user.role,
+        // Needed so department-scoped permission checks (e.g. "HR
+        // department can manage employees/salaries/absences/advances")
+        // work anywhere the request only has the decoded token to go
+        // on (most routes — see middleware/auth.js). Previously this
+        // was left out, so req.user.department was always undefined
+        // and any department-based permission silently failed.
+        department: user.department,
+      },
       process.env.JWT_SECRET,
       { expiresIn: '7d' }
     );
@@ -38,7 +49,8 @@ exports.login = async (req, res) => {
           firstName: user.firstName,
           lastName: user.lastName,
           email: user.email,
-          role: user.role
+          role: user.role,
+          department: user.department,
         }
       }
     });

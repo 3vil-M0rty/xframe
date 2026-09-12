@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { Eye, EyeOff } from "lucide-react";
 import { createPortal } from "react-dom";
 
+import SearchSelect from "./SearchSelect";
 import styles from "./CollapsibleForm.module.css";
 
 // ========================================
@@ -150,9 +151,26 @@ export default function CollapsibleForm({
 
   const [formData, setFormData] = useState(initialValues);
 
+  // `initialValues` is an object, and the default parameter above
+  // (as well as many callers passing an inline object literal like
+  // `initialValues={{ justified: true }}`) creates a BRAND NEW
+  // object on every single render, even when its contents haven't
+  // actually changed. Using that object directly as a useEffect
+  // dependency compares by reference, so the effect would re-fire
+  // on every render, call setFormData, trigger a re-render, get a
+  // new default/inline object again, and loop forever ("Maximum
+  // update depth exceeded").
+  //
+  // Comparing a serialized snapshot instead of the object itself
+  // means the effect only actually runs when the VALUES change,
+  // regardless of whether the caller hands us a fresh object
+  // reference every render.
+  const initialValuesKey = JSON.stringify(initialValues);
+
   useEffect(() => {
     setFormData(initialValues);
-  }, [initialValues]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialValuesKey]);
 
   // ========================================
   // PASSWORD VISIBILITY
@@ -286,6 +304,25 @@ export default function CollapsibleForm({
                   />
                 )}
 
+                {/* SEARCH-SELECT — a search-as-you-type box that
+                    resolves to one selected value (e.g. picking an
+                    employee by name, number, CIN, CNSS...), styled
+                    exactly like the app's other search bars. See
+                    SearchSelect.jsx for the option shape. */}
+
+                {field.type === "search-select" && (
+                  <SearchSelect
+                    id={field.name}
+                    value={formData[field.name] ?? ""}
+                    onSelect={(value) =>
+                      handleSelectChange(field.name, value)
+                    }
+                    options={field.options}
+                    placeholder={field.placeholder}
+                    noResultsLabel={field.noResultsLabel}
+                  />
+                )}
+
                 {field.type === "checkbox" && (
                   <label className={styles.checkbox}>
                     <input
@@ -348,6 +385,7 @@ export default function CollapsibleForm({
                 {![
                   "textarea",
                   "select",
+                  "search-select",
                   "checkbox",
                   "password",
                   "file",

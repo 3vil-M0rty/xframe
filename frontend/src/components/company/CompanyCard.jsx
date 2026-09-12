@@ -1,16 +1,51 @@
+import { useState } from 'react'
 import { RotateCcw, Trash2, Edit2 } from 'lucide-react'
 import api from '../../services/api'
+import ActionModal from '../useful/ActionModal'
 import styles from './CompanyCard.module.css'
 
 export default function CompanyCard({ company, onDelete, onRefresh, onEdit }) {
-  const handleDelete = async () => {
-    if (window.confirm('Delete this company? This action cannot be undone.')) {
-      try {
-        await api.delete(`/companies/${company._id}`)
-        onDelete()
-      } catch (error) {
-        alert('Error deleting company: ' + (error.response?.data?.message || error.message))
-      }
+  // No browser confirm()/alert() — ActionModal handles both the
+  // "are you sure?" confirmation and the error message if the
+  // delete request fails.
+  const [modal, setModal] = useState({
+    open: false,
+    type: 'confirm',
+    title: '',
+    message: '',
+  })
+  const [deleteLoading, setDeleteLoading] = useState(false)
+
+  const askDelete = () => {
+    setModal({
+      open: true,
+      type: 'confirm',
+      title: 'Delete company',
+      message: 'Delete this company? This action cannot be undone.',
+    })
+  }
+
+  const closeModal = () => {
+    if (deleteLoading) return
+    setModal((prev) => ({ ...prev, open: false }))
+  }
+
+  const handleConfirmDelete = async () => {
+    setDeleteLoading(true)
+
+    try {
+      await api.delete(`/companies/${company._id}`)
+      setModal((prev) => ({ ...prev, open: false }))
+      onDelete()
+    } catch (error) {
+      setModal({
+        open: true,
+        type: 'error',
+        title: "Couldn't delete company",
+        message: error.response?.data?.message || error.message,
+      })
+    } finally {
+      setDeleteLoading(false)
     }
   }
 
@@ -31,7 +66,7 @@ export default function CompanyCard({ company, onDelete, onRefresh, onEdit }) {
           <button onClick={onRefresh} title="Refresh" className={styles.actionBtn}>
             <RotateCcw size={20} />
           </button>
-          <button onClick={handleDelete} title="Delete" className={styles.deleteBtn}>
+          <button onClick={askDelete} title="Delete" className={styles.deleteBtn}>
             <Trash2 size={20} />
           </button>
         </div>
@@ -97,6 +132,16 @@ export default function CompanyCard({ company, onDelete, onRefresh, onEdit }) {
           <p>{new Date(company.createdAt).toLocaleDateString()}</p>
         </div>
       </div>
+
+      <ActionModal
+        isOpen={modal.open}
+        type={modal.type}
+        title={modal.title}
+        message={modal.message}
+        loading={deleteLoading}
+        onConfirm={modal.type === 'confirm' ? handleConfirmDelete : undefined}
+        onClose={closeModal}
+      />
     </div>
   )
 }

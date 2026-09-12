@@ -17,6 +17,7 @@ import { useI18n } from "../hooks/useI18n";
 import api from "../services/api";
 import styles from "./Sidebar.module.css";
 import LanguageSwitcher from "./useful/LanguageSwitcher";
+import { canAccessHR } from "../utils/permissions";
 
 export default function Sidebar() {
   const [isOpen, setIsOpen] = useState(true);
@@ -112,10 +113,29 @@ export default function Sidebar() {
       id: "hr",
       label: t("sidebar.hr"),
       icon: IdCardLanyard,
+      // Declarative permission check: this whole section (and
+      // every subsection under it) only shows up for someone
+      // `canAccessHR` says yes to (admin, owner, or a "hr"
+      // department user). Adding a new HR page later is just
+      // another entry in `subsections` below — no new permission
+      // wiring needed, it inherits this same gate.
+      permission: canAccessHR,
       subsections: [
         {
           label: t("sidebar.employees"),
           href: "/hr/employees",
+        },
+        {
+          label: t("sidebar.salaries"),
+          href: "/hr/salaries",
+        },
+        {
+          label: t("sidebar.absences"),
+          href: "/hr/absences",
+        },
+        {
+          label: t("sidebar.advances"),
+          href: "/hr/advances",
         },
       ],
     },
@@ -128,12 +148,21 @@ export default function Sidebar() {
     },
   ];
 
+  // Menu items are only shown once we know who the user is, and
+  // only if they have no `permission` check or they pass it. Any
+  // future sidebar section can opt into the same gating just by
+  // adding a `permission: someCheckFn` field above — nothing here
+  // needs to change.
+  const visibleMenuItems = menuItems.filter(
+    (item) => !item.permission || item.permission(user)
+  );
+
   // ============================================================
   // AUTO EXPAND ACTIVE SECTION
   // ============================================================
 
   useEffect(() => {
-    const match = menuItems.find((item) =>
+    const match = visibleMenuItems.find((item) =>
       item.subsections?.some(
         (sub) => location.pathname === sub.href
       )
@@ -142,7 +171,7 @@ export default function Sidebar() {
     if (match) {
       setExpandedSection(match.id);
     }
-  }, [location.pathname]);
+  }, [location.pathname, visibleMenuItems]);
 
   // ============================================================
   // HELPERS
@@ -338,7 +367,7 @@ export default function Sidebar() {
           ==================================================== */}
 
           <nav className={styles.nav}>
-            {menuItems.map((item) => {
+            {visibleMenuItems.map((item) => {
               const Icon = item.icon;
 
               return (

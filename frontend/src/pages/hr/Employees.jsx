@@ -31,6 +31,7 @@ import CustomSelect from "../../components/useful/CustomSelect";
 import Breadcrumbs from "../../components/useful/Breadcrumbs";
 import Pagination from "../../components/useful/Pagination";
 import EmployeeCard from "../../components/employee/EmployeeCard";
+import ActionModal from "../../components/useful/ActionModal";
 
 import {
   getEmployees,
@@ -169,7 +170,7 @@ function EmployeeFormExtras({
         </div>
 
         <div className={styles.photoUpload}>
-          <div className={styles.photoPreview}>
+          <div className={`avatarCircleLg ${styles.photoPreview}`}>
             {photoPreview ? (
               <img
                 src={photoPreview}
@@ -282,6 +283,26 @@ export default function Employees() {
   const [saving, setSaving] = useState(false);
 
   const [error, setError] = useState("");
+
+  // ========================================
+  // DELETE CONFIRMATION (ActionModal — no browser confirm())
+  // ========================================
+
+  const [modal, setModal] = useState({
+    open: false,
+    type: "confirm",
+    title: "",
+    message: "",
+  });
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+
+  const closeModal = () => {
+    if (deleteLoading) return;
+
+    setModal((prev) => ({ ...prev, open: false }));
+    setDeleteTarget(null);
+  };
 
   const [showCreateForm, setShowCreateForm] =
     useState(false);
@@ -1920,56 +1941,59 @@ export default function Employees() {
      DELETE
      ========================================================== */
 
-  const handleDelete = async (
-    employee
-  ) => {
+  // Opens the confirm modal instead of a browser confirm() dialog.
+  // The actual delete only happens once the user presses "Confirm"
+  // in the modal — see handleConfirmDelete below.
+  const handleDelete = (employee) => {
     if (!employee?._id) return;
 
-    const confirmed =
-      window.confirm(
-        getDeleteConfirmationMessage(
-          employee
-        )
-      );
+    setDeleteTarget(employee);
+    setModal({
+      open: true,
+      type: "confirm",
+      title: t("employees.deleteTitle"),
+      message: getDeleteConfirmationMessage(employee),
+    });
+  };
 
-    if (!confirmed) return;
+  const handleConfirmDelete = async () => {
+    if (!deleteTarget?._id) return;
 
     try {
-      setLoading(true);
-      setError("");
+      setDeleteLoading(true);
 
-      await deleteEmployee(
-        employee._id
-      );
+      await deleteEmployee(deleteTarget._id);
 
       setEmployees((prev) =>
-        prev.filter(
-          (item) =>
-            item._id !==
-            employee._id
-        )
+        prev.filter((item) => item._id !== deleteTarget._id)
       );
 
       setSelectedEmployee((prev) =>
-        prev &&
-          prev._id === employee._id
-          ? null
-          : prev
-      );
-    } catch (err) {
-      console.error(
-        "Delete employee error:",
-        err
+        prev && prev._id === deleteTarget._id ? null : prev
       );
 
-      setError(
-        err.message ||
-        t(
-          "employees.errors.deleteFailed"
-        )
-      );
+      setDeleteTarget(null);
+
+      setModal({
+        open: true,
+        type: "success",
+        title: t("employees.deleteSuccessTitle"),
+        message: t("employees.deleteSuccessMessage"),
+      });
+    } catch (err) {
+      console.error("Delete employee error:", err);
+
+      setModal({
+        open: true,
+        type: "error",
+        title: t("employees.deleteFailTitle"),
+        message:
+          err.response?.data?.message ||
+          err.message ||
+          t("employees.deleteFailMessage"),
+      });
     } finally {
-      setLoading(false);
+      setDeleteLoading(false);
     }
   };
 
@@ -2058,7 +2082,7 @@ export default function Employees() {
         );
 
     return (
-      <div className={styles.page}>
+      <div className="pageShell">
         <Breadcrumbs
           items={breadcrumbItems}
           onNavigate={
@@ -2069,7 +2093,7 @@ export default function Employees() {
         <div className={styles.detailHeader}>
           <button
             type="button"
-            className={styles.backButton}
+            className="btnBack"
             onClick={
               handleBackToEmployees
             }
@@ -2088,7 +2112,7 @@ export default function Employees() {
             <button
               type="button"
               className={
-                styles.secondaryButton
+                "btnEdit"
               }
               onClick={() =>
                 openEditForm(
@@ -2103,7 +2127,7 @@ export default function Employees() {
             <button
               type="button"
               className={
-                styles.dangerButton
+                "btnDelete"
               }
               onClick={() =>
                 handleDelete(
@@ -2119,10 +2143,10 @@ export default function Employees() {
           </div>
         </div>
 
-        <div className={styles.profileCard}>
+        <div className={`detailCard ${styles.profileCard}`}>
           <div
             className={
-              styles.profilePhoto
+              `avatarCircleLg ${styles.profilePhoto}`
             }
           >
             {selectedEmployee.photo
@@ -2223,12 +2247,12 @@ export default function Employees() {
         </div>
 
         <div
-          className={styles.detailGrid}
+          className={`detailGrid ${styles.detailGrid}`}
         >
           {/* PERSONAL */}
           <div
             className={
-              styles.detailSection
+              `detailSection ${styles.detailSection}`
             }
           >
             <div
@@ -2334,7 +2358,7 @@ export default function Employees() {
           {/* CONTACT */}
           <div
             className={
-              styles.detailSection
+              `detailSection ${styles.detailSection}`
             }
           >
             <div
@@ -2422,7 +2446,7 @@ export default function Employees() {
           {/* EMPLOYMENT */}
           <div
             className={
-              styles.detailSection
+              `detailSection ${styles.detailSection}`
             }
           >
             <div
@@ -2537,7 +2561,7 @@ export default function Employees() {
           {/* IDENTIFICATION */}
           <div
             className={
-              styles.detailSection
+              `detailSection ${styles.detailSection}`
             }
           >
             <div
@@ -2618,7 +2642,7 @@ export default function Employees() {
           {employeeCompany && (
             <div
               className={
-                styles.detailSection
+                `detailSection ${styles.detailSection}`
               }
             >
               <div
@@ -2683,7 +2707,7 @@ export default function Employees() {
           {/* NOTES */}
           {selectedEmployee.notes && (
             <div
-              className={`${styles.detailSection} ${styles.fullWidthSection}`}
+              className={`${`detailSection ${styles.detailSection}`} ${styles.fullWidthSection}`}
             >
               <div
                 className={
@@ -2713,7 +2737,7 @@ export default function Employees() {
      ========================================================== */
 
   return (
-    <div className={styles.page}>
+    <div className="pageShell">
       <Breadcrumbs
         items={breadcrumbItems}
         onNavigate={
@@ -2722,10 +2746,10 @@ export default function Employees() {
       />
 
       {/* HEADER */}
-      <div className={styles.header}>
+      <div className="pageHeader">
         <div>
           <div
-            className={styles.titleRow}
+            className="pageTitleRow"
           >
             <Users size={26} />
             <h1>
@@ -2742,7 +2766,7 @@ export default function Employees() {
           <button
             type="button"
             className={
-              styles.primaryButton
+              "btnPrimary"
             }
             onClick={
               openCreateForm
@@ -2791,7 +2815,7 @@ export default function Employees() {
             <button
               type="button"
               className={
-                styles.backButton
+                "btnBack"
               }
               onClick={closeForm}
             >
@@ -3021,7 +3045,7 @@ export default function Employees() {
           {loading && (
             <div
               className={
-                styles.loading
+                "loadingState"
               }
             >
               {t(
@@ -3036,12 +3060,12 @@ export default function Employees() {
             employees.length === 0 && (
               <div
                 className={
-                  styles.emptyState
+                  "emptyStateBlock"
                 }
               >
                 <div
                   className={
-                    styles.emptyIcon
+                    "emptyStateIcon"
                   }
                 >
                   <Users size={32} />
@@ -3067,7 +3091,7 @@ export default function Employees() {
                   <button
                     type="button"
                     className={
-                      styles.primaryButton
+                      "btnPrimary"
                     }
                     onClick={
                       openCreateForm
@@ -3088,7 +3112,7 @@ export default function Employees() {
               <>
                 <div
                   className={
-                    styles.employeeGrid
+                    "autoFillGrid"
                   }
                 >
                   {employees.map((employee) => (
@@ -3126,12 +3150,12 @@ export default function Employees() {
             0 && (
               <div
                 className={
-                  styles.emptyState
+                  "emptyStateBlock"
                 }
               >
                 <div
                   className={
-                    styles.emptyIcon
+                    "emptyStateIcon"
                   }
                 >
                   <BriefcaseBusiness
@@ -3154,6 +3178,22 @@ export default function Employees() {
             )}
         </>
       )}
+
+      {/* ==================================
+          DELETE CONFIRMATION MODAL
+      ================================== */}
+
+      <ActionModal
+        isOpen={modal.open}
+        type={modal.type}
+        title={modal.title}
+        message={modal.message}
+        loading={deleteLoading}
+        onConfirm={
+          modal.type === "confirm" ? handleConfirmDelete : undefined
+        }
+        onClose={closeModal}
+      />
     </div>
   );
 }

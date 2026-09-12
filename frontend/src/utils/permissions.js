@@ -33,6 +33,32 @@ const isPlainUser = (actor) => actor?.role === ROLES.USER;
 const sameId = (a, b) => !!a && !!b && a.toString() === b.toString();
 
 // ------------------------------------------------------------
+// HR MODULE (Employees, Salaries, Absences, Advances)
+// ------------------------------------------------------------
+// Single source of truth, mirroring backend/permissions/permissions.js,
+// for "who can see/use the HR module at all" — the sidebar's HR
+// section, the /hr/* routes, and every HR page's own internal
+// buttons all key off this ONE function. To change who has HR
+// access app-wide, edit `canAccessHR` here (and its backend
+// twin); nothing else needs to change.
+//
+// - admin: full access.
+// - owner: full access (record-level company ownership is still
+//   enforced by the backend for owners).
+// - user with department "hr": full access. Plain "user" accounts
+//   aren't scoped to a specific company yet, so this is
+//   unavoidably all-or-nothing today, same as the backend.
+// ------------------------------------------------------------
+
+export const HR_DEPARTMENT = "hr";
+
+const isHRDepartment = (actor) => actor?.department === HR_DEPARTMENT;
+
+export function canAccessHR(actor) {
+  return isAdmin(actor) || isOwner(actor) || isHRDepartment(actor);
+}
+
+// ------------------------------------------------------------
 // Companies
 // ------------------------------------------------------------
 

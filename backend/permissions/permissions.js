@@ -55,6 +55,54 @@ const isPlainUser = (actor) => actor?.role === ROLES.USER;
 const sameId = (a, b) => !!a && !!b && a.toString() === b.toString();
 
 // ------------------------------------------------------------
+// HR MODULE (Employees, Salaries, Absences, Advances)
+// ------------------------------------------------------------
+// Single source of truth for "who can use the HR module at all".
+// Every HR resource (employees, salaries, absences, advances, and
+// any future one — job positions, leave policies, etc.) should be
+// gated by these two functions ONLY. To change who has HR access
+// app-wide, edit `isHRDepartment` / `canAccessHR` here — nothing
+// else needs to change.
+//
+// - admin: full access, every company.
+// - owner: full access, but only to companies they own (checked
+//   via canAccessHRForCompany, same rule as canManageCompany).
+// - user with department "hr": full access, every company. The
+//   User model has no company-scoping field yet (only Company.owner
+//   links a company to a user), so an HR-department "user" role
+//   account is necessarily unscoped today — there's no company to
+//   scope them to. Add that scoping here (and nowhere else) once
+//   users can belong to a specific company.
+// ------------------------------------------------------------
+
+const HR_DEPARTMENT = "hr";
+
+const isHRDepartment = (actor) => actor?.department === HR_DEPARTMENT;
+
+/**
+ * Record-independent check: is this actor allowed into the HR
+ * module at all? Use this for route-level middleware
+ * (requireHRAccess) and for frontend nav/route gating.
+ */
+function canAccessHR(actor) {
+  return isAdmin(actor) || isOwner(actor) || isHRDepartment(actor);
+}
+
+/**
+ * Record-level check: is this actor allowed to touch HR data
+ * (an employee, salary, absence, advance, ...) belonging to this
+ * specific `company`? Use this inside route handlers once the
+ * relevant company has been fetched.
+ */
+function canAccessHRForCompany(actor, company) {
+  if (!actor || !company) return false;
+  if (isAdmin(actor)) return true;
+  if (isOwner(actor)) return sameId(company.owner, actor.id);
+  if (isHRDepartment(actor)) return true;
+  return false;
+}
+
+// ------------------------------------------------------------
 // COMPANIES
 // ------------------------------------------------------------
 
@@ -187,6 +235,10 @@ module.exports = {
   ALL_ROLES,
   TOP_LEVEL_ROLES,
   ALLOW_DEPARTMENT_SCOPED_USER_MANAGEMENT,
+  HR_DEPARTMENT,
+  isHRDepartment,
+  canAccessHR,
+  canAccessHRForCompany,
   canCreateCompany,
   canManageCompany,
   canDeleteCompany,

@@ -46,7 +46,7 @@ export default function EmployeeCard({
 
   return (
     <div
-      className={styles.employeeCard}
+      className={`resourceCard ${styles.employeeCard}`}
       role="button"
       tabIndex={0}
       onClick={handleActivate}
@@ -58,7 +58,7 @@ export default function EmployeeCard({
       }}
     >
       <div className={styles.employeeCardTop}>
-        <div className={styles.employeeAvatar}>
+        <div className={`avatarCircle ${styles.employeeAvatar}`}>
           {employee.photo?.url ? (
             <img
               src={employee.photo.url}
@@ -89,28 +89,28 @@ export default function EmployeeCard({
 
         <div className={styles.employeeMeta}>
           {employee.employeeNumber && (
-            <span className={styles.employeeMetaItem}>
+            <span className={`pillTag ${styles.employeeMetaItem}`}>
               <FileText size={14} />
               {employee.employeeNumber}
             </span>
           )}
 
           {employee.department && (
-            <span className={styles.employeeMetaItem}>
+            <span className={`pillTag ${styles.employeeMetaItem}`}>
               <Users size={14} />
               {employee.department}
             </span>
           )}
 
           {employee.phone && (
-            <span className={styles.employeeMetaItem}>
+            <span className={`pillTag ${styles.employeeMetaItem}`}>
               <Phone size={14} />
               {employee.phone}
             </span>
           )}
 
           {employee.workEmail && (
-            <span className={styles.employeeMetaItem}>
+            <span className={`pillTag ${styles.employeeMetaItem}`}>
               <Mail size={14} />
               {employee.workEmail}
             </span>
@@ -118,10 +118,10 @@ export default function EmployeeCard({
         </div>
       </div>
 
-      <div className={styles.employeeCardActions}>
+      <div className="cardFooterActions">
         <button
           type="button"
-          className={styles.actionButton}
+          className="cardFooterActionBtn"
           title={viewLabel}
           onClick={(event) => {
             event.stopPropagation();
@@ -133,7 +133,7 @@ export default function EmployeeCard({
 
         <button
           type="button"
-          className={styles.actionButton}
+          className="cardFooterActionBtn"
           title={editLabel}
           onClick={(event) => {
             event.stopPropagation();
@@ -145,7 +145,7 @@ export default function EmployeeCard({
 
         <button
           type="button"
-          className={styles.actionButtonDanger}
+          className="cardFooterActionBtnDanger"
           title={deleteLabel}
           onClick={(event) => {
             event.stopPropagation();

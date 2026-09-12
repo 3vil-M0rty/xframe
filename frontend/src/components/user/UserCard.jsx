@@ -32,7 +32,7 @@ export default function UserCard({
 
   return (
     <div
-      className={styles.userCard}
+      className={`resourceCard ${styles.userCard}`}
       role="button"
       tabIndex={0}
       onClick={handleActivate}
@@ -46,11 +46,11 @@ export default function UserCard({
       {/* CARD ACTIONS: EDIT / DELETE */}
 
       {(canEdit || canDelete) && (
-        <div className={styles.cardActions}>
+        <div className="cardActionsOverlay">
           {canEdit && (
             <button
               type="button"
-              className={styles.editUserButton}
+              className="cardActionIconBtn"
               onClick={(event) => {
                 event.stopPropagation();
                 onEdit?.(user);
@@ -65,7 +65,7 @@ export default function UserCard({
           {canDelete && (
             <button
               type="button"
-              className={styles.deleteUserButton}
+              className="cardActionIconBtnDanger"
               onClick={(event) => {
                 event.stopPropagation();
                 onDelete?.(user);
@@ -81,7 +81,7 @@ export default function UserCard({
 
       {/* AVATAR */}
 
-      <div className={styles.avatar}>
+      <div className={`avatarCircle ${styles.avatar}`}>
         <User size={20} />
       </div>
 
@@ -101,18 +101,18 @@ export default function UserCard({
       {/* META */}
 
       <div className={styles.userMeta}>
-        <div className={styles.role}>
+        <div className={`pillTag ${styles.role}`}>
           <Shield size={13} />
           {getRoleLabel ? getRoleLabel(user.role) : user.role}
         </div>
 
-        <div className={styles.department}>
+        <div className={`pillTag ${styles.department}`}>
           {getDepartmentLabel
             ? getDepartmentLabel(user.department)
             : user.department}
         </div>
 
-        <div className={styles.status}>
+        <div className={`pillTag ${styles.status}`}>
           {getStatusLabel ? getStatusLabel(user.status) : user.status}
         </div>
       </div>

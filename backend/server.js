@@ -7,6 +7,9 @@ const authRoutes = require('./routes/auth');
 const userRoutes = require('./routes/users');
 const companyRoutes = require("./routes/companies");  
 const employeeRoutes = require("./routes/employees");
+const salaryRoutes = require("./routes/salaries");
+const absenceRoutes = require("./routes/absences");
+const advanceRoutes = require("./routes/advances");
 
 const app = express();
 
@@ -31,6 +34,9 @@ app.use('/api/auth', authRoutes);
 app.use('/api/companies', companyRoutes);
 app.use('/api/users', userRoutes);
 app.use("/api/employees", employeeRoutes);
+app.use("/api/salaries", salaryRoutes);
+app.use("/api/absences", absenceRoutes);
+app.use("/api/advances", advanceRoutes);
 
 // Health check
 app.get('/health', (req, res) => {

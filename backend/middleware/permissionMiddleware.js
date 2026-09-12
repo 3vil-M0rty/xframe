@@ -1,4 +1,4 @@
-const { ROLES } = require("../permissions/permissions");
+const { ROLES, canAccessHR } = require("../permissions/permissions");
 
 /**
  * requireRole('admin', 'owner')
@@ -27,7 +27,27 @@ const requireRole = (...allowedRoles) => (req, res, next) => {
 // Convenience shorthand for the very common "admin or owner" gate
 const requireAdminOrOwner = requireRole(ROLES.ADMIN, ROLES.OWNER);
 
+/**
+ * Coarse, route-level gate for the entire HR module (employees,
+ * salaries, absences, advances, and any future HR resource).
+ * Mirrors `canAccessHR` in permissions/permissions.js — that's
+ * the ONE place that decides who counts as "HR" (admin, owner, or
+ * a user in the "hr" department). To change who can use the HR
+ * module app-wide, edit `canAccessHR` there; nothing here or in
+ * any HR route needs to change.
+ */
+const requireHRAccess = (req, res, next) => {
+  if (!canAccessHR(req.user)) {
+    return res.status(403).json({
+      success: false,
+      message: "You do not have permission to access the HR module",
+    });
+  }
+  next();
+};
+
 module.exports = {
   requireRole,
   requireAdminOrOwner,
+  requireHRAccess,
 };

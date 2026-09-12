@@ -1,0 +1,67 @@
+/* ============================================================
+   Salaries page — page-specific styles only. Shared layout,
+   buttons, table, and status pills come from src/styles/global.css
+   as plain global classes (pageShell, dataTable, statusPill, ...)
+   applied directly in the JSX — no composes.
+   ============================================================ */
+
+.toolbar {
+    display: grid;
+    grid-template-columns: minmax(220px, 320px);
+    gap: 14px;
+    margin-bottom: 18px;
+}
+
+.filterGroup {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+}
+
+.filterGroup label {
+    color: var(--color-text-secondary);
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+}
+
+.errorMessage {
+    padding: 12px 16px;
+    margin-bottom: 16px;
+    border: 1px solid rgba(255, 80, 80, 0.25);
+    border-radius: 10px;
+    background: rgba(255, 80, 80, 0.06);
+    color: #ff8585;
+    font-size: 0.82rem;
+}
+
+.historyPanel {
+    margin-top: 24px;
+    padding-top: 20px;
+    border-top: 1px solid var(--color-border);
+}
+
+.historyHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 14px;
+}
+
+.historyHeader h2 {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--color-text-primary);
+}
+
+.historyLoading {
+    color: var(--color-text-tertiary);
+    font-size: 0.85rem;
+}
+
+@media (max-width: 700px) {
+    .toolbar {
+        grid-template-columns: 1fr;
+    }
+}

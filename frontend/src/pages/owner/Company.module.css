@@ -1,75 +1,30 @@
 /* ============================================================
    Company page — page-specific styles only.
+
    Shared layout/button/empty-state/detail-card/loading/danger-
-   zone rules live once in src/styles/global.css and are pulled
-   in below via `composes ... from global`, so there's no more
-   copy-pasted CSS between this file and Users.module.css /
-   Employees.module.css.
+   zone rules live once in src/styles/global.css as plain global
+   classes (pageShell, pageHeader, btnPrimary, detailCard, etc.).
+   This file does NOT use CSS Modules `composes` — the shared
+   classes are applied directly in the JSX (e.g.
+   className="btnPrimary"), and this file only holds styles that
+   are genuinely specific to the Company page, or that add a
+   little extra on top of a shared class (e.g. .editButton below).
    ============================================================ */
-
-.page {
-  composes: pageShell from global;
-}
-
-.header {
-  composes: pageHeader from global;
-}
-
-.headerActions {
-  composes: pageHeaderActions from global;
-}
-
-.titleRow {
-  composes: pageTitleRow from global;
-}
-
-.subtitle {
-  composes: pageSubtitle from global;
-}
 
 /* ---------- Buttons ---------- */
 
-.editButton {
-  composes: btnEdit from global;
-}
-
-.primaryButton {
-  composes: btnPrimary from global;
-}
-
-.cancelButton {
-  composes: btnCancel from global;
-}
-
-.deleteButton {
-  composes: btnDelete from global;
-}
-
-.backButton {
-  composes: btnBack from global;
-}
-
-/* ---------- Empty state ---------- */
-
-.emptyState {
-  composes: emptyStateBlock from global;
-}
-
-.emptyIcon {
-  composes: emptyStateIcon from global;
-}
-
-/* ---------- Form ---------- */
-
-.formContainer {
-  composes: formShell from global;
+/* Extra responsive tweak on top of the shared "btnEdit" class,
+   applied in JSX as: className={`btnEdit ${styles.editButton}`}.
+   Uses a :global(...) compound selector (rather than a bare
+   ".editButton" rule) so this reliably wins over any width the
+   shared "btnEdit" class might set, regardless of CSS load order. */
+@media (max-width: 700px) {
+  :global(.btnEdit).editButton {
+    width: 100%;
+  }
 }
 
 /* ---------- Company card / detail ---------- */
-
-.companyCard {
-  composes: detailCard from global;
-}
 
 .logoSection {
   display: flex;
@@ -86,18 +41,6 @@
   max-width: 200px;
   max-height: 120px;
   object-fit: contain;
-}
-
-.section {
-  composes: detailSection from global;
-}
-
-.grid {
-  composes: detailGrid from global;
-}
-
-.info {
-  composes: detailInfo from global;
 }
 
 /* ---------- Employee count block (page-specific, no equivalent elsewhere) ---------- */
@@ -141,24 +84,4 @@
   color: #fff;
   font-size: 1.25rem;
   font-weight: 600;
-}
-
-/* ---------- Loading / danger zone ---------- */
-
-.loading {
-  composes: loadingState from global;
-}
-
-.dangerZone {
-  composes: dangerZoneBlock from global;
-}
-
-/* ---------- Responsive (page-specific overrides only —
-   shared breakpoints for .page/.header/.btnPrimary/.grid
-   already live in global.css) ---------- */
-
-@media (max-width: 700px) {
-  .editButton {
-    width: 100%;
-  }
 }

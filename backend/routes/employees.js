@@ -9,11 +9,11 @@ const Company = require("../models/Company");
 const auth = require("../middleware/auth");
 const upload = require("../middleware/uploadMiddleware");
 const {
-  requireAdminOrOwner,
+  requireHRAccess,
 } = require("../middleware/permissionMiddleware");
 
 const {
-  canManageCompany,
+  canAccessHRForCompany,
 } = require("../permissions/permissions");
 
 const {
@@ -29,7 +29,7 @@ const {
 // Owner can only manage companies they own.
 
 const canManage = (req, company) =>
-  canManageCompany(req.user, company);
+  canAccessHRForCompany(req.user, company);
 
 // ======================================================
 // GET ALL EMPLOYEES
@@ -286,7 +286,7 @@ router.get("/:id", auth, async (req, res) => {
 router.post(
   "/",
   auth,
-  requireAdminOrOwner,
+  requireHRAccess,
   async (req, res) => {
     try {
       const {
@@ -458,7 +458,7 @@ router.post(
 router.put(
   "/:id",
   auth,
-  requireAdminOrOwner,
+  requireHRAccess,
   async (req, res) => {
     try {
       // --------------------------------------------------
@@ -589,7 +589,7 @@ router.put(
 router.post(
   "/:id/photo",
   auth,
-  requireAdminOrOwner,
+  requireHRAccess,
   upload.single("photo"),
   async (req, res) => {
     try {
@@ -734,7 +734,7 @@ router.post(
 router.delete(
   "/:id/photo",
   auth,
-  requireAdminOrOwner,
+  requireHRAccess,
   async (req, res) => {
     try {
       // --------------------------------------------------
@@ -861,7 +861,7 @@ router.delete(
 router.delete(
   "/:id",
   auth,
-  requireAdminOrOwner,
+  requireHRAccess,
   async (req, res) => {
     try {
       // --------------------------------------------------

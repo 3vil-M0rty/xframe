@@ -617,8 +617,8 @@ export default function Company() {
 
   if (initialLoading) {
     return (
-      <div className={styles.page}>
-        <div className={styles.loading}>
+      <div className="pageShell">
+        <div className="loadingState">
           {t("common.loading")}
         </div>
       </div>
@@ -674,16 +674,16 @@ export default function Company() {
   // ========================================
 
   return (
-    <div className={styles.page}>
+    <div className="pageShell">
 
       {/* ==================================
           HEADER
           ================================== */}
 
-      <div className={styles.header}>
+      <div className="pageHeader">
 
         <div>
-          <div className={styles.titleRow}>
+          <div className="pageTitleRow">
 
             <Building2 size={20} />
 
@@ -695,7 +695,7 @@ export default function Company() {
 
           </div>
 
-          <p className={styles.subtitle}>
+          <p className="pageSubtitle">
             {company
               ? t("company.subtitle")
               : t(
@@ -709,14 +709,14 @@ export default function Company() {
             ================================== */}
 
         {company && !mode && canManageCompany(user, company) && (
-          <div className={styles.headerActions}>
+          <div className="pageHeaderActions">
 
             {/* EDIT */}
 
             <button
               type="button"
               className={
-                styles.editButton
+                `btnEdit ${styles.editButton}`
               }
               onClick={() =>
                 setMode("edit")
@@ -732,7 +732,7 @@ export default function Company() {
             <button
               type="button"
               className={
-                styles.deleteButton
+                "btnDelete"
               }
               onClick={
                 handleDeleteCompany
@@ -755,9 +755,9 @@ export default function Company() {
           ================================== */}
 
       {!company && !mode && (
-        <div className={styles.emptyState}>
+        <div className="emptyStateBlock">
 
-          <div className={styles.emptyIcon}>
+          <div className="emptyStateIcon">
             <Building2 size={28} />
           </div>
 
@@ -777,7 +777,7 @@ export default function Company() {
             <button
               type="button"
               className={
-                styles.primaryButton
+                "btnPrimary"
               }
               onClick={() =>
                 setMode("create")
@@ -799,7 +799,7 @@ export default function Company() {
       {mode && (
         <div
           className={
-            styles.formContainer
+            "formShell"
           }
         >
 
@@ -837,7 +837,7 @@ export default function Company() {
       {company && !mode && (
         <div
           className={
-            styles.companyCard
+            "detailCard"
           }
         >
 
@@ -867,7 +867,7 @@ export default function Company() {
 
           <div
             className={
-              styles.section
+              "detailSection"
             }
           >
 
@@ -879,13 +879,13 @@ export default function Company() {
 
             <div
               className={
-                styles.grid
+                "detailGrid"
               }
             >
 
               <div
                 className={
-                  styles.info
+                  "detailInfo"
                 }
               >
                 <span>
@@ -901,7 +901,7 @@ export default function Company() {
 
               <div
                 className={
-                  styles.info
+                  "detailInfo"
                 }
               >
                 <span>
@@ -918,7 +918,7 @@ export default function Company() {
 
               <div
                 className={
-                  styles.info
+                  "detailInfo"
                 }
               >
                 <span>
@@ -934,7 +934,7 @@ export default function Company() {
 
               <div
                 className={
-                  styles.info
+                  "detailInfo"
                 }
               >
                 <span>
@@ -958,7 +958,7 @@ export default function Company() {
 
           <div
             className={
-              styles.section
+              "detailSection"
             }
           >
 
@@ -970,13 +970,13 @@ export default function Company() {
 
             <div
               className={
-                styles.grid
+                "detailGrid"
               }
             >
 
               <div
                 className={
-                  styles.info
+                  "detailInfo"
                 }
               >
                 <span>
@@ -993,7 +993,7 @@ export default function Company() {
 
               <div
                 className={
-                  styles.info
+                  "detailInfo"
                 }
               >
                 <span>
@@ -1010,7 +1010,7 @@ export default function Company() {
 
               <div
                 className={
-                  styles.info
+                  "detailInfo"
                 }
               >
                 <span>
@@ -1037,7 +1037,7 @@ export default function Company() {
 
           <div
             className={
-              styles.section
+              "detailSection"
             }
           >
 
@@ -1049,13 +1049,13 @@ export default function Company() {
 
             <div
               className={
-                styles.grid
+                "detailGrid"
               }
             >
 
               <div
                 className={
-                  styles.info
+                  "detailInfo"
                 }
               >
                 <span>
@@ -1072,7 +1072,7 @@ export default function Company() {
 
               <div
                 className={
-                  styles.info
+                  "detailInfo"
                 }
               >
                 <span>
@@ -1089,7 +1089,7 @@ export default function Company() {
 
               <div
                 className={
-                  styles.info
+                  "detailInfo"
                 }
               >
                 <span>
@@ -1106,7 +1106,7 @@ export default function Company() {
 
               <div
                 className={
-                  styles.info
+                  "detailInfo"
                 }
               >
                 <span>

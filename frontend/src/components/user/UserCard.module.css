@@ -1,13 +1,27 @@
 /* ============================================================
    UserCard — page-agnostic styles for a single user card.
-   Shared card/avatar/pill/button primitives are composed from
-   src/styles/global.css so they stay in sync with EmployeeCard
-   and any other resource card in the app.
+
+   Shared card/avatar/pill/button primitives live once in
+   src/styles/global.css as plain global classes (resourceCard,
+   avatarCircle, pillTag, cardActionsOverlay, cardActionIconBtn,
+   cardActionIconBtnDanger, ...) and are applied directly in the
+   JSX (e.g. className="cardActionsOverlay") — this file does NOT
+   use CSS Modules `composes`. It only holds styles that are
+   genuinely specific to UserCard, or that add a little extra on
+   top of a shared class (e.g. .userCard, .avatar below), so it
+   stays in sync with EmployeeCard and any other resource card in
+   the app without duplicating the shared rules.
+
+   Where a rule here sets the SAME CSS property as the shared
+   class it's layered on top of (e.g. padding, width, height), it
+   uses a `:global(.sharedClass).localClass` compound selector
+   instead of a bare `.localClass` rule, so the override reliably
+   wins regardless of CSS load order.
    ============================================================ */
 
+/* Extra grid layout on top of the shared "resourceCard" class,
+   applied in JSX as: className={`resourceCard ${styles.userCard}`} */
 .userCard {
-    composes: resourceCard from global;
-
     display: grid;
     grid-template-columns: auto minmax(0, 1fr);
     grid-template-rows: auto auto;
@@ -17,24 +31,11 @@
     text-align: left;
 }
 
-/* ---------- Card actions (edit/delete overlay) ---------- */
-
-.cardActions {
-    composes: cardActionsOverlay from global;
-}
-
-.editUserButton {
-    composes: cardActionIconBtn from global;
-}
-
-.deleteUserButton {
-    composes: cardActionIconBtnDanger from global;
-}
-
 /* ---------- Avatar ---------- */
 
+/* Extra grid placement on top of the shared "avatarCircle" class,
+   applied in JSX as: className={`avatarCircle ${styles.avatar}`} */
 .avatar {
-    composes: avatarCircle from global;
     grid-row: 1;
 }
 
@@ -87,17 +88,18 @@
     padding-top: 2px;
 }
 
-.role,
-.department,
-.status {
-    composes: pillTag from global;
-}
+/* .role, .department and .status below only carry the responsive
+   override further down on top of the shared "pillTag" class,
+   applied in JSX as e.g. className={`pillTag ${styles.role}`} */
 
 /* ---------- Responsive ---------- */
 
 @media (max-width: 700px) {
     .userCard {
         grid-template-columns: auto minmax(0, 1fr);
+    }
+
+    :global(.resourceCard).userCard {
         padding: 14px;
     }
 
@@ -114,10 +116,13 @@
 @media (max-width: 480px) {
     .userCard {
         gap: 10px;
+    }
+
+    :global(.resourceCard).userCard {
         padding: 12px;
     }
 
-    .avatar {
+    :global(.avatarCircle).avatar {
         width: 36px;
         height: 36px;
     }
@@ -135,9 +140,9 @@
         gap: 5px;
     }
 
-    .role,
-    .department,
-    .status {
+    :global(.pillTag).role,
+    :global(.pillTag).department,
+    :global(.pillTag).status {
         font-size: 0.7rem;
         padding: 4px 7px;
     }

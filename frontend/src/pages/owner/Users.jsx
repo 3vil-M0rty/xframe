@@ -871,8 +871,8 @@ export default function Users() {
 
     if (initialLoading) {
         return (
-            <div className={styles.page}>
-                <div className={styles.loading}>
+            <div className="pageShell">
+                <div className="loadingState">
                     {t("common.loading")}
                 </div>
             </div>
@@ -885,7 +885,7 @@ export default function Users() {
 
     if (mode === "create") {
         return (
-            <div className={styles.page}>
+            <div className="pageShell">
 
                 <Breadcrumbs
                     items={[
@@ -903,9 +903,9 @@ export default function Users() {
                     }
                 />
 
-                <div className={styles.header}>
+                <div className="pageHeader">
                     <div>
-                        <div className={styles.titleRow}>
+                        <div className="pageTitleRow">
                             <UserPlus size={20} />
 
                             <h1>
@@ -913,13 +913,13 @@ export default function Users() {
                             </h1>
                         </div>
 
-                        <p className={styles.subtitle}>
+                        <p className="pageSubtitle">
                             {t("users.createSubtitle")}
                         </p>
                     </div>
                 </div>
 
-                <div className={styles.formContainer}>
+                <div className="formShell">
                     <CollapsibleForm
                         title={t("users.newUser")}
                         icon={
@@ -961,7 +961,7 @@ export default function Users() {
 
     if (mode === "edit" && selectedUser) {
         return (
-            <div className={styles.page}>
+            <div className="pageShell">
 
                 <Breadcrumbs
                     items={[
@@ -986,7 +986,7 @@ export default function Users() {
 
                 <button
                     type="button"
-                    className={styles.backButton}
+                    className="btnBack"
                     onClick={() => {
                         setMode(false);
                         setPendingData(null);
@@ -998,9 +998,9 @@ export default function Users() {
                     {t("users.backToUsers")}
                 </button>
 
-                <div className={styles.header}>
+                <div className="pageHeader">
                     <div>
-                        <div className={styles.titleRow}>
+                        <div className="pageTitleRow">
                             <Edit size={20} />
 
                             <h1>
@@ -1008,13 +1008,13 @@ export default function Users() {
                             </h1>
                         </div>
 
-                        <p className={styles.subtitle}>
+                        <p className="pageSubtitle">
                             {t("users.editSubtitle")}
                         </p>
                     </div>
                 </div>
 
-                <div className={styles.formContainer}>
+                <div className="formShell">
                     <CollapsibleForm
                         title={`${selectedUser.firstName} ${selectedUser.lastName}`}
                         icon={
@@ -1062,7 +1062,7 @@ export default function Users() {
 
     if (selectedUser) {
         return (
-            <div className={styles.page}>
+            <div className="pageShell">
 
                 <Breadcrumbs
                     items={[
@@ -1083,7 +1083,7 @@ export default function Users() {
 
                 <button
                     type="button"
-                    className={styles.backButton}
+                    className="btnBack"
                     onClick={() => {
                         setSelectedUser(null);
                         setModalAction(null);
@@ -1094,7 +1094,7 @@ export default function Users() {
                     {t("users.backToUsers")}
                 </button>
 
-                <div className={styles.userDetail}>
+                <div className="detailCard">
 
                     {/* ==================================
                         HEADER
@@ -1102,7 +1102,7 @@ export default function Users() {
 
                     <div className={styles.detailHeader}>
 
-                        <div className={styles.avatarLarge}>
+                        <div className="avatarCircleLg">
                             <User size={30} />
                         </div>
 
@@ -1120,7 +1120,7 @@ export default function Users() {
                         {canManageUser(currentUser, selectedUser) && (
                             <button
                                 type="button"
-                                className={styles.editDetailButton}
+                                className={`btnEdit ${styles.editDetailButton}`}
                                 onClick={() =>
                                     handleEditUser(selectedUser)
                                 }
@@ -1137,15 +1137,15 @@ export default function Users() {
                         INFORMATION
                     ================================== */}
 
-                    <div className={styles.section}>
+                    <div className={`detailSection ${styles.section}`}>
 
                         <h2>
                             {t("users.information")}
                         </h2>
 
-                        <div className={styles.grid}>
+                        <div className="detailGrid">
 
-                            <div className={styles.info}>
+                            <div className="detailInfo">
                                 <span>
                                     {t("profile.firstName")}
                                 </span>
@@ -1158,7 +1158,7 @@ export default function Users() {
                                 </strong>
                             </div>
 
-                            <div className={styles.info}>
+                            <div className="detailInfo">
                                 <span>
                                     {t("profile.lastName")}
                                 </span>
@@ -1171,7 +1171,7 @@ export default function Users() {
                                 </strong>
                             </div>
 
-                            <div className={styles.info}>
+                            <div className="detailInfo">
                                 <span>
                                     {t("profile.email")}
                                 </span>
@@ -1184,7 +1184,7 @@ export default function Users() {
                                 </strong>
                             </div>
 
-                            <div className={styles.info}>
+                            <div className="detailInfo">
                                 <span>
                                     {t("users.role")}
                                 </span>
@@ -1196,7 +1196,7 @@ export default function Users() {
                                 </strong>
                             </div>
 
-                            <div className={styles.info}>
+                            <div className="detailInfo">
                                 <span>
                                     {t("users.department")}
                                 </span>
@@ -1208,7 +1208,7 @@ export default function Users() {
                                 </strong>
                             </div>
 
-                            <div className={styles.info}>
+                            <div className="detailInfo">
                                 <span>
                                     {t("users.status")}
                                 </span>
@@ -1220,7 +1220,7 @@ export default function Users() {
                                 </strong>
                             </div>
 
-                            <div className={styles.info}>
+                            <div className="detailInfo">
                                 <span>
                                     {t("users.userId")}
                                 </span>
@@ -1242,12 +1242,12 @@ export default function Users() {
                     ================================== */}
 
                     {canDeleteUser(currentUser, selectedUser) && (
-                        <div className={styles.dangerZone}>
+                        <div className={`dangerZoneBlock ${styles.dangerZone}`}>
 
                             <button
                                 type="button"
                                 className={
-                                    styles.deleteButton
+                                    `btnDelete ${styles.deleteButton}`
                                 }
                                 onClick={() =>
                                     handleDeleteUser(selectedUser)
@@ -1286,7 +1286,7 @@ export default function Users() {
     // ========================================
 
     return (
-        <div className={styles.page}>
+        <div className="pageShell">
 
             {/* ==================================
                 BREADCRUMBS
@@ -1308,10 +1308,10 @@ export default function Users() {
                 HEADER
             ================================== */}
 
-            <div className={styles.header}>
+            <div className="pageHeader">
 
                 <div>
-                    <div className={styles.titleRow}>
+                    <div className="pageTitleRow">
                         <UsersIcon size={20} />
 
                         <h1>
@@ -1319,7 +1319,7 @@ export default function Users() {
                         </h1>
                     </div>
 
-                    <p className={styles.subtitle}>
+                    <p className="pageSubtitle">
                         {t("users.subtitle")}
                     </p>
                 </div>
@@ -1327,7 +1327,7 @@ export default function Users() {
                 {canCreateUser(currentUser) && (
                     <button
                         type="button"
-                        className={styles.primaryButton}
+                        className="btnPrimary"
                         onClick={handleCreateUser}
                     >
                         <UserPlus size={16} />
@@ -1345,7 +1345,7 @@ export default function Users() {
             ================================== */}
 
             {!initialLoading && (
-                <div className={styles.toolbar}>
+                <div className={`toolbarBlock ${styles.toolbar}`}>
                     <div className={styles.searchWrapper}>
                         <SearchBar
                             placeholder={t("users.toolbar.searchPlaceholder")}
@@ -1362,9 +1362,9 @@ export default function Users() {
             ================================== */}
 
             {users.length === 0 && (
-                <div className={styles.emptyState}>
+                <div className="emptyStateBlock">
 
-                    <div className={styles.emptyIcon}>
+                    <div className="emptyStateIcon">
                         <UsersIcon size={28} />
                     </div>
 
@@ -1384,7 +1384,7 @@ export default function Users() {
                         <button
                             type="button"
                             className={
-                                styles.primaryButton
+                                "btnPrimary"
                             }
                             onClick={handleCreateUser}
                         >
@@ -1403,7 +1403,7 @@ export default function Users() {
 
             {users.length > 0 && (
                 <>
-                    <div className={styles.usersGrid}>
+                    <div className="autoFillGrid">
 
                         {users.map((user) => (
                             <UserCard

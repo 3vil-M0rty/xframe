@@ -1,46 +1,29 @@
 /* ============================================================
    Users page — page-specific styles only.
+
    Shared layout/button/empty-state/detail-card/loading/danger-
-   zone/grid rules live once in src/styles/global.css and are
-   pulled in below via `composes ... from global`. The user card
-   itself now lives in components/user/UserCard.module.css.
+   zone/grid rules live once in src/styles/global.css as plain
+   global classes (pageShell, pageHeader, btnPrimary, detailCard,
+   autoFillGrid, etc.) and are applied directly in the JSX
+   (e.g. className="btnPrimary") — this file does NOT use CSS
+   Modules `composes`. It only holds styles that are genuinely
+   specific to the Users page, or that add a little extra on top
+   of a shared class (e.g. .toolbar, .editDetailButton below).
+
+   Where a rule here sets the SAME CSS property as the shared
+   class it's layered on top of (e.g. padding, width), it uses a
+   `:global(.sharedClass).localClass` compound selector instead of
+   a bare `.localClass` rule. Two bare single-class rules have
+   equal specificity, so whichever one happens to load last would
+   silently win — the compound selector makes the override
+   deterministic regardless of CSS load order.
+
+   The user card itself lives in components/user/UserCard.module.css.
    ============================================================ */
-
-.page {
-    composes: pageShell from global;
-}
-
-.header {
-    composes: pageHeader from global;
-}
-
-.titleRow {
-    composes: pageTitleRow from global;
-}
-
-.subtitle {
-    composes: pageSubtitle from global;
-}
-
-/* ---------- Buttons ---------- */
-
-.primaryButton {
-    composes: btnPrimary from global;
-}
-
-.backButton {
-    composes: btnBack from global;
-}
-
-.deleteButton {
-    composes: btnDelete from global;
-}
 
 /* ---------- Toolbar ---------- */
 
-.toolbar {
-    composes: toolbarBlock from global;
-
+:global(.toolbarBlock).toolbar {
     display: flex;
     align-items: center;
     gap: 12px;
@@ -51,27 +34,7 @@
     min-width: 0;
 }
 
-/* ---------- Empty state ---------- */
-
-.emptyState {
-    composes: emptyStateBlock from global;
-}
-
-.emptyIcon {
-    composes: emptyStateIcon from global;
-}
-
-/* ---------- Users grid ---------- */
-
-.usersGrid {
-    composes: autoFillGrid from global;
-}
-
 /* ---------- User detail ---------- */
-
-.userDetail {
-    composes: detailCard from global;
-}
 
 .detailHeader {
     display: flex;
@@ -93,43 +56,8 @@
     font-size: 0.85rem;
 }
 
-.avatarLarge {
-    composes: avatarCircleLg from global;
-}
-
-.editDetailButton {
-    composes: btnEdit from global;
+:global(.btnEdit).editDetailButton {
     margin-left: auto;
-}
-
-.section {
-    composes: detailSection from global;
-}
-
-.grid {
-    composes: detailGrid from global;
-}
-
-.info {
-    composes: detailInfo from global;
-}
-
-/* ---------- Form ---------- */
-
-.formContainer {
-    composes: formShell from global;
-}
-
-/* ---------- Loading ---------- */
-
-.loading {
-    composes: loadingState from global;
-}
-
-/* ---------- Danger zone ---------- */
-
-.dangerZone {
-    composes: dangerZoneBlock from global;
 }
 
 /* ---------- Responsive ---------- */
@@ -158,15 +86,15 @@
         padding: 1.25rem;
     }
 
-    .section {
+    :global(.detailSection).section {
         padding: 1.25rem;
     }
 
-    .dangerZone {
+    :global(.dangerZoneBlock).dangerZone {
         padding: 1.25rem;
     }
 
-    .deleteButton {
+    :global(.btnDelete).deleteButton {
         width: 100%;
     }
 }

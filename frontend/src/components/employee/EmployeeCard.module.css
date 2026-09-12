@@ -1,13 +1,26 @@
 /* ============================================================
    EmployeeCard — page-agnostic styles for a single employee card.
-   Shared card/button primitives are composed from
-   src/styles/global.css so they stay in sync with UserCard and
-   any other resource card in the app.
+
+   Shared card/avatar/pill/button primitives live once in
+   src/styles/global.css as plain global classes (resourceCard,
+   avatarCircle, pillTag, cardFooterActions, cardFooterActionBtn,
+   cardFooterActionBtnDanger, ...) and are applied directly in the
+   JSX (e.g. className="cardFooterActions") — this file does NOT
+   use CSS Modules `composes`. It only holds styles that are
+   genuinely specific to EmployeeCard, or that add a little extra
+   on top of a shared class (e.g. .employeeCard, .employeeAvatar
+   below), so it stays in sync with UserCard and any other
+   resource card in the app without duplicating the shared rules.
    ============================================================ */
 
-.employeeCard {
-    composes: resourceCard from global;
-}
+/* .employeeCard only carries the responsive override further
+   down on top of the shared "resourceCard" class, applied in JSX
+   as: className={`resourceCard ${styles.employeeCard}`}. Where a
+   rule here sets the SAME property as the shared class (like
+   .employeeCard's padding or .employeeAvatar's width/height
+   below), it uses a `:global(.sharedClass).localClass` compound
+   selector instead of a bare rule, so the override reliably wins
+   regardless of CSS load order. */
 
 .employeeCardTop {
     display: flex;
@@ -19,8 +32,10 @@
 
 /* ---------- Avatar (photo or fallback icon) ---------- */
 
+/* Extra overflow clipping on top of the shared "avatarCircle"
+   class, applied in JSX as:
+   className={`avatarCircle ${styles.employeeAvatar}`} */
 .employeeAvatar {
-    composes: avatarCircle from global;
     overflow: hidden;
 }
 
@@ -54,8 +69,10 @@
     gap: 6px;
 }
 
+/* Extra text-truncation on top of the shared "pillTag" class,
+   applied in JSX as:
+   className={`pillTag ${styles.employeeMetaItem}`} */
 .employeeMetaItem {
-    composes: pillTag from global;
     max-width: 100%;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -89,28 +106,14 @@
     opacity: 0.7;
 }
 
-/* ---------- Footer actions (view / edit / delete) ---------- */
-
-.employeeCardActions {
-    composes: cardFooterActions from global;
-}
-
-.actionButton {
-    composes: cardFooterActionBtn from global;
-}
-
-.actionButtonDanger {
-    composes: cardFooterActionBtnDanger from global;
-}
-
 /* ---------- Responsive ---------- */
 
 @media (max-width: 480px) {
-    .employeeCard {
+    :global(.resourceCard).employeeCard {
         padding: 12px;
     }
 
-    .employeeAvatar {
+    :global(.avatarCircle).employeeAvatar {
         width: 40px;
         height: 40px;
     }

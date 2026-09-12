@@ -22,6 +22,9 @@ export const translations = {
       organization: "Organization",
       company: "Company",
       employees: "Employees",
+      salaries: "Salaries",
+      absences: "Absences",
+      advances: "Advances",
       users: "Users",
       departments: "Departments",
       jobPositions: "Job Positions",
@@ -66,6 +69,7 @@ export const translations = {
       edit: "Edit",
       reset: "Reset",
       create: "Create",
+      noResults: "No results found",
     },
 
     // ====================================================
@@ -840,6 +844,216 @@ export const translations = {
         requiredFields: "Please fill in all required fields",
       },
     },
+    salaries: {
+      title: "Salaries",
+      subtitle: "Manage employee compensation and salary history.",
+      addSalary: "Add salary",
+      giveRaise: "Give a raise",
+
+      createTitle: "New salary record",
+      createSureMessage: "Are you sure you want to save this salary record? Any current salary for this employee will be closed as of this effective date.",
+      createSuccessTitle: "Salary record created",
+      createSuccessMessage: "The salary record was created successfully.",
+
+      deleteTitle: "Delete salary record",
+      deleteSureMessage: "Are you sure you want to delete this salary record? This cannot be undone.",
+
+      emptyTitle: "No salaries yet",
+      emptyMessage: "This company has no salary records yet.",
+
+      fields: {
+        employee: "Employee",
+        employeeSearchPlaceholder: "Search by name, number, CIN, CNSS...",
+        baseSalary: "Base salary",
+        effectiveDate: "Effective date",
+        notes: "Notes",
+        notesPlaceholder: "Reason for this change, additional context...",
+      },
+
+      table: {
+        base: "Base",
+        gross: "Gross",
+        net: "Net",
+        endDate: "End date",
+        status: "Status",
+        ongoing: "Ongoing",
+      },
+
+      actions: {
+        history: "View history",
+      },
+
+      history: {
+        titleFor: "Salary history — {name}",
+        empty: "No salary history for this employee.",
+        current: "Current",
+        past: "Past",
+      },
+
+      breadcrumbs: {
+        hr: "HR",
+        salaries: "Salaries",
+      },
+
+      buttons: {
+        create: "Save salary",
+      },
+
+      errors: {
+        fetchFailed: "Failed to load salaries",
+        actionFailed: "Something went wrong. Please try again.",
+      },
+    },
+    absences: {
+      title: "Absences",
+      subtitle: "Review and manage leave and absence requests.",
+      addAbsence: "New absence request",
+
+      createTitle: "New absence request",
+      createSureMessage: "Are you sure you want to submit this absence request?",
+      createSuccessTitle: "Request submitted",
+      createSuccessMessage: "The absence request was submitted successfully.",
+
+      acceptTitle: "Accept absence",
+      acceptSureMessage: "Are you sure you want to accept this absence request?",
+
+      rejectTitle: "Reject absence",
+      rejectSureMessage: "Are you sure you want to reject this absence request?",
+
+      deleteTitle: "Delete absence",
+      deleteSureMessage: "Are you sure you want to delete this absence record? This cannot be undone.",
+
+      emptyTitle: "No absences",
+      emptyMessage: "No absence requests match your filters.",
+
+      unjustified: "Unjustified",
+
+      fields: {
+        employee: "Employee",
+        employeeSearchPlaceholder: "Search by name, number, CIN, CNSS...",
+        type: "Type",
+        startDate: "Start date",
+        endDate: "End date",
+        halfDay: "Half day",
+        justified: "Justified",
+        reason: "Reason",
+        reasonPlaceholder: "Reason or additional context...",
+        status: "Status",
+      },
+
+      types: {
+        paid_leave: "Paid leave",
+        unpaid_leave: "Unpaid leave",
+        sick_leave: "Sick leave",
+        absence: "Absence",
+        other: "Other",
+      },
+
+      status: {
+        pending: "Pending",
+        accepted: "Accepted",
+        rejected: "Rejected",
+      },
+
+      filters: {
+        allStatuses: "All statuses",
+        allTypes: "All types",
+      },
+
+      table: {
+        period: "Period",
+        days: "Days",
+      },
+
+      actions: {
+        accept: "Accept",
+        reject: "Reject",
+      },
+
+      breadcrumbs: {
+        hr: "HR",
+        absences: "Absences",
+      },
+
+      buttons: {
+        create: "Submit request",
+      },
+
+      errors: {
+        fetchFailed: "Failed to load absences",
+        actionFailed: "Something went wrong. Please try again.",
+      },
+    },
+    advances: {
+      title: "Advances",
+      subtitle: "Review and manage salary advance requests.",
+      addAdvance: "New advance request",
+
+      createTitle: "New advance request",
+      createSureMessage: "Are you sure you want to submit this advance request?",
+      createSuccessTitle: "Request submitted",
+      createSuccessMessage: "The advance request was submitted successfully.",
+
+      acceptTitle: "Accept advance",
+      acceptSureMessage: "Are you sure you want to accept this advance request?",
+
+      rejectTitle: "Reject advance",
+      rejectSureMessage: "Are you sure you want to reject this advance request?",
+
+      markRepaidTitle: "Mark as repaid",
+      markRepaidSureMessage: "Are you sure you want to mark this advance as fully repaid?",
+
+      deleteTitle: "Delete advance",
+      deleteSureMessage: "Are you sure you want to delete this advance record? This cannot be undone.",
+
+      emptyTitle: "No advances",
+      emptyMessage: "No advance requests match your filters.",
+
+      fields: {
+        employee: "Employee",
+        employeeSearchPlaceholder: "Search by name, number, CIN, CNSS...",
+        amount: "Amount",
+        requestDate: "Request date",
+        reason: "Reason",
+        reasonPlaceholder: "Reason or additional context...",
+        status: "Status",
+      },
+
+      status: {
+        pending: "Pending",
+        accepted: "Accepted",
+        rejected: "Rejected",
+      },
+
+      filters: {
+        allStatuses: "All statuses",
+      },
+
+      table: {
+        remaining: "Remaining",
+        fullyRepaid: "Fully repaid",
+      },
+
+      actions: {
+        accept: "Accept",
+        reject: "Reject",
+        markRepaid: "Mark as repaid",
+      },
+
+      breadcrumbs: {
+        hr: "HR",
+        advances: "Advances",
+      },
+
+      buttons: {
+        create: "Submit request",
+      },
+
+      errors: {
+        fetchFailed: "Failed to load advances",
+        actionFailed: "Something went wrong. Please try again.",
+      },
+    },
   },
 
   // ======================================================
@@ -858,6 +1072,9 @@ export const translations = {
       organization: "Organisation",
       company: "Entreprise",
       employees: "Employés",
+      salaries: "Salaires",
+      absences: "Absences",
+      advances: "Avances",
       users: "Utilisateurs",
       departments: "Départements",
       jobPositions: "Postes",
@@ -903,6 +1120,7 @@ export const translations = {
       edit: "Modifier",
       reset: "Réinitialiser",
       create: "Créer",
+      noResults: "Aucun résultat trouvé",
     },
 
     profile: {
@@ -1616,6 +1834,216 @@ export const translations = {
         requiredFields: "Veuillez renseigner tous les champs obligatoires",
       },
     },
+    salaries: {
+      title: "Salaires",
+      subtitle: "Gérez la rémunération et l'historique salarial des employés.",
+      addSalary: "Ajouter un salaire",
+      giveRaise: "Donner une augmentation",
+
+      createTitle: "Nouvel enregistrement salarial",
+      createSureMessage: "Voulez-vous vraiment enregistrer ce salaire ? Le salaire actuel de cet employé sera clôturé à cette date d'effet.",
+      createSuccessTitle: "Salaire enregistré",
+      createSuccessMessage: "L'enregistrement salarial a été créé avec succès.",
+
+      deleteTitle: "Supprimer l'enregistrement",
+      deleteSureMessage: "Voulez-vous vraiment supprimer cet enregistrement salarial ? Cette action est irréversible.",
+
+      emptyTitle: "Aucun salaire",
+      emptyMessage: "Cette entreprise n'a pas encore d'enregistrement salarial.",
+
+      fields: {
+        employee: "Employé",
+        employeeSearchPlaceholder: "Rechercher par nom, matricule, CIN, CNSS...",
+        baseSalary: "Salaire de base",
+        effectiveDate: "Date d'effet",
+        notes: "Notes",
+        notesPlaceholder: "Motif de ce changement, contexte supplémentaire...",
+      },
+
+      table: {
+        base: "Base",
+        gross: "Brut",
+        net: "Net",
+        endDate: "Date de fin",
+        status: "Statut",
+        ongoing: "En cours",
+      },
+
+      actions: {
+        history: "Voir l'historique",
+      },
+
+      history: {
+        titleFor: "Historique salarial — {name}",
+        empty: "Aucun historique salarial pour cet employé.",
+        current: "Actuel",
+        past: "Passé",
+      },
+
+      breadcrumbs: {
+        hr: "RH",
+        salaries: "Salaires",
+      },
+
+      buttons: {
+        create: "Enregistrer le salaire",
+      },
+
+      errors: {
+        fetchFailed: "Échec du chargement des salaires",
+        actionFailed: "Une erreur est survenue. Veuillez réessayer.",
+      },
+    },
+    absences: {
+      title: "Absences",
+      subtitle: "Consultez et gérez les demandes de congé et d'absence.",
+      addAbsence: "Nouvelle demande d'absence",
+
+      createTitle: "Nouvelle demande d'absence",
+      createSureMessage: "Voulez-vous vraiment soumettre cette demande d'absence ?",
+      createSuccessTitle: "Demande soumise",
+      createSuccessMessage: "La demande d'absence a été soumise avec succès.",
+
+      acceptTitle: "Accepter l'absence",
+      acceptSureMessage: "Voulez-vous vraiment accepter cette demande d'absence ?",
+
+      rejectTitle: "Refuser l'absence",
+      rejectSureMessage: "Voulez-vous vraiment refuser cette demande d'absence ?",
+
+      deleteTitle: "Supprimer l'absence",
+      deleteSureMessage: "Voulez-vous vraiment supprimer cet enregistrement d'absence ? Cette action est irréversible.",
+
+      emptyTitle: "Aucune absence",
+      emptyMessage: "Aucune demande d'absence ne correspond à vos filtres.",
+
+      unjustified: "Non justifiée",
+
+      fields: {
+        employee: "Employé",
+        employeeSearchPlaceholder: "Rechercher par nom, matricule, CIN, CNSS...",
+        type: "Type",
+        startDate: "Date de début",
+        endDate: "Date de fin",
+        halfDay: "Demi-journée",
+        justified: "Justifiée",
+        reason: "Motif",
+        reasonPlaceholder: "Motif ou contexte supplémentaire...",
+        status: "Statut",
+      },
+
+      types: {
+        paid_leave: "Congé payé",
+        unpaid_leave: "Congé sans solde",
+        sick_leave: "Congé maladie",
+        absence: "Absence",
+        other: "Autre",
+      },
+
+      status: {
+        pending: "En attente",
+        accepted: "Acceptée",
+        rejected: "Refusée",
+      },
+
+      filters: {
+        allStatuses: "Tous les statuts",
+        allTypes: "Tous les types",
+      },
+
+      table: {
+        period: "Période",
+        days: "Jours",
+      },
+
+      actions: {
+        accept: "Accepter",
+        reject: "Refuser",
+      },
+
+      breadcrumbs: {
+        hr: "RH",
+        absences: "Absences",
+      },
+
+      buttons: {
+        create: "Soumettre la demande",
+      },
+
+      errors: {
+        fetchFailed: "Échec du chargement des absences",
+        actionFailed: "Une erreur est survenue. Veuillez réessayer.",
+      },
+    },
+    advances: {
+      title: "Avances",
+      subtitle: "Consultez et gérez les demandes d'avance sur salaire.",
+      addAdvance: "Nouvelle demande d'avance",
+
+      createTitle: "Nouvelle demande d'avance",
+      createSureMessage: "Voulez-vous vraiment soumettre cette demande d'avance ?",
+      createSuccessTitle: "Demande soumise",
+      createSuccessMessage: "La demande d'avance a été soumise avec succès.",
+
+      acceptTitle: "Accepter l'avance",
+      acceptSureMessage: "Voulez-vous vraiment accepter cette demande d'avance ?",
+
+      rejectTitle: "Refuser l'avance",
+      rejectSureMessage: "Voulez-vous vraiment refuser cette demande d'avance ?",
+
+      markRepaidTitle: "Marquer comme remboursée",
+      markRepaidSureMessage: "Voulez-vous vraiment marquer cette avance comme entièrement remboursée ?",
+
+      deleteTitle: "Supprimer l'avance",
+      deleteSureMessage: "Voulez-vous vraiment supprimer cet enregistrement d'avance ? Cette action est irréversible.",
+
+      emptyTitle: "Aucune avance",
+      emptyMessage: "Aucune demande d'avance ne correspond à vos filtres.",
+
+      fields: {
+        employee: "Employé",
+        employeeSearchPlaceholder: "Rechercher par nom, matricule, CIN, CNSS...",
+        amount: "Montant",
+        requestDate: "Date de la demande",
+        reason: "Motif",
+        reasonPlaceholder: "Motif ou contexte supplémentaire...",
+        status: "Statut",
+      },
+
+      status: {
+        pending: "En attente",
+        accepted: "Acceptée",
+        rejected: "Refusée",
+      },
+
+      filters: {
+        allStatuses: "Tous les statuts",
+      },
+
+      table: {
+        remaining: "Restant",
+        fullyRepaid: "Entièrement remboursée",
+      },
+
+      actions: {
+        accept: "Accepter",
+        reject: "Refuser",
+        markRepaid: "Marquer comme remboursée",
+      },
+
+      breadcrumbs: {
+        hr: "RH",
+        advances: "Avances",
+      },
+
+      buttons: {
+        create: "Soumettre la demande",
+      },
+
+      errors: {
+        fetchFailed: "Échec du chargement des avances",
+        actionFailed: "Une erreur est survenue. Veuillez réessayer.",
+      },
+    },
   },
 
   // ======================================================
@@ -1634,6 +2062,9 @@ export const translations = {
       organization: "المؤسسة",
       company: "الشركة",
       employees: "الموظفون",
+      salaries: "الرواتب",
+      absences: "الغيابات",
+      advances: "السلف",
       users: "المستخدمون",
       departments: "الأقسام",
       jobPositions: "المناصب",
@@ -1679,6 +2110,7 @@ export const translations = {
       edit: "تعديل",
       reset: "إعادة تعيين",
       create: "إنشاء",
+      noResults: "لم يتم العثور على نتائج",
     },
 
     profile: {
@@ -2390,6 +2822,216 @@ export const translations = {
         requiredFields: "يرجى ملء جميع الحقول المطلوبة",
       },
     },
+    salaries: {
+      title: "الرواتب",
+      subtitle: "إدارة أجور الموظفين وتاريخ رواتبهم.",
+      addSalary: "إضافة راتب",
+      giveRaise: "منح زيادة",
+
+      createTitle: "سجل راتب جديد",
+      createSureMessage: "هل أنت متأكد من أنك تريد حفظ هذا الراتب؟ سيتم إغلاق الراتب الحالي لهذا الموظف اعتباراً من تاريخ السريان هذا.",
+      createSuccessTitle: "تم تسجيل الراتب",
+      createSuccessMessage: "تم إنشاء سجل الراتب بنجاح.",
+
+      deleteTitle: "حذف سجل الراتب",
+      deleteSureMessage: "هل أنت متأكد من أنك تريد حذف سجل الراتب هذا؟ لا يمكن التراجع عن هذا الإجراء.",
+
+      emptyTitle: "لا توجد رواتب",
+      emptyMessage: "لا يوجد لدى هذه الشركة أي سجلات رواتب بعد.",
+
+      fields: {
+        employee: "الموظف",
+        employeeSearchPlaceholder: "ابحث بالاسم أو الرقم الوظيفي أو البطاقة الوطنية أو رقم الضمان الاجتماعي...",
+        baseSalary: "الراتب الأساسي",
+        effectiveDate: "تاريخ السريان",
+        notes: "ملاحظات",
+        notesPlaceholder: "سبب هذا التغيير أو أي سياق إضافي...",
+      },
+
+      table: {
+        base: "الأساسي",
+        gross: "الإجمالي",
+        net: "الصافي",
+        endDate: "تاريخ الانتهاء",
+        status: "الحالة",
+        ongoing: "جارٍ",
+      },
+
+      actions: {
+        history: "عرض السجل",
+      },
+
+      history: {
+        titleFor: "سجل الرواتب — {name}",
+        empty: "لا يوجد سجل رواتب لهذا الموظف.",
+        current: "الحالي",
+        past: "سابق",
+      },
+
+      breadcrumbs: {
+        hr: "الموارد البشرية",
+        salaries: "الرواتب",
+      },
+
+      buttons: {
+        create: "حفظ الراتب",
+      },
+
+      errors: {
+        fetchFailed: "فشل تحميل الرواتب",
+        actionFailed: "حدث خطأ ما. يرجى المحاولة مرة أخرى.",
+      },
+    },
+    absences: {
+      title: "الغيابات",
+      subtitle: "مراجعة وإدارة طلبات الإجازة والغياب.",
+      addAbsence: "طلب غياب جديد",
+
+      createTitle: "طلب غياب جديد",
+      createSureMessage: "هل أنت متأكد من أنك تريد إرسال طلب الغياب هذا؟",
+      createSuccessTitle: "تم إرسال الطلب",
+      createSuccessMessage: "تم إرسال طلب الغياب بنجاح.",
+
+      acceptTitle: "قبول الغياب",
+      acceptSureMessage: "هل أنت متأكد من أنك تريد قبول طلب الغياب هذا؟",
+
+      rejectTitle: "رفض الغياب",
+      rejectSureMessage: "هل أنت متأكد من أنك تريد رفض طلب الغياب هذا؟",
+
+      deleteTitle: "حذف الغياب",
+      deleteSureMessage: "هل أنت متأكد من أنك تريد حذف سجل الغياب هذا؟ لا يمكن التراجع عن هذا الإجراء.",
+
+      emptyTitle: "لا توجد غيابات",
+      emptyMessage: "لا توجد طلبات غياب مطابقة لعوامل التصفية الخاصة بك.",
+
+      unjustified: "غير مبرر",
+
+      fields: {
+        employee: "الموظف",
+        employeeSearchPlaceholder: "ابحث بالاسم أو الرقم الوظيفي أو البطاقة الوطنية أو رقم الضمان الاجتماعي...",
+        type: "النوع",
+        startDate: "تاريخ البدء",
+        endDate: "تاريخ الانتهاء",
+        halfDay: "نصف يوم",
+        justified: "مبرر",
+        reason: "السبب",
+        reasonPlaceholder: "السبب أو أي سياق إضافي...",
+        status: "الحالة",
+      },
+
+      types: {
+        paid_leave: "إجازة مدفوعة",
+        unpaid_leave: "إجازة بدون أجر",
+        sick_leave: "إجازة مرضية",
+        absence: "غياب",
+        other: "آخر",
+      },
+
+      status: {
+        pending: "قيد الانتظار",
+        accepted: "مقبول",
+        rejected: "مرفوض",
+      },
+
+      filters: {
+        allStatuses: "جميع الحالات",
+        allTypes: "جميع الأنواع",
+      },
+
+      table: {
+        period: "الفترة",
+        days: "الأيام",
+      },
+
+      actions: {
+        accept: "قبول",
+        reject: "رفض",
+      },
+
+      breadcrumbs: {
+        hr: "الموارد البشرية",
+        absences: "الغيابات",
+      },
+
+      buttons: {
+        create: "إرسال الطلب",
+      },
+
+      errors: {
+        fetchFailed: "فشل تحميل الغيابات",
+        actionFailed: "حدث خطأ ما. يرجى المحاولة مرة أخرى.",
+      },
+    },
+    advances: {
+      title: "السلف",
+      subtitle: "مراجعة وإدارة طلبات السلف على الراتب.",
+      addAdvance: "طلب سلفة جديد",
+
+      createTitle: "طلب سلفة جديد",
+      createSureMessage: "هل أنت متأكد من أنك تريد إرسال طلب السلفة هذا؟",
+      createSuccessTitle: "تم إرسال الطلب",
+      createSuccessMessage: "تم إرسال طلب السلفة بنجاح.",
+
+      acceptTitle: "قبول السلفة",
+      acceptSureMessage: "هل أنت متأكد من أنك تريد قبول طلب السلفة هذا؟",
+
+      rejectTitle: "رفض السلفة",
+      rejectSureMessage: "هل أنت متأكد من أنك تريد رفض طلب السلفة هذا؟",
+
+      markRepaidTitle: "تحديد كمسددة",
+      markRepaidSureMessage: "هل أنت متأكد من أنك تريد تحديد هذه السلفة كمسددة بالكامل؟",
+
+      deleteTitle: "حذف السلفة",
+      deleteSureMessage: "هل أنت متأكد من أنك تريد حذف سجل السلفة هذا؟ لا يمكن التراجع عن هذا الإجراء.",
+
+      emptyTitle: "لا توجد سلف",
+      emptyMessage: "لا توجد طلبات سلف مطابقة لعوامل التصفية الخاصة بك.",
+
+      fields: {
+        employee: "الموظف",
+        employeeSearchPlaceholder: "ابحث بالاسم أو الرقم الوظيفي أو البطاقة الوطنية أو رقم الضمان الاجتماعي...",
+        amount: "المبلغ",
+        requestDate: "تاريخ الطلب",
+        reason: "السبب",
+        reasonPlaceholder: "السبب أو أي سياق إضافي...",
+        status: "الحالة",
+      },
+
+      status: {
+        pending: "قيد الانتظار",
+        accepted: "مقبولة",
+        rejected: "مرفوضة",
+      },
+
+      filters: {
+        allStatuses: "جميع الحالات",
+      },
+
+      table: {
+        remaining: "المتبقي",
+        fullyRepaid: "مسددة بالكامل",
+      },
+
+      actions: {
+        accept: "قبول",
+        reject: "رفض",
+        markRepaid: "تحديد كمسددة",
+      },
+
+      breadcrumbs: {
+        hr: "الموارد البشرية",
+        advances: "السلف",
+      },
+
+      buttons: {
+        create: "إرسال الطلب",
+      },
+
+      errors: {
+        fetchFailed: "فشل تحميل السلف",
+        actionFailed: "حدث خطأ ما. يرجى المحاولة مرة أخرى.",
+      },
+    },
   },
 
   // ======================================================
@@ -2408,6 +3050,9 @@ export const translations = {
       organization: "Organización",
       company: "Empresa",
       employees: "Empleados",
+      salaries: "Salarios",
+      absences: "Ausencias",
+      advances: "Anticipos",
       users: "Usuarios",
       departments: "Departamentos",
       jobPositions: "Puestos",
@@ -2450,6 +3095,7 @@ export const translations = {
       edit: "Editar",
       reset: "Restablecer",
       create: "Crear",
+      noResults: "No se encontraron resultados",
     },
 
     profile: {
@@ -3140,6 +3786,216 @@ export const translations = {
         requiredFields: "Completa todos los campos obligatorios",
       },
     },
+    salaries: {
+      title: "Salarios",
+      subtitle: "Gestiona la retribución y el historial salarial de los empleados.",
+      addSalary: "Añadir salario",
+      giveRaise: "Dar un aumento",
+
+      createTitle: "Nuevo registro salarial",
+      createSureMessage: "¿Seguro que quieres guardar este salario? El salario actual de este empleado se cerrará a partir de esta fecha de vigencia.",
+      createSuccessTitle: "Salario registrado",
+      createSuccessMessage: "El registro salarial se ha creado correctamente.",
+
+      deleteTitle: "Eliminar registro salarial",
+      deleteSureMessage: "¿Seguro que quieres eliminar este registro salarial? Esta acción no se puede deshacer.",
+
+      emptyTitle: "Sin salarios",
+      emptyMessage: "Esta empresa todavía no tiene registros salariales.",
+
+      fields: {
+        employee: "Empleado",
+        employeeSearchPlaceholder: "Buscar por nombre, número, CIN, CNSS...",
+        baseSalary: "Salario base",
+        effectiveDate: "Fecha de vigencia",
+        notes: "Notas",
+        notesPlaceholder: "Motivo de este cambio, contexto adicional...",
+      },
+
+      table: {
+        base: "Base",
+        gross: "Bruto",
+        net: "Neto",
+        endDate: "Fecha de fin",
+        status: "Estado",
+        ongoing: "En curso",
+      },
+
+      actions: {
+        history: "Ver historial",
+      },
+
+      history: {
+        titleFor: "Historial salarial — {name}",
+        empty: "No hay historial salarial para este empleado.",
+        current: "Actual",
+        past: "Anterior",
+      },
+
+      breadcrumbs: {
+        hr: "RR. HH.",
+        salaries: "Salarios",
+      },
+
+      buttons: {
+        create: "Guardar salario",
+      },
+
+      errors: {
+        fetchFailed: "Error al cargar los salarios",
+        actionFailed: "Algo salió mal. Inténtalo de nuevo.",
+      },
+    },
+    absences: {
+      title: "Ausencias",
+      subtitle: "Revisa y gestiona las solicitudes de permiso y ausencia.",
+      addAbsence: "Nueva solicitud de ausencia",
+
+      createTitle: "Nueva solicitud de ausencia",
+      createSureMessage: "¿Seguro que quieres enviar esta solicitud de ausencia?",
+      createSuccessTitle: "Solicitud enviada",
+      createSuccessMessage: "La solicitud de ausencia se ha enviado correctamente.",
+
+      acceptTitle: "Aceptar ausencia",
+      acceptSureMessage: "¿Seguro que quieres aceptar esta solicitud de ausencia?",
+
+      rejectTitle: "Rechazar ausencia",
+      rejectSureMessage: "¿Seguro que quieres rechazar esta solicitud de ausencia?",
+
+      deleteTitle: "Eliminar ausencia",
+      deleteSureMessage: "¿Seguro que quieres eliminar este registro de ausencia? Esta acción no se puede deshacer.",
+
+      emptyTitle: "Sin ausencias",
+      emptyMessage: "Ninguna solicitud de ausencia coincide con tus filtros.",
+
+      unjustified: "No justificada",
+
+      fields: {
+        employee: "Empleado",
+        employeeSearchPlaceholder: "Buscar por nombre, número, CIN, CNSS...",
+        type: "Tipo",
+        startDate: "Fecha de inicio",
+        endDate: "Fecha de fin",
+        halfDay: "Medio día",
+        justified: "Justificada",
+        reason: "Motivo",
+        reasonPlaceholder: "Motivo o contexto adicional...",
+        status: "Estado",
+      },
+
+      types: {
+        paid_leave: "Permiso retribuido",
+        unpaid_leave: "Permiso no retribuido",
+        sick_leave: "Baja por enfermedad",
+        absence: "Ausencia",
+        other: "Otro",
+      },
+
+      status: {
+        pending: "Pendiente",
+        accepted: "Aceptada",
+        rejected: "Rechazada",
+      },
+
+      filters: {
+        allStatuses: "Todos los estados",
+        allTypes: "Todos los tipos",
+      },
+
+      table: {
+        period: "Periodo",
+        days: "Días",
+      },
+
+      actions: {
+        accept: "Aceptar",
+        reject: "Rechazar",
+      },
+
+      breadcrumbs: {
+        hr: "RR. HH.",
+        absences: "Ausencias",
+      },
+
+      buttons: {
+        create: "Enviar solicitud",
+      },
+
+      errors: {
+        fetchFailed: "Error al cargar las ausencias",
+        actionFailed: "Algo salió mal. Inténtalo de nuevo.",
+      },
+    },
+    advances: {
+      title: "Anticipos",
+      subtitle: "Revisa y gestiona las solicitudes de anticipo salarial.",
+      addAdvance: "Nueva solicitud de anticipo",
+
+      createTitle: "Nueva solicitud de anticipo",
+      createSureMessage: "¿Seguro que quieres enviar esta solicitud de anticipo?",
+      createSuccessTitle: "Solicitud enviada",
+      createSuccessMessage: "La solicitud de anticipo se ha enviado correctamente.",
+
+      acceptTitle: "Aceptar anticipo",
+      acceptSureMessage: "¿Seguro que quieres aceptar esta solicitud de anticipo?",
+
+      rejectTitle: "Rechazar anticipo",
+      rejectSureMessage: "¿Seguro que quieres rechazar esta solicitud de anticipo?",
+
+      markRepaidTitle: "Marcar como reembolsado",
+      markRepaidSureMessage: "¿Seguro que quieres marcar este anticipo como totalmente reembolsado?",
+
+      deleteTitle: "Eliminar anticipo",
+      deleteSureMessage: "¿Seguro que quieres eliminar este registro de anticipo? Esta acción no se puede deshacer.",
+
+      emptyTitle: "Sin anticipos",
+      emptyMessage: "Ninguna solicitud de anticipo coincide con tus filtros.",
+
+      fields: {
+        employee: "Empleado",
+        employeeSearchPlaceholder: "Buscar por nombre, número, CIN, CNSS...",
+        amount: "Importe",
+        requestDate: "Fecha de solicitud",
+        reason: "Motivo",
+        reasonPlaceholder: "Motivo o contexto adicional...",
+        status: "Estado",
+      },
+
+      status: {
+        pending: "Pendiente",
+        accepted: "Aceptado",
+        rejected: "Rechazado",
+      },
+
+      filters: {
+        allStatuses: "Todos los estados",
+      },
+
+      table: {
+        remaining: "Restante",
+        fullyRepaid: "Totalmente reembolsado",
+      },
+
+      actions: {
+        accept: "Aceptar",
+        reject: "Rechazar",
+        markRepaid: "Marcar como reembolsado",
+      },
+
+      breadcrumbs: {
+        hr: "RR. HH.",
+        advances: "Anticipos",
+      },
+
+      buttons: {
+        create: "Enviar solicitud",
+      },
+
+      errors: {
+        fetchFailed: "Error al cargar los anticipos",
+        actionFailed: "Algo salió mal. Inténtalo de nuevo.",
+      },
+    },
   },
 
   // ======================================================
@@ -3158,6 +4014,9 @@ export const translations = {
       organization: "Organização",
       company: "Empresa",
       employees: "Funcionários",
+      salaries: "Salários",
+      absences: "Ausências",
+      advances: "Adiantamentos",
       users: "Utilizadores",
       departments: "Departamentos",
       jobPositions: "Cargos",
@@ -3200,6 +4059,7 @@ export const translations = {
       edit: "Editar",
       reset: "Redefinir",
       create: "Criar",
+      noResults: "Nenhum resultado encontrado",
     },
 
     profile: {
@@ -3891,6 +4751,216 @@ export const translations = {
         requiredFields: "Preencha todos os campos obrigatórios",
       },
     },
+    salaries: {
+      title: "Salários",
+      subtitle: "Faça a gestão da remuneração e do histórico salarial dos funcionários.",
+      addSalary: "Adicionar salário",
+      giveRaise: "Atribuir aumento",
+
+      createTitle: "Novo registo salarial",
+      createSureMessage: "Tem a certeza de que deseja guardar este salário? O salário atual deste funcionário será encerrado a partir desta data de vigência.",
+      createSuccessTitle: "Salário registado",
+      createSuccessMessage: "O registo salarial foi criado com sucesso.",
+
+      deleteTitle: "Eliminar registo salarial",
+      deleteSureMessage: "Tem a certeza de que deseja eliminar este registo salarial? Esta ação não pode ser desfeita.",
+
+      emptyTitle: "Sem salários",
+      emptyMessage: "Esta empresa ainda não tem registos salariais.",
+
+      fields: {
+        employee: "Funcionário",
+        employeeSearchPlaceholder: "Pesquisar por nome, número, CIN, CNSS...",
+        baseSalary: "Salário base",
+        effectiveDate: "Data de vigência",
+        notes: "Notas",
+        notesPlaceholder: "Motivo desta alteração, contexto adicional...",
+      },
+
+      table: {
+        base: "Base",
+        gross: "Bruto",
+        net: "Líquido",
+        endDate: "Data de fim",
+        status: "Estado",
+        ongoing: "Em curso",
+      },
+
+      actions: {
+        history: "Ver histórico",
+      },
+
+      history: {
+        titleFor: "Histórico salarial — {name}",
+        empty: "Sem histórico salarial para este funcionário.",
+        current: "Atual",
+        past: "Anterior",
+      },
+
+      breadcrumbs: {
+        hr: "RH",
+        salaries: "Salários",
+      },
+
+      buttons: {
+        create: "Guardar salário",
+      },
+
+      errors: {
+        fetchFailed: "Falha ao carregar os salários",
+        actionFailed: "Ocorreu um erro. Tente novamente.",
+      },
+    },
+    absences: {
+      title: "Ausências",
+      subtitle: "Reveja e faça a gestão dos pedidos de férias e ausência.",
+      addAbsence: "Novo pedido de ausência",
+
+      createTitle: "Novo pedido de ausência",
+      createSureMessage: "Tem a certeza de que deseja submeter este pedido de ausência?",
+      createSuccessTitle: "Pedido submetido",
+      createSuccessMessage: "O pedido de ausência foi submetido com sucesso.",
+
+      acceptTitle: "Aceitar ausência",
+      acceptSureMessage: "Tem a certeza de que deseja aceitar este pedido de ausência?",
+
+      rejectTitle: "Rejeitar ausência",
+      rejectSureMessage: "Tem a certeza de que deseja rejeitar este pedido de ausência?",
+
+      deleteTitle: "Eliminar ausência",
+      deleteSureMessage: "Tem a certeza de que deseja eliminar este registo de ausência? Esta ação não pode ser desfeita.",
+
+      emptyTitle: "Sem ausências",
+      emptyMessage: "Nenhum pedido de ausência corresponde aos seus filtros.",
+
+      unjustified: "Não justificada",
+
+      fields: {
+        employee: "Funcionário",
+        employeeSearchPlaceholder: "Pesquisar por nome, número, CIN, CNSS...",
+        type: "Tipo",
+        startDate: "Data de início",
+        endDate: "Data de fim",
+        halfDay: "Meio dia",
+        justified: "Justificada",
+        reason: "Motivo",
+        reasonPlaceholder: "Motivo ou contexto adicional...",
+        status: "Estado",
+      },
+
+      types: {
+        paid_leave: "Férias pagas",
+        unpaid_leave: "Licença sem vencimento",
+        sick_leave: "Baixa médica",
+        absence: "Ausência",
+        other: "Outro",
+      },
+
+      status: {
+        pending: "Pendente",
+        accepted: "Aceite",
+        rejected: "Rejeitada",
+      },
+
+      filters: {
+        allStatuses: "Todos os estados",
+        allTypes: "Todos os tipos",
+      },
+
+      table: {
+        period: "Período",
+        days: "Dias",
+      },
+
+      actions: {
+        accept: "Aceitar",
+        reject: "Rejeitar",
+      },
+
+      breadcrumbs: {
+        hr: "RH",
+        absences: "Ausências",
+      },
+
+      buttons: {
+        create: "Submeter pedido",
+      },
+
+      errors: {
+        fetchFailed: "Falha ao carregar as ausências",
+        actionFailed: "Ocorreu um erro. Tente novamente.",
+      },
+    },
+    advances: {
+      title: "Adiantamentos",
+      subtitle: "Reveja e faça a gestão dos pedidos de adiantamento salarial.",
+      addAdvance: "Novo pedido de adiantamento",
+
+      createTitle: "Novo pedido de adiantamento",
+      createSureMessage: "Tem a certeza de que deseja submeter este pedido de adiantamento?",
+      createSuccessTitle: "Pedido submetido",
+      createSuccessMessage: "O pedido de adiantamento foi submetido com sucesso.",
+
+      acceptTitle: "Aceitar adiantamento",
+      acceptSureMessage: "Tem a certeza de que deseja aceitar este pedido de adiantamento?",
+
+      rejectTitle: "Rejeitar adiantamento",
+      rejectSureMessage: "Tem a certeza de que deseja rejeitar este pedido de adiantamento?",
+
+      markRepaidTitle: "Marcar como reembolsado",
+      markRepaidSureMessage: "Tem a certeza de que deseja marcar este adiantamento como totalmente reembolsado?",
+
+      deleteTitle: "Eliminar adiantamento",
+      deleteSureMessage: "Tem a certeza de que deseja eliminar este registo de adiantamento? Esta ação não pode ser desfeita.",
+
+      emptyTitle: "Sem adiantamentos",
+      emptyMessage: "Nenhum pedido de adiantamento corresponde aos seus filtros.",
+
+      fields: {
+        employee: "Funcionário",
+        employeeSearchPlaceholder: "Pesquisar por nome, número, CIN, CNSS...",
+        amount: "Montante",
+        requestDate: "Data do pedido",
+        reason: "Motivo",
+        reasonPlaceholder: "Motivo ou contexto adicional...",
+        status: "Estado",
+      },
+
+      status: {
+        pending: "Pendente",
+        accepted: "Aceite",
+        rejected: "Rejeitado",
+      },
+
+      filters: {
+        allStatuses: "Todos os estados",
+      },
+
+      table: {
+        remaining: "Restante",
+        fullyRepaid: "Totalmente reembolsado",
+      },
+
+      actions: {
+        accept: "Aceitar",
+        reject: "Rejeitar",
+        markRepaid: "Marcar como reembolsado",
+      },
+
+      breadcrumbs: {
+        hr: "RH",
+        advances: "Adiantamentos",
+      },
+
+      buttons: {
+        create: "Submeter pedido",
+      },
+
+      errors: {
+        fetchFailed: "Falha ao carregar os adiantamentos",
+        actionFailed: "Ocorreu um erro. Tente novamente.",
+      },
+    },
   },
 
   // ======================================================
@@ -3909,6 +4979,9 @@ export const translations = {
       organization: "Organisation",
       company: "Unternehmen",
       employees: "Mitarbeiter",
+      salaries: "Gehälter",
+      absences: "Abwesenheiten",
+      advances: "Vorschüsse",
       users: "Benutzer",
       departments: "Abteilungen",
       jobPositions: "Positionen",
@@ -3951,6 +5024,7 @@ export const translations = {
       edit: "Bearbeiten",
       reset: "Zurücksetzen",
       create: "Erstellen",
+      noResults: "Keine Ergebnisse gefunden",
     },
 
     profile: {
@@ -4658,6 +5732,216 @@ export const translations = {
         notFound: "Mitarbeiter nicht gefunden",
         duplicateEmployeeNumber: "Ein Mitarbeiter mit dieser Nummer existiert bereits",
         requiredFields: "Bitte füllen Sie alle Pflichtfelder aus",
+      },
+    },
+    salaries: {
+      title: "Gehälter",
+      subtitle: "Verwalten Sie die Vergütung und Gehaltshistorie der Mitarbeiter.",
+      addSalary: "Gehalt hinzufügen",
+      giveRaise: "Gehaltserhöhung gewähren",
+
+      createTitle: "Neuer Gehaltseintrag",
+      createSureMessage: "Möchten Sie dieses Gehalt wirklich speichern? Das aktuelle Gehalt dieses Mitarbeiters wird zu diesem Stichtag beendet.",
+      createSuccessTitle: "Gehalt gespeichert",
+      createSuccessMessage: "Der Gehaltseintrag wurde erfolgreich angelegt.",
+
+      deleteTitle: "Gehaltseintrag löschen",
+      deleteSureMessage: "Möchten Sie diesen Gehaltseintrag wirklich löschen? Dies kann nicht rückgängig gemacht werden.",
+
+      emptyTitle: "Keine Gehälter",
+      emptyMessage: "Für dieses Unternehmen gibt es noch keine Gehaltseinträge.",
+
+      fields: {
+        employee: "Mitarbeiter",
+        employeeSearchPlaceholder: "Suche nach Name, Nummer, CIN, CNSS...",
+        baseSalary: "Grundgehalt",
+        effectiveDate: "Stichtag",
+        notes: "Notizen",
+        notesPlaceholder: "Grund für diese Änderung, zusätzlicher Kontext...",
+      },
+
+      table: {
+        base: "Grundgehalt",
+        gross: "Brutto",
+        net: "Netto",
+        endDate: "Enddatum",
+        status: "Status",
+        ongoing: "Laufend",
+      },
+
+      actions: {
+        history: "Verlauf anzeigen",
+      },
+
+      history: {
+        titleFor: "Gehaltsverlauf — {name}",
+        empty: "Kein Gehaltsverlauf für diesen Mitarbeiter.",
+        current: "Aktuell",
+        past: "Vergangen",
+      },
+
+      breadcrumbs: {
+        hr: "Personal",
+        salaries: "Gehälter",
+      },
+
+      buttons: {
+        create: "Gehalt speichern",
+      },
+
+      errors: {
+        fetchFailed: "Gehälter konnten nicht geladen werden",
+        actionFailed: "Etwas ist schiefgelaufen. Bitte versuchen Sie es erneut.",
+      },
+    },
+    absences: {
+      title: "Abwesenheiten",
+      subtitle: "Prüfen und verwalten Sie Urlaubs- und Abwesenheitsanträge.",
+      addAbsence: "Neuer Abwesenheitsantrag",
+
+      createTitle: "Neuer Abwesenheitsantrag",
+      createSureMessage: "Möchten Sie diesen Abwesenheitsantrag wirklich einreichen?",
+      createSuccessTitle: "Antrag eingereicht",
+      createSuccessMessage: "Der Abwesenheitsantrag wurde erfolgreich eingereicht.",
+
+      acceptTitle: "Abwesenheit genehmigen",
+      acceptSureMessage: "Möchten Sie diesen Abwesenheitsantrag wirklich genehmigen?",
+
+      rejectTitle: "Abwesenheit ablehnen",
+      rejectSureMessage: "Möchten Sie diesen Abwesenheitsantrag wirklich ablehnen?",
+
+      deleteTitle: "Abwesenheit löschen",
+      deleteSureMessage: "Möchten Sie diesen Abwesenheitseintrag wirklich löschen? Dies kann nicht rückgängig gemacht werden.",
+
+      emptyTitle: "Keine Abwesenheiten",
+      emptyMessage: "Kein Abwesenheitsantrag entspricht Ihren Filtern.",
+
+      unjustified: "Unentschuldigt",
+
+      fields: {
+        employee: "Mitarbeiter",
+        employeeSearchPlaceholder: "Suche nach Name, Nummer, CIN, CNSS...",
+        type: "Art",
+        startDate: "Startdatum",
+        endDate: "Enddatum",
+        halfDay: "Halber Tag",
+        justified: "Entschuldigt",
+        reason: "Grund",
+        reasonPlaceholder: "Grund oder zusätzlicher Kontext...",
+        status: "Status",
+      },
+
+      types: {
+        paid_leave: "Bezahlter Urlaub",
+        unpaid_leave: "Unbezahlter Urlaub",
+        sick_leave: "Krankheitsurlaub",
+        absence: "Abwesenheit",
+        other: "Sonstiges",
+      },
+
+      status: {
+        pending: "Ausstehend",
+        accepted: "Genehmigt",
+        rejected: "Abgelehnt",
+      },
+
+      filters: {
+        allStatuses: "Alle Status",
+        allTypes: "Alle Arten",
+      },
+
+      table: {
+        period: "Zeitraum",
+        days: "Tage",
+      },
+
+      actions: {
+        accept: "Genehmigen",
+        reject: "Ablehnen",
+      },
+
+      breadcrumbs: {
+        hr: "Personal",
+        absences: "Abwesenheiten",
+      },
+
+      buttons: {
+        create: "Antrag einreichen",
+      },
+
+      errors: {
+        fetchFailed: "Abwesenheiten konnten nicht geladen werden",
+        actionFailed: "Etwas ist schiefgelaufen. Bitte versuchen Sie es erneut.",
+      },
+    },
+    advances: {
+      title: "Vorschüsse",
+      subtitle: "Prüfen und verwalten Sie Gehaltsvorschussanträge.",
+      addAdvance: "Neuer Vorschussantrag",
+
+      createTitle: "Neuer Vorschussantrag",
+      createSureMessage: "Möchten Sie diesen Vorschussantrag wirklich einreichen?",
+      createSuccessTitle: "Antrag eingereicht",
+      createSuccessMessage: "Der Vorschussantrag wurde erfolgreich eingereicht.",
+
+      acceptTitle: "Vorschuss genehmigen",
+      acceptSureMessage: "Möchten Sie diesen Vorschussantrag wirklich genehmigen?",
+
+      rejectTitle: "Vorschuss ablehnen",
+      rejectSureMessage: "Möchten Sie diesen Vorschussantrag wirklich ablehnen?",
+
+      markRepaidTitle: "Als zurückgezahlt markieren",
+      markRepaidSureMessage: "Möchten Sie diesen Vorschuss wirklich als vollständig zurückgezahlt markieren?",
+
+      deleteTitle: "Vorschuss löschen",
+      deleteSureMessage: "Möchten Sie diesen Vorschusseintrag wirklich löschen? Dies kann nicht rückgängig gemacht werden.",
+
+      emptyTitle: "Keine Vorschüsse",
+      emptyMessage: "Kein Vorschussantrag entspricht Ihren Filtern.",
+
+      fields: {
+        employee: "Mitarbeiter",
+        employeeSearchPlaceholder: "Suche nach Name, Nummer, CIN, CNSS...",
+        amount: "Betrag",
+        requestDate: "Antragsdatum",
+        reason: "Grund",
+        reasonPlaceholder: "Grund oder zusätzlicher Kontext...",
+        status: "Status",
+      },
+
+      status: {
+        pending: "Ausstehend",
+        accepted: "Genehmigt",
+        rejected: "Abgelehnt",
+      },
+
+      filters: {
+        allStatuses: "Alle Status",
+      },
+
+      table: {
+        remaining: "Verbleibend",
+        fullyRepaid: "Vollständig zurückgezahlt",
+      },
+
+      actions: {
+        accept: "Genehmigen",
+        reject: "Ablehnen",
+        markRepaid: "Als zurückgezahlt markieren",
+      },
+
+      breadcrumbs: {
+        hr: "Personal",
+        advances: "Vorschüsse",
+      },
+
+      buttons: {
+        create: "Antrag einreichen",
+      },
+
+      errors: {
+        fetchFailed: "Vorschüsse konnten nicht geladen werden",
+        actionFailed: "Etwas ist schiefgelaufen. Bitte versuchen Sie es erneut.",
       },
     },
   },

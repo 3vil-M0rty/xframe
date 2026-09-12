@@ -1,55 +1,17 @@
 /* ============================================================
    EMPLOYEES PAGE
+
    Page-specific styles only. Shared layout/button/empty-state/
    grid/detail-card primitives live once in src/styles/global.css
-   (composed in below) and the employee card itself now lives in
+   as plain global classes (pageShell, pageHeader, btnPrimary,
+   detailCard, autoFillGrid, etc.) and are applied directly in
+   the JSX (e.g. className="btnPrimary") — this file does NOT use
+   CSS Modules `composes`. It only holds styles that are genuinely
+   specific to the Employees page, or that add a little extra on
+   top of a shared class (e.g. .photoPreview, .profileCard below).
+   The employee card itself lives in
    components/employee/EmployeeCard.module.css.
    ============================================================ */
-
-
-/* ============================================================
-   PAGE / HEADER
-   ============================================================ */
-
-.page {
-    composes: pageShell from global;
-}
-
-.header {
-    composes: pageHeader from global;
-}
-
-.titleRow {
-    composes: pageTitleRow from global;
-}
-
-.subtitle {
-    composes: pageSubtitle from global;
-}
-
-
-/* ============================================================
-   BUTTONS
-   ============================================================ */
-
-.primaryButton {
-    composes: btnPrimary from global;
-}
-
-.backButton {
-    composes: btnBack from global;
-}
-
-.secondaryButton,
-.editButton,
-.editDetailButton {
-    composes: btnEdit from global;
-}
-
-.deleteButton,
-.dangerButton {
-    composes: btnDelete from global;
-}
 
 
 /* ============================================================
@@ -175,10 +137,6 @@
    FORM
    ============================================================ */
 
-.formContainer {
-    composes: formShell from global;
-}
-
 .formArea {
     width: 100%;
 }
@@ -264,9 +222,14 @@
     background: var(--color-bg-primary);
 }
 
-.photoPreview {
-    composes: avatarCircleLg from global;
-
+/* Extra sizing on top of the shared "avatarCircleLg" class.
+   The compound selector below (rather than a bare ".photoPreview"
+   rule) guarantees this always wins over avatarCircleLg's own
+   width/height regardless of stylesheet load order — two
+   same-specificity rules would otherwise depend on which one
+   happens to be injected last. Applied in JSX as:
+   className={`avatarCircleLg ${styles.photoPreview}`} */
+:global(.avatarCircleLg).photoPreview {
     width: 86px;
     height: 86px;
     flex: 0 0 86px;
@@ -358,30 +321,6 @@
 
 
 /* ============================================================
-   EMPLOYEE GRID
-   (the card itself lives in
-   components/employee/EmployeeCard.module.css)
-   ============================================================ */
-
-.employeeGrid {
-    composes: autoFillGrid from global;
-}
-
-
-/* ============================================================
-   EMPTY STATE
-   ============================================================ */
-
-.emptyState {
-    composes: emptyStateBlock from global;
-}
-
-.emptyIcon {
-    composes: emptyStateIcon from global;
-}
-
-
-/* ============================================================
    DETAIL HEADER
    ============================================================ */
 
@@ -405,9 +344,9 @@
    PROFILE CARD
    ============================================================ */
 
-.profileCard {
-    composes: detailCard from global;
-
+/* Extra layout on top of the shared "detailCard" class, applied
+   in JSX as: className={`detailCard ${styles.profileCard}`} */
+:global(.detailCard).profileCard {
     display: flex;
     align-items: center;
 
@@ -416,8 +355,10 @@
     padding: 2rem;
 }
 
-.profilePhoto {
-    composes: avatarCircleLg from global;
+/* Extra sizing on top of the shared "avatarCircleLg" class,
+   applied in JSX as:
+   className={`avatarCircleLg ${styles.profilePhoto}`} */
+:global(.avatarCircleLg).profilePhoto {
     flex-shrink: 0;
 }
 
@@ -509,13 +450,12 @@
    DETAIL GRID
    ============================================================ */
 
-.detailGrid {
-    composes: detailGrid from global;
-}
-
-.detailSection {
-    composes: detailSection from global;
-}
+/* .detailGrid and .detailSection below only carry responsive
+   overrides (see the media queries further down), layered on top
+   of the shared "detailGrid" / "detailSection" classes using a
+   :global(...) compound selector so the override reliably wins
+   regardless of CSS load order. Applied in JSX as e.g.
+   className={`detailGrid ${styles.detailGrid}`} */
 
 .sectionTitle {
     margin-bottom: 10px;
@@ -628,15 +568,6 @@
 
 
 /* ============================================================
-   LOADING
-   ============================================================ */
-
-.loading {
-    composes: loadingState from global;
-}
-
-
-/* ============================================================
    ERROR
    ============================================================ */
 
@@ -686,7 +617,7 @@
 }
 
 @media (max-width: 900px) {
-    .detailGrid,
+    :global(.detailGrid).detailGrid,
     .infoGrid {
         grid-template-columns: 1fr;
     }
@@ -730,7 +661,7 @@
         padding: 1.25rem;
     }
 
-    .detailSection {
+    :global(.detailSection).detailSection {
         padding: 1.25rem;
     }
 }

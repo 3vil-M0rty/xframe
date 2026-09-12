@@ -275,13 +275,18 @@ input::placeholder {
    RESOURCE PAGE COMPONENT LIBRARY
    ============================================================
    Shared building blocks for "manage a resource" screens
-   (Company, Users, and any future admin screen — Departments,
-   Roles, etc.). These classes used to be copy-pasted, almost
-   byte-for-byte, into Company.module.css and Users.module.css.
-   They now live here once. The page-level .module.css files
-   pull them in with CSS Modules' `composes ... from global`,
-   so `styles.pageShell` etc. still works exactly as before in
-   JSX — nothing in Company.jsx / Users.jsx needed to change.
+   (Company, Users, Employees, and any future admin screen —
+   Departments, Roles, etc.). These classes used to be
+   copy-pasted, almost byte-for-byte, into every page's
+   .module.css file. They now live here once, as plain global
+   classes (this file is imported directly in main.jsx, not as a
+   CSS Module), and pages apply them directly in JSX alongside
+   their own module classes, e.g.:
+
+     className={`resourceCard ${styles.userCard}`}
+
+   No CSS Modules `composes` is used anywhere in this project —
+   sharing happens through these plain global class names instead.
 
    Naming: everything here is prefixed to avoid clashing with
    any other global class in the app.
@@ -332,7 +337,10 @@ input::placeholder {
 
 /* ---------- Buttons ---------- */
 
-.btnBase {
+.btnPrimary,
+.btnEdit,
+.btnCancel,
+.btnDelete {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -350,7 +358,6 @@ input::placeholder {
 }
 
 .btnPrimary {
-  composes: btnBase;
   color: #000;
   background: #fff;
   border: 1px solid #fff;
@@ -362,7 +369,6 @@ input::placeholder {
 }
 
 .btnEdit {
-  composes: btnBase;
   color: #fff;
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.1);
@@ -373,7 +379,6 @@ input::placeholder {
 }
 
 .btnCancel {
-  composes: btnBase;
   margin-top: 1rem;
   color: #aaa;
   background: transparent;
@@ -386,7 +391,6 @@ input::placeholder {
 }
 
 .btnDelete {
-  composes: btnBase;
   color: #ff8585;
   background: rgba(255, 80, 80, 0.06);
   border: 1px solid rgba(255, 80, 80, 0.2);
@@ -556,7 +560,8 @@ input::placeholder {
 
 /* ---------- Clickable resource card (Users, Employees, ...) ----------
    Page-specific inner layout (grid-template-columns, flex, etc.) is
-   added locally on top of this via `composes`. */
+   added locally on top of this — applied together in JSX, e.g.
+   className={`resourceCard ${styles.userCard}`}. */
 
 .resourceCard {
   position: relative;
@@ -620,7 +625,8 @@ input::placeholder {
   z-index: 1;
 }
 
-.cardActionIconBtn {
+.cardActionIconBtn,
+.cardActionIconBtnDanger {
   width: 32px;
   height: 32px;
   display: flex;
@@ -643,7 +649,9 @@ input::placeholder {
 }
 
 .resourceCard:hover .cardActionIconBtn,
-.cardActionIconBtn:focus-visible {
+.cardActionIconBtn:focus-visible,
+.resourceCard:hover .cardActionIconBtnDanger,
+.cardActionIconBtnDanger:focus-visible {
   opacity: 1;
   transform: translateY(0);
 }
@@ -654,12 +662,12 @@ input::placeholder {
   border-color: var(--color-text-tertiary);
 }
 
-.cardActionIconBtn:active {
+.cardActionIconBtn:active,
+.cardActionIconBtnDanger:active {
   transform: scale(0.95);
 }
 
 .cardActionIconBtnDanger {
-  composes: cardActionIconBtn;
   color: #ff6b6b;
   background: rgba(255, 80, 80, 0.06);
   border-color: rgba(255, 80, 80, 0.2);
@@ -685,7 +693,8 @@ input::placeholder {
   border-top: 1px solid var(--color-border);
 }
 
-.cardFooterActionBtn {
+.cardFooterActionBtn,
+.cardFooterActionBtnDanger {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -713,7 +722,6 @@ input::placeholder {
 }
 
 .cardFooterActionBtnDanger {
-  composes: cardFooterActionBtn;
   color: #ff8585;
 }
 
@@ -768,7 +776,8 @@ input::placeholder {
     grid-template-columns: 1fr;
   }
 
-  .cardActionIconBtn {
+  .cardActionIconBtn,
+  .cardActionIconBtnDanger {
     opacity: 1;
     transform: none;
     width: 34px;
@@ -779,6 +788,160 @@ input::placeholder {
 @media (max-width: 480px) {
   .pageShell {
     padding: 0.75rem;
+  }
+}
+
+/* ============================================================
+   HR RECORD TABLE
+   ============================================================
+   Shared list layout for HR "workflow" resources (Salaries,
+   Absences, Advances, and any future one) — a header row of
+   column labels followed by one row per record. Built as plain
+   global classes (not composes — see the note at the top of this
+   file) so Salaries.module.css / Absences.module.css /
+   Advances.module.css can all apply them directly in JSX instead
+   of re-styling their own tables from scratch.
+   ============================================================ */
+
+.dataTable {
+  width: 100%;
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background: var(--color-bg-primary);
+}
+
+.dataTableHead,
+.dataTableRow {
+  display: grid;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+}
+
+.dataTableHead {
+  color: var(--color-text-tertiary);
+  background: var(--color-bg-secondary);
+  border-bottom: 1px solid var(--color-border);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.dataTableRow {
+  color: var(--color-text-primary);
+  border-bottom: 1px solid var(--color-border);
+  font-size: 0.84rem;
+  transition: background 0.15s ease;
+}
+
+.dataTableRow:last-child {
+  border-bottom: 0;
+}
+
+.dataTableRow:hover {
+  background: var(--color-bg-hover);
+}
+
+.dataTableCellMuted {
+  color: var(--color-text-tertiary);
+  font-size: 0.78rem;
+}
+
+.dataTableActions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+/* ---------- Status / workflow pills ---------- */
+
+.statusPill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 9px;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  color: var(--color-text-secondary);
+  background: var(--color-bg-secondary);
+  font-size: 0.68rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.statusPillPending {
+  color: #e8b93f;
+  background: rgba(232, 185, 63, 0.1);
+  border-color: rgba(232, 185, 63, 0.3);
+}
+
+.statusPillAccepted {
+  color: #4cc38a;
+  background: rgba(76, 195, 138, 0.1);
+  border-color: rgba(76, 195, 138, 0.3);
+}
+
+.statusPillRejected {
+  color: #ff6b6b;
+  background: rgba(255, 80, 80, 0.1);
+  border-color: rgba(255, 80, 80, 0.25);
+}
+
+.statusPillNeutral {
+  color: var(--color-text-tertiary);
+}
+
+/* ---------- Small icon-only action buttons inside a table row
+   (accept / reject / edit / delete) ---------- */
+
+.tableActionBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  color: var(--color-text-tertiary);
+  background: transparent;
+  border: 1px solid var(--color-border);
+  border-radius: 7px;
+  cursor: pointer;
+  transition:
+    background 0.18s ease,
+    border-color 0.18s ease,
+    color 0.18s ease;
+}
+
+.tableActionBtn:hover {
+  color: var(--color-text-primary);
+  background: var(--color-bg-tertiary);
+  border-color: var(--color-text-tertiary);
+}
+
+.tableActionBtnAccept:hover {
+  color: #4cc38a;
+  background: rgba(76, 195, 138, 0.12);
+  border-color: rgba(76, 195, 138, 0.35);
+}
+
+.tableActionBtnReject:hover,
+.tableActionBtnDanger:hover {
+  color: #ff8585;
+  background: rgba(255, 60, 60, 0.15);
+  border-color: rgba(255, 70, 70, 0.45);
+}
+
+@media (max-width: 760px) {
+  .dataTableHead {
+    display: none;
+  }
+
+  .dataTableRow {
+    grid-template-columns: 1fr !important;
+    gap: 6px;
   }
 }
 

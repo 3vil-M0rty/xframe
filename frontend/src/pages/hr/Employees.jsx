@@ -31,6 +31,7 @@ import CustomSelect from "../../components/useful/CustomSelect";
 import Breadcrumbs from "../../components/useful/Breadcrumbs";
 import Pagination from "../../components/useful/Pagination";
 import EmployeeCard from "../../components/employee/EmployeeCard";
+import LinkedUserAccess from "../../components/employee/LinkedUserAccess";
 import ActionModal from "../../components/useful/ActionModal";
 
 import {
@@ -2727,6 +2728,11 @@ export default function Employees() {
               </p>
             </div>
           )}
+
+          {/* SELF-SERVICE ACCESS (link/unlink a User account) */}
+          <div className={styles.fullWidthSection}>
+            <LinkedUserAccess employeeId={selectedEmployee._id} />
+          </div>
         </div>
       </div>
     );

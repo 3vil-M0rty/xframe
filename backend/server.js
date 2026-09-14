@@ -10,6 +10,14 @@ const employeeRoutes = require("./routes/employees");
 const salaryRoutes = require("./routes/salaries");
 const absenceRoutes = require("./routes/absences");
 const advanceRoutes = require("./routes/advances");
+const payrollRoutes = require("./routes/payroll");
+const contractRoutes = require("./routes/contracts");
+const documentRoutes = require("./routes/documents");
+const attendanceRoutes = require("./routes/attendance");
+const notificationRoutes = require("./routes/notifications");
+const auditLogRoutes = require("./routes/auditLogs");
+const reportRoutes = require("./routes/reports");
+const meRoutes = require("./routes/me");
 
 const app = express();
 
@@ -37,6 +45,14 @@ app.use("/api/employees", employeeRoutes);
 app.use("/api/salaries", salaryRoutes);
 app.use("/api/absences", absenceRoutes);
 app.use("/api/advances", advanceRoutes);
+app.use("/api/payroll", payrollRoutes);
+app.use("/api/contracts", contractRoutes);
+app.use("/api/documents", documentRoutes);
+app.use("/api/attendance", attendanceRoutes);
+app.use("/api/notifications", notificationRoutes);
+app.use("/api/audit-logs", auditLogRoutes);
+app.use("/api/reports", reportRoutes);
+app.use("/api/me", meRoutes);
 
 // Health check
 app.get('/health', (req, res) => {

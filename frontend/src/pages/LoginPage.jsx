@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 import styles from './LoginPage.module.css'
@@ -8,8 +8,19 @@ export default function LoginPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
-  const { login, loading } = useAuth()
+  const { login, loading, token } = useAuth()
   const navigate = useNavigate()
+
+  // If there's already a valid session (e.g. the user hit the
+  // browser's Back button to "/" while still logged in), send them
+  // straight to their profile instead of showing the login form
+  // again. Waiting for `!loading` avoids a flash of the login form
+  // before the stored token has been verified.
+  useEffect(() => {
+    if (token && !loading) {
+      navigate('/profile', { replace: true })
+    }
+  }, [token, loading, navigate])
 
   const handleSubmit = async (e) => {
     e.preventDefault()

@@ -72,7 +72,25 @@ const userSchema = new mongoose.Schema(
         "security"
       ],
       default: "administration"
-    }
+    },
+
+    // =========================================================
+    // EMPLOYEE SELF-SERVICE LINK
+    // =========================================================
+    // When set, this login "belongs to" that Employee record —
+    // it's what powers the self-service space (My Payslips, My
+    // Absences, My Advances, My Leave Balance) and manager-based
+    // approval routing (an employee's manager, if that manager
+    // also has a linked User account, can review that specific
+    // employee's absence/advance requests — see
+    // permissions/permissions.js: canReviewAbsence/canReviewAdvance).
+    // Optional — plenty of accounts (admin, owner, HR-only staff
+    // with no Employee record of their own) will leave this null.
+    employee: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Employee",
+      default: null,
+    },
 
   },
   { timestamps: true }
@@ -102,5 +120,8 @@ userSchema.index({ department: 1 });
 userSchema.index({ createdAt: -1 });
 // Supports name search/sort ("lastName firstName" ordering).
 userSchema.index({ lastName: 1, firstName: 1 });
+// Supports self-service lookups ("find the User account linked to
+// this Employee") and manager-approval routing.
+userSchema.index({ employee: 1 });
 
 module.exports = mongoose.model('User', userSchema);

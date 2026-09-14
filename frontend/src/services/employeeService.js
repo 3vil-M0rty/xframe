@@ -48,8 +48,11 @@ export const getEmployees = async ({
 export const getEmployeeById = async (id) => {
   const response = await api.get(`/employees/${id}`);
 
-  // Backend responds { success, data: employee }.
-  return response.data.data;
+  // Backend responds { success, data: employee, linkedUser }.
+  return {
+    employee: response.data.data,
+    linkedUser: response.data.linkedUser || null,
+  };
 };
 
 // ======================================================
@@ -122,4 +125,23 @@ export const deleteEmployeePhoto = async (id) => {
 
   // Backend responds { success, data: employee, message }.
   return response.data.data;
+};
+
+// ======================================================
+// LINK / UNLINK USER ACCOUNT (self-service access)
+// ======================================================
+
+export const linkEmployeeUser = async (employeeId, userId) => {
+  const response = await api.patch(
+    `/employees/${employeeId}/link-user`,
+    { userId }
+  );
+  return response.data;
+};
+
+export const unlinkEmployeeUser = async (employeeId) => {
+  const response = await api.patch(
+    `/employees/${employeeId}/unlink-user`
+  );
+  return response.data;
 };

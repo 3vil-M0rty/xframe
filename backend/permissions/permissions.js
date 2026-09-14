@@ -103,6 +103,62 @@ function canAccessHRForCompany(actor, company) {
 }
 
 // ------------------------------------------------------------
+// SELF-SERVICE (My Space) + MANAGER APPROVAL ROUTING
+// ------------------------------------------------------------
+// A User account can optionally be linked to one Employee record
+// (User.employee). That link is what unlocks:
+//   - the self-service space (My Profile / My Payslips / My
+//     Absences / My Advances / My Leave Balance / My Attendance)
+//   - manager-based approval: if the employee who submitted an
+//     absence/advance request has a manager (Employee.manager),
+//     and that manager also has a linked User account, the manager
+//     can review THAT employee's request without needing full HR
+//     access.
+// HR/admin/owner can always do everything self-service can do for
+// any employee, plus review any request — this only ADDS a narrow
+// extra door for managers and employees over their own data, it
+// never removes the HR module's existing access.
+// ------------------------------------------------------------
+
+/**
+ * Does this actor have a self-service space at all?
+ */
+function canSelfService(actor) {
+  return !!actor?.employee;
+}
+
+/**
+ * Is `employeeId` the actor's own linked employee record? Use this
+ * to scope self-service routes ("my payslips", "my absences", ...)
+ * so someone can only ever read/act on their own data.
+ */
+function isOwnEmployeeRecord(actor, employeeId) {
+  return canSelfService(actor) && sameId(actor.employee, employeeId);
+}
+
+/**
+ * Who may review (accept/reject) an absence or advance request.
+ * - HR/admin/owner: always (existing behavior, unchanged).
+ * - a manager: only for requests from an employee whose
+ *   `manager` field points at the reviewer's own linked employee.
+ *   Pass in the requesting employee's record (with `manager`
+ *   populated) once it's been fetched — this function doesn't hit
+ *   the database itself.
+ */
+function canReviewRequest(actor, company, requestingEmployee) {
+  if (canAccessHRForCompany(actor, company)) return true;
+
+  if (canSelfService(actor) && requestingEmployee?.manager) {
+    return sameId(actor.employee, requestingEmployee.manager);
+  }
+
+  return false;
+}
+
+const canReviewAbsence = canReviewRequest;
+const canReviewAdvance = canReviewRequest;
+
+// ------------------------------------------------------------
 // COMPANIES
 // ------------------------------------------------------------
 
@@ -239,6 +295,11 @@ module.exports = {
   isHRDepartment,
   canAccessHR,
   canAccessHRForCompany,
+  canSelfService,
+  isOwnEmployeeRecord,
+  canReviewRequest,
+  canReviewAbsence,
+  canReviewAdvance,
   canCreateCompany,
   canManageCompany,
   canDeleteCompany,

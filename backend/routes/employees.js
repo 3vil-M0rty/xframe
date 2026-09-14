@@ -5,6 +5,7 @@ const router = express.Router();
 
 const Employee = require("../models/Employee");
 const Company = require("../models/Company");
+const User = require("../models/User");
 
 const auth = require("../middleware/auth");
 const upload = require("../middleware/uploadMiddleware");
@@ -15,6 +16,8 @@ const {
 const {
   canAccessHRForCompany,
 } = require("../permissions/permissions");
+
+const { logAudit } = require("../services/auditLogger");
 
 const {
   uploadImage,
@@ -257,12 +260,21 @@ router.get("/:id", auth, async (req, res) => {
     }
 
     // --------------------------------------------------
+    // LINKED USER ACCOUNT (self-service)
+    // --------------------------------------------------
+
+    const linkedUser = await User.findOne({
+      employee: employee._id,
+    }).select("firstName lastName email");
+
+    // --------------------------------------------------
     // RESPONSE
     // --------------------------------------------------
 
     res.json({
       success: true,
       data: employee,
+      linkedUser: linkedUser || null,
     });
   } catch (error) {
     console.error(
@@ -420,6 +432,15 @@ router.post(
       // RESPONSE
       // --------------------------------------------------
 
+      await logAudit(req, {
+        company,
+        action: "create",
+        resourceType: "Employee",
+        resourceId: employee._id,
+        resourceLabel: `${firstName} ${lastName}`,
+        after: employee.toObject(),
+      });
+
       res.status(201).json({
         success: true,
         data: employee,
@@ -537,6 +558,8 @@ router.put(
       // UPDATE
       // --------------------------------------------------
 
+      const before = employee.toObject();
+
       Object.assign(
         employee,
         req.body
@@ -550,6 +573,16 @@ router.put(
       // --------------------------------------------------
       // RESPONSE
       // --------------------------------------------------
+
+      await logAudit(req, {
+        company: company._id,
+        action: "update",
+        resourceType: "Employee",
+        resourceId: employee._id,
+        resourceLabel: `${employee.firstName} ${employee.lastName}`,
+        before,
+        after: employee.toObject(),
+      });
 
       res.json({
         success: true,
@@ -958,6 +991,15 @@ router.delete(
       // RESPONSE
       // --------------------------------------------------
 
+      await logAudit(req, {
+        company: employee.company,
+        action: "delete",
+        resourceType: "Employee",
+        resourceId: employee._id,
+        resourceLabel: `${employee.firstName} ${employee.lastName}`,
+        before: employee.toObject(),
+      });
+
       res.json({
         success: true,
         message:
@@ -976,6 +1018,127 @@ router.delete(
           "Error deleting employee",
         error: error.message,
       });
+    }
+  }
+);
+
+// ======================================================
+// LINK / UNLINK A USER ACCOUNT (self-service access)
+// PATCH /api/employees/:id/link-user
+// body: { userId }
+// PATCH /api/employees/:id/unlink-user
+// ======================================================
+// This is what turns on the self-service space (My Payslips, My
+// Absences, ...) for an employee — see permissions/permissions.js
+// canSelfService and routes/me.js. A User can only be linked to
+// ONE employee at a time; linking to a second employee first
+// unlinks it from whichever one it was linked to before.
+
+router.patch(
+  "/:id/link-user",
+  auth,
+  requireHRAccess,
+  async (req, res) => {
+    try {
+      if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+        return res.status(400).json({ success: false, message: "Invalid employee ID" });
+      }
+
+      const { userId } = req.body;
+      if (!userId || !mongoose.Types.ObjectId.isValid(userId)) {
+        return res.status(400).json({ success: false, message: "A valid userId is required" });
+      }
+
+      const employee = await Employee.findById(req.params.id);
+      if (!employee) {
+        return res.status(404).json({ success: false, message: "Employee not found" });
+      }
+
+      const company = await Company.findById(employee.company);
+      if (!canManage(req, company)) {
+        return res.status(403).json({
+          success: false,
+          message: "Not authorized to link a user to this employee",
+        });
+      }
+
+      const user = await User.findById(userId);
+      if (!user) {
+        return res.status(404).json({ success: false, message: "User not found" });
+      }
+
+      // Unlink this employee from whoever had it before, and unlink
+      // this user from whichever employee they had before — keeps
+      // the relationship one-to-one without needing a unique index
+      // headache on optional/null fields.
+      await User.updateMany(
+        { employee: employee._id },
+        { $set: { employee: null } }
+      );
+
+      user.employee = employee._id;
+      await user.save();
+
+      await logAudit(req, {
+        company: company._id,
+        action: "update",
+        resourceType: "Employee",
+        resourceId: employee._id,
+        resourceLabel: `Linked user ${user.email}`,
+      });
+
+      res.json({
+        success: true,
+        message: "User account linked to employee",
+        data: { employeeId: employee._id, userId: user._id },
+      });
+    } catch (error) {
+      console.error("PATCH link-user error:", error);
+      res.status(500).json({ success: false, message: "Error linking user", error: error.message });
+    }
+  }
+);
+
+router.patch(
+  "/:id/unlink-user",
+  auth,
+  requireHRAccess,
+  async (req, res) => {
+    try {
+      if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+        return res.status(400).json({ success: false, message: "Invalid employee ID" });
+      }
+
+      const employee = await Employee.findById(req.params.id);
+      if (!employee) {
+        return res.status(404).json({ success: false, message: "Employee not found" });
+      }
+
+      const company = await Company.findById(employee.company);
+      if (!canManage(req, company)) {
+        return res.status(403).json({
+          success: false,
+          message: "Not authorized to unlink this employee's user account",
+        });
+      }
+
+      await User.updateMany(
+        { employee: employee._id },
+        { $set: { employee: null } }
+      );
+
+      await logAudit(req, {
+        company: company._id,
+        action: "update",
+        resourceType: "Employee",
+        resourceId: employee._id,
+        resourceLabel: "Unlinked user account",
+      });
+
+      res.json({ success: true, message: "User account unlinked" });
+    } catch (error) {
+      console.error("PATCH unlink-user error:", error);
+      res.status(500).json({ success: false, message: "Error unlinking user", error: error.message });
     }
   }
 );

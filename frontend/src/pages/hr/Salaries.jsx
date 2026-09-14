@@ -492,16 +492,16 @@ export default function Salaries() {
               <span className="dataTableCellMuted">
                 {formatAmount(
                   salary.grossSalary ??
-                    salary.baseSalary + sumItems(salary.allowances),
+                  salary.baseSalary + sumItems(salary.allowances),
                   salary.currency
                 )}
               </span>
               <span className="dataTableCellMuted">
                 {formatAmount(
                   salary.netSalary ??
-                    salary.baseSalary +
-                      sumItems(salary.allowances) -
-                      sumItems(salary.deductions),
+                  salary.baseSalary +
+                  sumItems(salary.allowances) -
+                  sumItems(salary.deductions),
                   salary.currency
                 )}
               </span>
@@ -599,7 +599,11 @@ export default function Salaries() {
                       "minmax(110px,1fr) minmax(110px,1fr) minmax(110px,1fr) minmax(90px,0.6fr)",
                   }}
                 >
-                  <span>{formatAmount(record.baseSalary, record.currency)}</span>
+                  <span className={`${record.endDate
+                        ? "pastSalary"
+                        : "currentSalary"
+                      }`}
+                  >{formatAmount(record.baseSalary, record.currency)}</span>
                   <span className="dataTableCellMuted">
                     {formatDate(record.effectiveDate)}
                   </span>
@@ -608,7 +612,12 @@ export default function Salaries() {
                       ? formatDate(record.endDate)
                       : t("salaries.table.ongoing")}
                   </span>
-                  <span className="statusPill statusPillNeutral">
+                  <span
+                    className={`statusPill ${record.endDate
+                        ? "statusPillNeutral"
+                        : "current"
+                      }`}
+                  >
                     {record.endDate
                       ? t("salaries.history.past")
                       : t("salaries.history.current")}

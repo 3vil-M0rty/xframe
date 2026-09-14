@@ -6,12 +6,21 @@ const router = express.Router();
 const Advance = require("../models/Advance");
 const Employee = require("../models/Employee");
 const Company = require("../models/Company");
+const User = require("../models/User");
 
 const auth = require("../middleware/auth");
 const { requireHRAccess } = require("../middleware/permissionMiddleware");
-const { canAccessHRForCompany } = require("../permissions/permissions");
+const {
+  canAccessHRForCompany,
+  canReviewAdvance,
+} = require("../permissions/permissions");
+const { logAudit } = require("../services/auditLogger");
+const { notify } = require("../services/notificationService");
 
-router.use(auth, requireHRAccess);
+// Only auth at the router level — see routes/absences.js for why
+// (the review endpoint needs to also allow a requester's manager
+// through, not just full HR access).
+router.use(auth);
 
 const canManage = (req, company) => canAccessHRForCompany(req.user, company);
 
@@ -20,7 +29,7 @@ const canManage = (req, company) => canAccessHRForCompany(req.user, company);
 // GET /api/advances?companyId=&employeeId=&status=&page=&limit=
 // ======================================================
 
-router.get("/", async (req, res) => {
+router.get("/", requireHRAccess, async (req, res) => {
   try {
     const {
       companyId,
@@ -115,7 +124,7 @@ router.get("/", async (req, res) => {
 // GET /api/advances/:id
 // ======================================================
 
-router.get("/:id", async (req, res) => {
+router.get("/:id", requireHRAccess, async (req, res) => {
   try {
     if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
       return res.status(400).json({
@@ -159,7 +168,7 @@ router.get("/:id", async (req, res) => {
 // POST /api/advances
 // ======================================================
 
-router.post("/", async (req, res) => {
+router.post("/", requireHRAccess, async (req, res) => {
   try {
     const { company, employee, amount, currency, requestDate, reason } =
       req.body;
@@ -228,6 +237,15 @@ router.post("/", async (req, res) => {
       "firstName lastName employeeNumber jobTitle photo"
     );
 
+    await logAudit(req, {
+      company,
+      action: "create",
+      resourceType: "Advance",
+      resourceId: advance._id,
+      resourceLabel: `${populated.employee.firstName} ${populated.employee.lastName}`,
+      after: advance.toObject(),
+    });
+
     res.status(201).json({
       success: true,
       data: populated,
@@ -248,7 +266,7 @@ router.post("/", async (req, res) => {
 // PUT /api/advances/:id
 // ======================================================
 
-router.put("/:id", async (req, res) => {
+router.put("/:id", requireHRAccess, async (req, res) => {
   try {
     if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
       return res.status(400).json({
@@ -343,7 +361,9 @@ router.patch("/:id/review", async (req, res) => {
       });
     }
 
-    const advance = await Advance.findById(req.params.id).populate("company");
+    const advance = await Advance.findById(req.params.id)
+      .populate("company")
+      .populate("employee", "firstName lastName manager");
 
     if (!advance) {
       return res.status(404).json({
@@ -352,12 +372,14 @@ router.patch("/:id/review", async (req, res) => {
       });
     }
 
-    if (!canManage(req, advance.company)) {
+    if (!canReviewAdvance(req.user, advance.company, advance.employee)) {
       return res.status(403).json({
         success: false,
         message: "Not authorized to review this advance",
       });
     }
+
+    const before = advance.toObject();
 
     advance.status = status;
     advance.reviewComment = reviewComment;
@@ -370,6 +392,26 @@ router.patch("/:id/review", async (req, res) => {
     const populated = await advance
       .populate("employee", "firstName lastName employeeNumber jobTitle photo")
       .then((doc) => doc.populate("reviewedBy", "firstName lastName"));
+
+    await logAudit(req, {
+      company: advance.company._id,
+      action: "review",
+      resourceType: "Advance",
+      resourceId: advance._id,
+      resourceLabel: `${advance.employee.firstName} ${advance.employee.lastName}`,
+      before,
+      after: advance.toObject(),
+    });
+
+    const requesterUser = await User.findOne({ employee: advance.employee._id }).select("_id");
+    if (requesterUser) {
+      await notify(requesterUser._id, {
+        type: "advance_reviewed",
+        title: status === "accepted" ? "Advance request accepted" : "Advance request rejected",
+        message: reviewComment || undefined,
+        link: "/me/advances",
+      });
+    }
 
     res.json({
       success: true,
@@ -391,7 +433,7 @@ router.patch("/:id/review", async (req, res) => {
 // DELETE /api/advances/:id
 // ======================================================
 
-router.delete("/:id", async (req, res) => {
+router.delete("/:id", requireHRAccess, async (req, res) => {
   try {
     if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
       return res.status(400).json({

@@ -58,6 +58,16 @@ export function canAccessHR(actor) {
   return isAdmin(actor) || isOwner(actor) || isHRDepartment(actor);
 }
 
+/**
+ * Mirrors the backend's canSelfService — does this user have a
+ * linked employee record, unlocking the "My Space" self-service
+ * section (My Profile / My Payslips / My Absences / My Advances /
+ * My Attendance)?
+ */
+export function canSelfService(actor) {
+  return !!actor?.employee;
+}
+
 // ------------------------------------------------------------
 // Companies
 // ------------------------------------------------------------

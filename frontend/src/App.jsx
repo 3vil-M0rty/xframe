@@ -11,8 +11,31 @@ import Employees from './pages/hr/Employees'
 import Salaries from './pages/hr/Salaries'
 import Absences from './pages/hr/Absences'
 import Advances from './pages/hr/Advances'
-import { canAccessHR } from './utils/permissions'
+import Payroll from './pages/hr/Payroll'
+import Contracts from './pages/hr/Contracts'
+import Documents from './pages/hr/Documents'
+import Attendance from './pages/hr/Attendance'
+import Reports from './pages/hr/Reports'
+import AuditLog from './pages/hr/AuditLog'
+import OrgChart from './pages/hr/OrgChart'
+import MySpace from './pages/me/MySpace'
+import { canAccessHR, canSelfService } from './utils/permissions'
 import './styles/global.css';
+
+// Every HR page needs the same two things: logged in (outer
+// ProtectedRoute wrapping <Layout />) AND canAccessHR (admin/owner/
+// hr-department). Wrapping each one here keeps that rule in exactly
+// one place — see components/ProtectedRoute.jsx.
+function hrRoute(element) {
+  return <ProtectedRoute permission={canAccessHR}>{element}</ProtectedRoute>
+}
+
+// My Space (self-service) pages need `canSelfService` instead —
+// anyone whose account is linked to an employee record, regardless
+// of role/department.
+function selfServiceRoute(element) {
+  return <ProtectedRoute permission={canSelfService}>{element}</ProtectedRoute>
+}
 
 export default function App() {
   return (
@@ -38,48 +61,47 @@ export default function App() {
               <Route path="/organization/company" element={<Company />} />
               <Route path="/organization/users" element={<Users />} />
 
-              {/* HR module: every route here needs both "logged in"
-                  (handled by the ProtectedRoute above) AND
-                  `canAccessHR` (admin/owner/hr-department). Adding a
-                  future HR page is just one more line here reusing
-                  the same guard — see components/ProtectedRoute.jsx
-                  and utils/permissions.js. */}
-              <Route
-                path="/hr/employees"
-                element={
-                  <ProtectedRoute permission={canAccessHR}>
-                    <Employees />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/hr/salaries"
-                element={
-                  <ProtectedRoute permission={canAccessHR}>
-                    <Salaries />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/hr/absences"
-                element={
-                  <ProtectedRoute permission={canAccessHR}>
-                    <Absences />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/hr/advances"
-                element={
-                  <ProtectedRoute permission={canAccessHR}>
-                    <Advances />
-                  </ProtectedRoute>
-                }
-              />
+              {/* HR module */}
+              <Route path="/hr/employees" element={hrRoute(<Employees />)} />
+              <Route path="/hr/salaries" element={hrRoute(<Salaries />)} />
+              <Route path="/hr/absences" element={hrRoute(<Absences />)} />
+              <Route path="/hr/advances" element={hrRoute(<Advances />)} />
+              <Route path="/hr/payroll" element={hrRoute(<Payroll />)} />
+              <Route path="/hr/contracts" element={hrRoute(<Contracts />)} />
+              <Route path="/hr/documents" element={hrRoute(<Documents />)} />
+              <Route path="/hr/attendance" element={hrRoute(<Attendance />)} />
+              <Route path="/hr/reports" element={hrRoute(<Reports />)} />
+              <Route path="/hr/audit-log" element={hrRoute(<AuditLog />)} />
+              <Route path="/hr/org-chart" element={hrRoute(<OrgChart />)} />
+
+              {/* My Space (self-service) — one tabbed page, several
+                  paths so each tab is directly linkable/bookmarkable
+                  and the sidebar can highlight the active one. */}
+              <Route path="/me" element={selfServiceRoute(<MySpace />)} />
+              <Route path="/me/payslips" element={selfServiceRoute(<MySpace />)} />
+              <Route path="/me/absences" element={selfServiceRoute(<MySpace />)} />
+              <Route path="/me/advances" element={selfServiceRoute(<MySpace />)} />
+              <Route path="/me/attendance" element={selfServiceRoute(<MySpace />)} />
+
+              {/* Unmatched routes (including the organization sidebar's
+                  not-yet-built placeholder links — Departments, Job
+                  Positions, etc.) land here instead of a blank page. */}
+              <Route path="*" element={<NotFound />} />
             </Route>
           </Routes>
         </BrowserRouter>
       </AuthProvider>
     </I18nProvider>
+  )
+}
+
+function NotFound() {
+  return (
+    <div className="pageShell">
+      <div className="emptyStateBlock">
+        <h2>Page not found</h2>
+        <p>This section hasn't been built yet.</p>
+      </div>
+    </div>
   )
 }

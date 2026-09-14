@@ -6,12 +6,23 @@ const router = express.Router();
 const Absence = require("../models/Absence");
 const Employee = require("../models/Employee");
 const Company = require("../models/Company");
+const User = require("../models/User");
 
 const auth = require("../middleware/auth");
 const { requireHRAccess } = require("../middleware/permissionMiddleware");
-const { canAccessHRForCompany } = require("../permissions/permissions");
+const {
+  canAccessHRForCompany,
+  canReviewAbsence,
+} = require("../permissions/permissions");
+const { logAudit } = require("../services/auditLogger");
+const { notify } = require("../services/notificationService");
 
-router.use(auth, requireHRAccess);
+// Only auth at the router level now — the review endpoint needs to
+// also allow a requester's manager through (see canReviewAbsence),
+// not just full HR access, so it can't sit behind a blanket
+// requireHRAccess. Every OTHER route below still applies
+// requireHRAccess individually.
+router.use(auth);
 
 const canManage = (req, company) => canAccessHRForCompany(req.user, company);
 
@@ -37,7 +48,7 @@ function computeDaysCount(startDate, endDate, halfDay) {
 // GET /api/absences?companyId=&employeeId=&status=&type=&page=&limit=
 // ======================================================
 
-router.get("/", async (req, res) => {
+router.get("/", requireHRAccess, async (req, res) => {
   try {
     const {
       companyId,
@@ -134,7 +145,7 @@ router.get("/", async (req, res) => {
 // GET /api/absences/:id
 // ======================================================
 
-router.get("/:id", async (req, res) => {
+router.get("/:id", requireHRAccess, async (req, res) => {
   try {
     if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
       return res.status(400).json({
@@ -178,7 +189,7 @@ router.get("/:id", async (req, res) => {
 // POST /api/absences
 // ======================================================
 
-router.post("/", async (req, res) => {
+router.post("/", requireHRAccess, async (req, res) => {
   try {
     const {
       company,
@@ -272,6 +283,15 @@ router.post("/", async (req, res) => {
       "firstName lastName employeeNumber jobTitle photo"
     );
 
+    await logAudit(req, {
+      company,
+      action: "create",
+      resourceType: "Absence",
+      resourceId: absence._id,
+      resourceLabel: `${populated.employee.firstName} ${populated.employee.lastName}`,
+      after: absence.toObject(),
+    });
+
     res.status(201).json({
       success: true,
       data: populated,
@@ -292,7 +312,7 @@ router.post("/", async (req, res) => {
 // PUT /api/absences/:id
 // ======================================================
 
-router.put("/:id", async (req, res) => {
+router.put("/:id", requireHRAccess, async (req, res) => {
   try {
     if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
       return res.status(400).json({
@@ -389,7 +409,9 @@ router.patch("/:id/review", async (req, res) => {
       });
     }
 
-    const absence = await Absence.findById(req.params.id).populate("company");
+    const absence = await Absence.findById(req.params.id)
+      .populate("company")
+      .populate("employee", "firstName lastName manager");
 
     if (!absence) {
       return res.status(404).json({
@@ -398,12 +420,14 @@ router.patch("/:id/review", async (req, res) => {
       });
     }
 
-    if (!canManage(req, absence.company)) {
+    if (!canReviewAbsence(req.user, absence.company, absence.employee)) {
       return res.status(403).json({
         success: false,
         message: "Not authorized to review this absence",
       });
     }
+
+    const before = absence.toObject();
 
     absence.status = status;
     absence.reviewComment = reviewComment;
@@ -416,6 +440,27 @@ router.patch("/:id/review", async (req, res) => {
     const populated = await absence
       .populate("employee", "firstName lastName employeeNumber jobTitle photo")
       .then((doc) => doc.populate("reviewedBy", "firstName lastName"));
+
+    await logAudit(req, {
+      company: absence.company._id,
+      action: "review",
+      resourceType: "Absence",
+      resourceId: absence._id,
+      resourceLabel: `${absence.employee.firstName} ${absence.employee.lastName}`,
+      before,
+      after: absence.toObject(),
+    });
+
+    // Notify the employee (if they have a linked User account).
+    const requesterUser = await User.findOne({ employee: absence.employee._id }).select("_id");
+    if (requesterUser) {
+      await notify(requesterUser._id, {
+        type: "absence_reviewed",
+        title: status === "accepted" ? "Absence request accepted" : "Absence request rejected",
+        message: reviewComment || undefined,
+        link: "/me/absences",
+      });
+    }
 
     res.json({
       success: true,
@@ -437,7 +482,7 @@ router.patch("/:id/review", async (req, res) => {
 // DELETE /api/absences/:id
 // ======================================================
 
-router.delete("/:id", async (req, res) => {
+router.delete("/:id", requireHRAccess, async (req, res) => {
   try {
     if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
       return res.status(400).json({

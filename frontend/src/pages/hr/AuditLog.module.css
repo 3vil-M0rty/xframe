@@ -1,0 +1,66 @@
+.toolbar {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(200px, 1fr));
+    gap: 14px;
+    margin-bottom: 18px;
+}
+
+.filterGroup {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+}
+
+.filterGroup label {
+    color: var(--color-text-secondary);
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+}
+
+.errorMessage {
+    padding: 12px 16px;
+    margin-bottom: 16px;
+    border: 1px solid rgba(255, 80, 80, 0.25);
+    border-radius: 10px;
+    background: rgba(255, 80, 80, 0.06);
+    color: #ff8585;
+    font-size: 0.82rem;
+}
+
+.actionTag {
+    display: inline-flex;
+    align-items: center;
+    width: fit-content;
+    padding: 3px 8px;
+    border-radius: 999px;
+    font-size: 0.68rem;
+    font-weight: 700;
+    text-transform: capitalize;
+}
+
+.actionTag[data-action="create"] {
+    color: #4cc38a;
+    background: rgba(76, 195, 138, 0.1);
+}
+
+.actionTag[data-action="update"] {
+    color: #4c8dff;
+    background: rgba(76, 141, 255, 0.1);
+}
+
+.actionTag[data-action="delete"] {
+    color: #ff6b6b;
+    background: rgba(255, 80, 80, 0.1);
+}
+
+.actionTag[data-action="review"] {
+    color: #e8b93f;
+    background: rgba(232, 185, 63, 0.1);
+}
+
+@media (max-width: 700px) {
+    .toolbar {
+        grid-template-columns: 1fr;
+    }
+}

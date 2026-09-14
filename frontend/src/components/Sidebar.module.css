@@ -347,7 +347,7 @@
 
   overflow: hidden;
   text-overflow: ellipsis;
-
+  background: var(--color-bg-primary);
   transition:
     background 0.2s ease,
     color 0.2s ease,

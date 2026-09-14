@@ -35,6 +35,11 @@ exports.login = async (req, res) => {
         // was left out, so req.user.department was always undefined
         // and any department-based permission silently failed.
         department: user.department,
+        // Powers the self-service space and manager-approval routing
+        // (see permissions/permissions.js: canSelfService,
+        // canReviewAbsence, canReviewAdvance) without an extra DB
+        // round trip on every request.
+        employee: user.employee || null,
       },
       process.env.JWT_SECRET,
       { expiresIn: '7d' }
@@ -51,6 +56,7 @@ exports.login = async (req, res) => {
           email: user.email,
           role: user.role,
           department: user.department,
+          employee: user.employee || null,
         }
       }
     });

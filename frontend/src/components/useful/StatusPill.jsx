@@ -2,6 +2,7 @@ const VARIANT_CLASS = {
   pending: "statusPillPending",
   accepted: "statusPillAccepted",
   rejected: "statusPillRejected",
+  current: "current",
 };
 
 /**

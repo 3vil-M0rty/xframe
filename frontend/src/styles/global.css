@@ -29,12 +29,12 @@ body {
   --color-bg-secondary: #242424;
   --color-bg-tertiary: #2f2f2f;
   --color-bg-hover: #3a3a3a;
-  
+
   /* Text */
   --color-text-primary: #ffffff;
   --color-text-secondary: #cccccc;
   --color-text-tertiary: #999999;
-  
+
   /* Borders & Shadows */
   --color-border: #333333;
   --color-border-light: #2a2a2a;
@@ -47,7 +47,7 @@ body {
   --color-warning: #f59e0b;
   --color-danger: #ef4444;
   --color-info: #3b82f6;
-  
+
   /* Status Light Backgrounds */
   --color-success-light: #1a3a2a;
   --color-warning-light: #3a2a1a;
@@ -123,22 +123,46 @@ body {
 }
 
 /* Typography */
-h1, h2, h3, h4, h5, h6 {
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
   color: var(--color-text-primary);
   font-weight: var(--font-bold);
   line-height: var(--line-height-tight);
   margin-bottom: var(--spacing-md);
 }
+
 ::selection {
   background: rgba(0, 0, 0, 1);
   color: #fff;
 }
-h1 { font-size: var(--font-4xl); }
-h2 { font-size: var(--font-3xl); }
-h3 { font-size: var(--font-2xl); }
-h4 { font-size: var(--font-xl); }
-h5 { font-size: var(--font-lg); }
-h6 { font-size: var(--font-base); }
+
+h1 {
+  font-size: var(--font-4xl);
+}
+
+h2 {
+  font-size: var(--font-3xl);
+}
+
+h3 {
+  font-size: var(--font-2xl);
+}
+
+h4 {
+  font-size: var(--font-xl);
+}
+
+h5 {
+  font-size: var(--font-lg);
+}
+
+h6 {
+  font-size: var(--font-base);
+}
 
 p {
   color: var(--color-text-secondary);
@@ -169,7 +193,9 @@ button:disabled {
   cursor: not-allowed;
 }
 
-input, textarea, select {
+input,
+textarea,
+select {
   font-family: inherit;
   font-size: inherit;
   color: var(--color-text-primary);
@@ -180,7 +206,9 @@ input, textarea, select {
   transition: all 0.2s ease;
 }
 
-input:focus, textarea:focus, select:focus {
+input:focus,
+textarea:focus,
+select:focus {
   outline: none;
   border-color: var(--color-text-primary);
   box-shadow: 0 0 0 2px var(--color-grey-300);
@@ -390,14 +418,14 @@ input::placeholder {
   background: rgba(255, 255, 255, 0.05);
 }
 
-.btnDelete {
+.btnDelete, .logoutBtn {
   color: #ff8585;
   background: rgba(255, 80, 80, 0.06);
   border: 1px solid rgba(255, 80, 80, 0.2);
 }
 
-.btnDelete:hover {
-  color: #fff;
+.btnDelete:hover, .logoutBtn:hover {
+  color: #ff8585;
   background: rgba(255, 60, 60, 0.15);
   border-color: rgba(255, 70, 70, 0.45);
 }
@@ -878,6 +906,15 @@ input::placeholder {
   border-color: rgba(232, 185, 63, 0.3);
 }
 
+.currentSalary {
+  color: #10b981;
+}
+.current {
+  color: #4cc38a;
+  background: rgba(76, 195, 138, 0.1);
+  border-color: rgba(76, 195, 138, 0.3);
+}
+
 .statusPillAccepted {
   color: #4cc38a;
   background: rgba(76, 195, 138, 0.1);
@@ -944,4 +981,3 @@ input::placeholder {
     gap: 6px;
   }
 }
-

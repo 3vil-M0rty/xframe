@@ -32,9 +32,21 @@ function computeCNSSEmployee(grossSalary) {
   return round2(base * payrollConfig.CNSS.EMPLOYEE_RATE);
 }
 
+/**
+ * Employer-side CNSS cost — three sub-branches, since two of them
+ * (long-term, short-term) are capped at the monthly ceiling while
+ * family allowances are not. See config/payrollConfig.js for what
+ * each one represents.
+ */
 function computeCNSSEmployer(grossSalary) {
-  const base = Math.min(grossSalary, payrollConfig.CNSS.MONTHLY_CEILING);
-  return round2(base * payrollConfig.CNSS.EMPLOYER_RATE);
+  const cappedBase = Math.min(grossSalary, payrollConfig.CNSS.MONTHLY_CEILING);
+
+  const longTerm = cappedBase * payrollConfig.CNSS.EMPLOYER_RATE_LONG_TERM;
+  const shortTerm = cappedBase * payrollConfig.CNSS.EMPLOYER_RATE_SHORT_TERM;
+  const familyAllowance =
+    grossSalary * payrollConfig.CNSS.EMPLOYER_RATE_FAMILY_ALLOWANCE;
+
+  return round2(longTerm + shortTerm + familyAllowance);
 }
 
 function computeVocationalTraining(grossSalary) {
@@ -51,7 +63,10 @@ function computeAMOEmployee(grossSalary) {
 }
 
 function computeAMOEmployer(grossSalary) {
-  return round2(grossSalary * payrollConfig.AMO.EMPLOYER_RATE);
+  const base =
+    payrollConfig.AMO.EMPLOYER_RATE +
+    payrollConfig.AMO.EMPLOYER_SOLIDARITY_CONTRIBUTION_RATE;
+  return round2(grossSalary * base);
 }
 
 function computeCIMR(grossSalary, employeeRate, employerRate) {

@@ -16,6 +16,7 @@ import Breadcrumbs from "../../components/useful/Breadcrumbs";
 import Pagination from "../../components/useful/Pagination";
 import ActionModal from "../../components/useful/ActionModal";
 import StatusPill from "../../components/useful/StatusPill";
+import DateRangeFilter from "../../components/useful/DateRangeFilter";
 
 import {
   getAbsences,
@@ -120,6 +121,8 @@ export default function Absences() {
 
   const [statusFilter, setStatusFilter] = useState("");
   const [typeFilter, setTypeFilter] = useState("");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
 
   const [page, setPage] = useState(1);
   const [pagination, setPagination] = useState({
@@ -131,7 +134,7 @@ export default function Absences() {
 
   useEffect(() => {
     setPage(1);
-  }, [selectedCompanyId, statusFilter, typeFilter]);
+  }, [selectedCompanyId, statusFilter, typeFilter, dateFrom, dateTo]);
 
   // ========================================
   // LOAD ABSENCES
@@ -160,6 +163,8 @@ export default function Absences() {
             companyId: selectedCompanyId,
             status: statusFilter || undefined,
             type: typeFilter || undefined,
+            from: dateFrom || undefined,
+            to: dateTo || undefined,
             page,
             limit: ABSENCES_PAGE_SIZE,
           });
@@ -184,7 +189,7 @@ export default function Absences() {
     return () => {
       cancelled = true;
     };
-  }, [selectedCompanyId, statusFilter, typeFilter, page, t]);
+  }, [selectedCompanyId, statusFilter, typeFilter, dateFrom, dateTo, page, t]);
 
   // ========================================
   // CREATE FORM
@@ -344,6 +349,8 @@ export default function Absences() {
             companyId: selectedCompanyId,
             status: statusFilter || undefined,
             type: typeFilter || undefined,
+            from: dateFrom || undefined,
+            to: dateTo || undefined,
             page: 1,
             limit: ABSENCES_PAGE_SIZE,
           });
@@ -469,6 +476,15 @@ export default function Absences() {
             ]}
           />
         </div>
+
+        <DateRangeFilter
+          from={dateFrom}
+          to={dateTo}
+          onFromChange={setDateFrom}
+          onToChange={setDateTo}
+          fromLabel={t("common.dateFrom")}
+          toLabel={t("common.dateTo")}
+        />
       </div>
 
       {showCreateForm && selectedCompanyId && (

@@ -39,6 +39,19 @@
     margin-bottom: 14px;
 }
 
+.tabToolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 18px;
+}
+
+.tabToolbar > button {
+    flex-shrink: 0;
+}
+
 .loadingText {
     color: var(--color-text-tertiary);
     font-size: 0.85rem;

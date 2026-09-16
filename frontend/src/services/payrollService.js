@@ -1,4 +1,5 @@
 import api from "./api";
+import { downloadBlob } from "../utils/download";
 
 // ---------- Payroll runs ----------
 
@@ -60,4 +61,23 @@ export const getPayslips = async ({ companyId, employeeId, page = 1, limit = 20 
 export const markPayslipPaid = async (id) => {
   const response = await api.patch(`/payroll/payslips/${id}/mark-paid`);
   return response.data.data;
+};
+
+// ---------- Downloads (PDF payslip, CSV exports) ----------
+
+export const downloadPayslipPdf = async (id, filename = "bulletin.pdf") => {
+  const response = await api.get(`/payroll/payslips/${id}/pdf`, {
+    responseType: "blob",
+  });
+  downloadBlob(response.data, filename, true);
+};
+
+/**
+ * `type` is one of: "cnss" | "register" | "bank-transfer"
+ */
+export const downloadPayrollExport = async (runId, type, filename) => {
+  const response = await api.get(`/payroll/runs/${runId}/export/${type}`, {
+    responseType: "blob",
+  });
+  downloadBlob(response.data, filename || `export-${type}.csv`, false);
 };

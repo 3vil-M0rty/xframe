@@ -1,0 +1,437 @@
+/* ============================================================
+   INVENTORY PRODUCTS PAGE
+
+   Page-specific styles only.
+
+   Shared page/layout/button/empty-state primitives remain
+   in global.css.
+   ============================================================ */
+
+
+/* ============================================================
+   INVENTORY TABS
+   ============================================================ */
+
+.inventoryTabs {
+    display: flex;
+    flex-wrap: wrap;
+
+    gap: 6px;
+
+    margin-bottom: 20px;
+    padding-bottom: 12px;
+
+    border-bottom: 1px solid var(--color-border);
+}
+
+.inventoryTab {
+    display: inline-flex;
+    align-items: center;
+
+    gap: 6px;
+
+    padding: 8px 12px;
+
+    color: var(--color-text-secondary);
+
+    background: transparent;
+
+    border: 1px solid transparent;
+    border-radius: 8px;
+
+    font-family: inherit;
+    font-size: 0.8rem;
+    font-weight: 600;
+
+    cursor: pointer;
+
+    transition:
+        color 0.15s ease,
+        background 0.15s ease,
+        border-color 0.15s ease;
+}
+
+.inventoryTab svg {
+    flex-shrink: 0;
+}
+
+.inventoryTab:hover {
+    color: var(--color-text-primary);
+
+    background: var(--color-bg-hover);
+}
+
+.inventoryTabActive {
+    color: var(--color-text-primary);
+
+    background: var(--color-bg-secondary);
+
+    border-color: var(--color-border);
+}
+
+
+/* ============================================================
+   INVENTORY INFO
+   ============================================================ */
+
+.inventoryInfo {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+
+    gap: 16px;
+
+    padding: 13px 16px;
+    margin-bottom: 18px;
+
+    border: 1px solid var(--color-border);
+    border-radius: 10px;
+
+    background: var(--color-bg-secondary);
+}
+
+.inventoryInfoHeader {
+    display: flex;
+    align-items: center;
+
+    gap: 10px;
+
+    min-width: 0;
+
+    color: var(--color-text-secondary);
+}
+
+.inventoryInfoHeader > svg {
+    flex-shrink: 0;
+}
+
+.inventoryInfoHeader strong {
+    display: block;
+
+    overflow: hidden;
+
+    color: var(--color-text-primary);
+
+    font-size: 0.85rem;
+    font-weight: 650;
+
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.inventoryInfoHeader span {
+    display: block;
+
+    margin-top: 2px;
+
+    color: var(--color-text-tertiary);
+
+    font-size: 0.72rem;
+}
+
+.inventoryStats {
+    display: flex;
+    align-items: center;
+
+    gap: 8px;
+}
+
+.inventoryStats span {
+    flex-shrink: 0;
+
+    padding: 4px 9px;
+
+    border: 1px solid var(--color-border);
+    border-radius: 999px;
+
+    color: var(--color-text-secondary);
+
+    background: var(--color-bg-primary);
+
+    font-size: 0.7rem;
+    font-weight: 600;
+}
+
+
+/* ============================================================
+   TOOLBAR
+   ============================================================ */
+
+.toolbar {
+    display: grid;
+
+    grid-template-columns:
+        minmax(220px, 1fr)
+        auto;
+
+    align-items: end;
+
+    gap: 14px;
+
+    margin-bottom: 18px;
+}
+
+.searchWrapper {
+    min-width: 0;
+}
+
+
+/* ============================================================
+   LOADING
+   ============================================================ */
+
+.loadingText {
+    color: var(--color-text-tertiary);
+
+    font-size: 0.85rem;
+}
+
+
+/* ============================================================
+   PRODUCT GRID
+   ============================================================ */
+
+.productGrid {
+    display: grid;
+
+    grid-template-columns:
+        repeat(
+            3,
+            minmax(0, 1fr)
+        );
+
+    gap: 14px;
+}
+
+
+/* ============================================================
+   PRODUCT CARD
+   ============================================================ */
+
+.productCard {
+    display: flex;
+    flex-direction: column;
+
+    min-width: 0;
+
+    padding: 16px;
+
+    border: 1px solid var(--color-border);
+    border-radius: 12px;
+
+    background: var(--color-bg-primary);
+
+    transition:
+        border-color 0.15s ease,
+        background 0.15s ease;
+}
+
+.productCard:hover {
+    border-color: var(--color-text-tertiary);
+
+    background: var(--color-bg-secondary);
+}
+
+
+/* ============================================================
+   PRODUCT HEADER
+   ============================================================ */
+
+.productHeader {
+    display: flex;
+    align-items: flex-start;
+
+    gap: 10px;
+
+    min-width: 0;
+
+    margin-bottom: 16px;
+}
+
+.productIcon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    width: 42px;
+    height: 42px;
+
+    flex: 0 0 42px;
+
+    overflow: hidden;
+
+    color: var(--color-text-tertiary);
+
+    background: var(--color-bg-secondary);
+
+    border: 1px solid var(--color-border);
+    border-radius: 9px;
+}
+
+.productIcon img {
+    width: 100%;
+    height: 100%;
+
+    display: block;
+
+    object-fit: cover;
+}
+
+.productHeading {
+    min-width: 0;
+
+    flex: 1;
+}
+
+.productHeading h3 {
+    overflow: hidden;
+
+    margin: 1px 0 3px;
+
+    color: var(--color-text-primary);
+
+    font-size: 0.9rem;
+    font-weight: 600;
+
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.productHeading span {
+    display: block;
+
+    overflow: hidden;
+
+    color: var(--color-text-tertiary);
+
+    font-size: 0.7rem;
+
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+
+/* ============================================================
+   PRODUCT DETAILS
+   ============================================================ */
+
+.productDetails {
+    display: grid;
+
+    grid-template-columns:
+        repeat(
+            2,
+            minmax(0, 1fr)
+        );
+
+    gap: 8px;
+
+    margin-bottom: 14px;
+}
+
+.productDetails > div {
+    min-width: 0;
+
+    padding: 9px 10px;
+
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+
+    background: var(--color-bg-secondary);
+}
+
+.productDetails label {
+    display: block;
+
+    margin-bottom: 4px;
+
+    color: var(--color-text-tertiary);
+
+    font-size: 0.66rem;
+}
+
+.productDetails strong,
+.productDetails span {
+    display: block;
+
+    overflow: hidden;
+
+    color: var(--color-text-primary);
+
+    font-size: 0.76rem;
+    font-weight: 600;
+
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.productDetails span {
+    color: var(--color-text-secondary);
+
+    font-weight: 500;
+}
+
+
+/* ============================================================
+   PRODUCT FOOTER
+   ============================================================ */
+
+.productFooter {
+    display: flex;
+    justify-content: flex-end;
+
+    gap: 6px;
+
+    margin-top: auto;
+    padding-top: 12px;
+
+    border-top: 1px solid var(--color-border);
+}
+
+
+/* ============================================================
+   RESPONSIVE
+   ============================================================ */
+
+@media (max-width: 1100px) {
+    .productGrid {
+        grid-template-columns:
+            repeat(
+                2,
+                minmax(0, 1fr)
+            );
+    }
+}
+
+@media (max-width: 760px) {
+    .toolbar {
+        grid-template-columns: 1fr;
+    }
+
+    .toolbar > button {
+        width: 100%;
+    }
+
+    .inventoryInfo {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+}
+
+@media (max-width: 600px) {
+    .productGrid {
+        grid-template-columns: 1fr;
+    }
+
+    .inventoryTabs {
+        overflow-x: auto;
+
+        flex-wrap: nowrap;
+
+        padding-bottom: 10px;
+    }
+
+    .inventoryTab {
+        flex-shrink: 0;
+    }
+}

@@ -32,6 +32,7 @@ import Breadcrumbs from "../../components/useful/Breadcrumbs";
 import Pagination from "../../components/useful/Pagination";
 import EmployeeCard from "../../components/employee/EmployeeCard";
 import LinkedUserAccess from "../../components/employee/LinkedUserAccess";
+import EmployeeRelatedRecords from "../../components/employee/EmployeeRelatedRecords";
 import ActionModal from "../../components/useful/ActionModal";
 
 import {
@@ -43,6 +44,7 @@ import {
   deleteEmployeePhoto,
 } from "../../services/employeeService";
 import { getCompanies } from "../../services/companyService";
+import { getDepartmentOptions } from "../../utils/departments";
 
 import styles from "./Employees.module.css";
 
@@ -228,7 +230,7 @@ function EmployeeFormExtras({
    ============================================================ */
 
 export default function Employees() {
-  const { t } = useI18n();
+  const { t, tVar } = useI18n();
   const { user } = useAuth();
 
   /* ==========================================================
@@ -772,6 +774,9 @@ export default function Employees() {
         paymentMethod: "bank_transfer",
         notes: "",
         isActive: true,
+        // Default ON — see the "Only shown when CREATING" comment
+        // on the createLogin field definition above.
+        createLogin: true,
       };
     }
 
@@ -1140,16 +1145,25 @@ export default function Employees() {
           "employees.fields.personalEmailPlaceholder"
         ),
       },
-      {
-        name: "workEmail",
-        label: t(
-          "employees.fields.workEmail"
-        ),
-        type: "email",
-        placeholder: t(
-          "employees.fields.workEmailPlaceholder"
-        ),
-      },
+      // Only shown when EDITING — work email is auto-generated at
+      // creation time (firstname.lastname@company.frame, see
+      // services/employeeAccountService.js) and not user-editable
+      // in the create form; HR can still view/correct it afterward
+      // here if genuinely needed.
+      ...(editingEmployee
+        ? [
+            {
+              name: "workEmail",
+              label: t(
+                "employees.fields.workEmail"
+              ),
+              type: "email",
+              placeholder: t(
+                "employees.fields.workEmailPlaceholder"
+              ),
+            },
+          ]
+        : []),
       {
         name: "phone",
         label: t(
@@ -1385,9 +1399,8 @@ export default function Employees() {
         label: t(
           "employees.fields.department"
         ),
-        placeholder: t(
-          "employees.fields.departmentPlaceholder"
-        ),
+        type: "select",
+        options: getDepartmentOptions(t),
       },
       {
         name: "service",
@@ -1577,8 +1590,24 @@ export default function Employees() {
           "employees.fields.isActiveCheckboxLabel"
         ),
       },
+      // Only shown when CREATING a new employee — editing an
+      // existing one uses the separate "Self-service access" panel
+      // (components/employee/LinkedUserAccess.jsx) instead, since
+      // by then a login may already exist.
+      ...(!editingEmployee
+        ? [
+            {
+              name: "createLogin",
+              label: t("employees.fields.createLogin"),
+              type: "checkbox",
+              checkboxLabel: t(
+                "employees.fields.createLoginCheckboxLabel"
+              ),
+            },
+          ]
+        : []),
     ],
-    [t]
+    [t, editingEmployee]
   );
 
   /* ==========================================================
@@ -1798,7 +1827,14 @@ export default function Employees() {
           formData
         );
 
-      let employee =
+      // Whether to also create a self-service login is a plain
+      // checkbox on the form (default checked) — see
+      // employeeFields below. Not an Employee field itself, so it
+      // isn't part of buildEmployeePayload's output; read it
+      // straight from the raw form data instead.
+      payload.createLogin = formData.createLogin !== false;
+
+      let { employee, generatedLogin, loginError } =
         await createEmployee(
           payload
         );
@@ -1821,6 +1857,28 @@ export default function Employees() {
       );
 
       closeForm();
+
+      // The temporary password is only ever shown here, once — it
+      // isn't retrievable later (it's hashed as soon as the User
+      // is saved). Surface it prominently so HR doesn't miss it.
+      if (generatedLogin) {
+        setModal({
+          open: true,
+          type: "success",
+          title: t("employees.linkedUser.loginCreatedTitle"),
+          message: tVar("employees.linkedUser.loginCreatedMessage", {
+            email: generatedLogin.email,
+            password: generatedLogin.temporaryPassword,
+          }),
+        });
+      } else if (loginError) {
+        setModal({
+          open: true,
+          type: "error",
+          title: t("employees.linkedUser.loginNotCreatedTitle"),
+          message: loginError,
+        });
+      }
     } catch (err) {
       console.error(
         "Create employee error:",
@@ -2733,6 +2791,15 @@ export default function Employees() {
           <div className={styles.fullWidthSection}>
             <LinkedUserAccess employeeId={selectedEmployee._id} />
           </div>
+
+          {/* EVERYTHING ELSE (salary, absences, advances, contracts,
+              documents, attendance) — see the request for "when I
+              click a card I want to see everything for that
+              employee". */}
+          <EmployeeRelatedRecords
+            employeeId={selectedEmployee._id}
+            companyId={employeeCompany?._id}
+          />
         </div>
       </div>
     );

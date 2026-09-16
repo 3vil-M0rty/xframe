@@ -55,6 +55,8 @@ router.get("/", requireHRAccess, async (req, res) => {
       employeeId,
       status,
       type,
+      from,
+      to,
       page = 1,
       limit = 20,
     } = req.query;
@@ -104,6 +106,16 @@ router.get("/", requireHRAccess, async (req, res) => {
 
     if (status) filter.status = status;
     if (type) filter.type = type;
+
+    // A request "overlaps" the [from, to] window if it starts on
+    // or before `to` AND ends on or after `from` — using this
+    // (rather than only matching on startDate) means a multi-day
+    // absence that merely OVERLAPS the selected range is still
+    // included, not just ones that start inside it.
+    if (from || to) {
+      if (to) filter.startDate = { $lte: new Date(to) };
+      if (from) filter.endDate = { $gte: new Date(from) };
+    }
 
     const currentPage = Math.max(Number(page), 1);
     const currentLimit = Math.max(Number(limit), 1);

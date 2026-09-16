@@ -14,6 +14,7 @@ const Company = require("../models/Company");
 const auth = require("../middleware/auth");
 const { canSelfService } = require("../permissions/permissions");
 const { getLeaveBalance } = require("../services/leaveBalanceService");
+const { generatePayslipPdf, computeYtdTotals } = require("../services/payslipPdfService");
 const {
   notifyMany,
   getHRRecipientIds,
@@ -137,6 +138,56 @@ router.get("/payslips/:id", async (req, res) => {
 });
 
 // ======================================================
+// MY PAYSLIP PDF
+// GET /api/me/payslips/:id/pdf
+// ======================================================
+
+router.get("/payslips/:id/pdf", async (req, res) => {
+  try {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ success: false, message: "Invalid payslip ID" });
+    }
+
+    const payslip = await Payslip.findOne({
+      _id: req.params.id,
+      employee: req.user.employee,
+      status: { $ne: "draft" },
+    })
+      .populate("company")
+      .populate("employee");
+
+    if (!payslip) {
+      return res.status(404).json({ success: false, message: "Payslip not found" });
+    }
+
+    const [ytd, leaveBalance] = await Promise.all([
+      computeYtdTotals(Payslip, payslip.employee._id, payslip.year, payslip.month),
+      getLeaveBalance(payslip.employee),
+    ]);
+
+    const doc = generatePayslipPdf({
+      payslip,
+      employee: payslip.employee,
+      company: payslip.company,
+      ytdGross: ytd.gross,
+      ytdNet: ytd.net,
+      leaveBalance,
+    });
+
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader(
+      "Content-Disposition",
+      `inline; filename="bulletin-${payslip.month}-${payslip.year}.pdf"`
+    );
+    doc.pipe(res);
+    doc.end();
+  } catch (error) {
+    console.error("GET me/payslip PDF error:", error);
+    res.status(500).json({ success: false, message: "Error generating payslip PDF", error: error.message });
+  }
+});
+
+// ======================================================
 // MY ABSENCES
 // GET /api/me/absences?page=&limit=
 // POST /api/me/absences
@@ -144,11 +195,18 @@ router.get("/payslips/:id", async (req, res) => {
 
 router.get("/absences", async (req, res) => {
   try {
-    const { page = 1, limit = 20 } = req.query;
+    const { page = 1, limit = 20, from, to } = req.query;
     const currentPage = Math.max(Number(page), 1);
     const currentLimit = Math.max(Number(limit), 1);
 
     const filter = { employee: req.user.employee };
+
+    // Same "overlaps the window" logic as the HR absences route —
+    // see routes/absences.js for why.
+    if (from || to) {
+      if (to) filter.startDate = { $lte: new Date(to) };
+      if (from) filter.endDate = { $gte: new Date(from) };
+    }
 
     const [absences, total] = await Promise.all([
       Absence.find(filter)
@@ -365,13 +423,17 @@ router.post("/advances", async (req, res) => {
 
 router.get("/attendance", async (req, res) => {
   try {
-    const { month, year } = req.query;
+    const { month, year, from, to } = req.query;
 
     const filter = { employee: req.user.employee };
     if (month && year) {
-      const from = new Date(Number(year), Number(month) - 1, 1);
-      const to = new Date(Number(year), Number(month), 0, 23, 59, 59);
-      filter.date = { $gte: from, $lte: to };
+      const monthFrom = new Date(Number(year), Number(month) - 1, 1);
+      const monthTo = new Date(Number(year), Number(month), 0, 23, 59, 59);
+      filter.date = { $gte: monthFrom, $lte: monthTo };
+    } else if (from || to) {
+      filter.date = {};
+      if (from) filter.date.$gte = new Date(from);
+      if (to) filter.date.$lte = new Date(to);
     }
 
     const records = await Attendance.find(filter).sort({ date: -1 });

@@ -8,6 +8,8 @@ import {
   RefreshCw,
   X,
   BriefcaseBusiness,
+  Download,
+  FileDown,
 } from "lucide-react";
 
 import { useI18n } from "../../hooks/useI18n";
@@ -27,6 +29,8 @@ import {
   deletePayrollRun,
   getPayrollRunById,
   markPayslipPaid,
+  downloadPayslipPdf,
+  downloadPayrollExport,
 } from "../../services/payrollService";
 import { getCompanies } from "../../services/companyService";
 
@@ -260,6 +264,35 @@ export default function Payroll() {
     }
   };
 
+  const [downloadingId, setDownloadingId] = useState(null);
+
+  const handleDownloadPayslip = async (payslip) => {
+    setDownloadingId(payslip._id);
+    try {
+      const name = payslip.employee?.employeeNumber || payslip.employee?._id || "employe";
+      await downloadPayslipPdf(payslip._id, `bulletin-${name}-${payslip.month}-${payslip.year}.pdf`);
+    } catch (error) {
+      console.error("Failed to download payslip:", error);
+    } finally {
+      setDownloadingId(null);
+    }
+  };
+
+  const [exportingType, setExportingType] = useState(null);
+
+  const handleExport = async (type) => {
+    if (!activeRun) return;
+    setExportingType(type);
+    try {
+      const { run } = activeRun;
+      await downloadPayrollExport(run._id, type, `${type}-${run.month}-${run.year}.csv`);
+    } catch (error) {
+      console.error(`Failed to export ${type}:`, error);
+    } finally {
+      setExportingType(null);
+    }
+  };
+
   const gridColumns = "minmax(140px,1.3fr) minmax(90px,0.7fr) minmax(90px,0.7fr) minmax(90px,0.7fr) minmax(90px,0.6fr) 1fr";
 
   return (
@@ -378,6 +411,34 @@ export default function Payroll() {
           <div className={styles.detailHeader}>
             <h2>{t(`payroll.months.${activeRun.run.month - 1}`)} {activeRun.run.year}</h2>
             <div className={styles.detailHeaderActions}>
+              <button
+                type="button"
+                className="btnEdit"
+                disabled={exportingType === "cnss"}
+                onClick={() => handleExport("cnss")}
+                title={t("payroll.exports.cnssHint")}
+              >
+                <FileDown size={14} />
+                {t("payroll.exports.cnss")}
+              </button>
+              <button
+                type="button"
+                className="btnEdit"
+                disabled={exportingType === "register"}
+                onClick={() => handleExport("register")}
+              >
+                <FileDown size={14} />
+                {t("payroll.exports.register")}
+              </button>
+              <button
+                type="button"
+                className="btnEdit"
+                disabled={exportingType === "bank-transfer"}
+                onClick={() => handleExport("bank-transfer")}
+              >
+                <FileDown size={14} />
+                {t("payroll.exports.bankTransfer")}
+              </button>
               {activeRun.run.status === "draft" && (
                 <button type="button" className="btnEdit" onClick={handleRegenerate}>
                   <RefreshCw size={14} />
@@ -416,6 +477,15 @@ export default function Payroll() {
                     label={t(`payroll.payslipStatus.${p.status}`)}
                   />
                   <div className="dataTableActions">
+                    <button
+                      type="button"
+                      className="tableActionBtn"
+                      title={t("payroll.actions.downloadPdf")}
+                      disabled={downloadingId === p._id}
+                      onClick={() => handleDownloadPayslip(p)}
+                    >
+                      <Download size={15} />
+                    </button>
                     {p.status === "validated" && (
                       <button type="button" className="tableActionBtn tableActionBtnAccept" title={t("payroll.actions.markPaid")} onClick={() => handleMarkPaid(p._id)}>
                         <CheckCircle2 size={15} />

@@ -103,6 +103,23 @@ function canAccessHRForCompany(actor, company) {
 }
 
 // ------------------------------------------------------------
+// PRODUCTION MODULE (Inventory, categories, purchase requests)
+// ------------------------------------------------------------
+// Deliberately NARROWER than the HR module: only platform admins
+// and users in the "production" department — NOT owners by
+// default, unlike canAccessHR. If that needs to change later,
+// this is the one place to do it.
+// ------------------------------------------------------------
+
+const PRODUCTION_DEPARTMENT = "production";
+
+const isProductionDepartment = (actor) => actor?.department === PRODUCTION_DEPARTMENT;
+
+function canAccessProduction(actor) {
+  return isAdmin(actor) || isProductionDepartment(actor);
+}
+
+// ------------------------------------------------------------
 // SELF-SERVICE (My Space) + MANAGER APPROVAL ROUTING
 // ------------------------------------------------------------
 // A User account can optionally be linked to one Employee record
@@ -293,8 +310,12 @@ module.exports = {
   ALLOW_DEPARTMENT_SCOPED_USER_MANAGEMENT,
   HR_DEPARTMENT,
   isHRDepartment,
+  isAdmin,
   canAccessHR,
   canAccessHRForCompany,
+  PRODUCTION_DEPARTMENT,
+  isProductionDepartment,
+  canAccessProduction,
   canSelfService,
   isOwnEmployeeRecord,
   canReviewRequest,

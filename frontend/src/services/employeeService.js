@@ -65,8 +65,15 @@ export const createEmployee = async (employeeData) => {
     employeeData
   );
 
-  // Backend responds { success, data: employee, message }.
-  return response.data.data;
+  // Backend responds { success, data: employee, generatedLogin,
+  // loginError, message }. Callers that only need the employee can
+  // keep destructuring `.employee`; the login info is there for
+  // whoever needs to show the temporary password.
+  return {
+    employee: response.data.data,
+    generatedLogin: response.data.generatedLogin || null,
+    loginError: response.data.loginError || null,
+  };
 };
 
 // ======================================================
@@ -137,6 +144,21 @@ export const linkEmployeeUser = async (employeeId, userId) => {
     { userId }
   );
   return response.data;
+};
+
+export const createEmployeeLogin = async (employeeId) => {
+  const response = await api.post(
+    `/employees/${employeeId}/create-login`
+  );
+  // Backend responds { success, message, data: { email, temporaryPassword } }.
+  return response.data.data;
+};
+
+export const resetEmployeePassword = async (employeeId) => {
+  const response = await api.post(
+    `/employees/${employeeId}/reset-password`
+  );
+  return response.data.data;
 };
 
 export const unlinkEmployeeUser = async (employeeId) => {

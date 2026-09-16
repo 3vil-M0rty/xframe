@@ -274,6 +274,36 @@ const employeeSchema = new mongoose.Schema(
         department: {
             type: String,
             trim: true,
+            // Mirrors User.department exactly (see models/User.js) —
+            // this is what lets an auto-created self-service login
+            // inherit the same department as the employee record it
+            // came from (see services/employeeAccountService.js).
+            enum: [
+                "management",
+                "administration",
+                "hr",
+                "finance",
+                "accounting",
+                "sales",
+                "purchasing",
+                "marketing",
+                "production",
+                "production_planning",
+                "quality_control",
+                "maintenance",
+                "warehouse",
+                "logistics",
+                "procurement",
+                "engineering",
+                "design",
+                "research_development",
+                "it",
+                "customer_service",
+                "health_safety_environment",
+                "security",
+                null,
+                "",
+            ],
         },
 
         service: {

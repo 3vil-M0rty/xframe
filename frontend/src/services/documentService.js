@@ -41,8 +41,18 @@ export const uploadDocument = async ({ file, company, employee, type, label, iss
   return response.data.data;
 };
 
-export const updateDocument = async (id, data) => {
-  const response = await api.put(`/documents/${id}`, data);
+export const updateDocument = async (id, { type, label, issueDate, expiryDate, notes, file }) => {
+  const formData = new FormData();
+  if (type !== undefined) formData.append("type", type);
+  if (label !== undefined) formData.append("label", label);
+  if (issueDate !== undefined) formData.append("issueDate", issueDate || "");
+  if (expiryDate !== undefined) formData.append("expiryDate", expiryDate || "");
+  if (notes !== undefined) formData.append("notes", notes || "");
+  if (file) formData.append("file", file);
+
+  const response = await api.put(`/documents/${id}`, formData, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
   return response.data.data;
 };
 

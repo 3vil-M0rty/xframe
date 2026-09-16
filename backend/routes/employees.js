@@ -18,6 +18,7 @@ const {
 } = require("../permissions/permissions");
 
 const { logAudit } = require("../services/auditLogger");
+const { createLoginForEmployee, generateWorkEmail, resetPasswordForEmployee } = require("../services/employeeAccountService");
 
 const {
   uploadImage,
@@ -306,6 +307,17 @@ router.post(
         employeeNumber,
         firstName,
         lastName,
+        // Ignored on purpose — work email is always auto-generated
+        // below (firstname.lastname@company.frame, with a number
+        // appended on collision), never taken from the client. See
+        // services/employeeAccountService.js: generateWorkEmail.
+        workEmail: _ignoredWorkEmail,
+        // Not spread into the Employee document below — this is a
+        // request-only flag, not an Employee field. Defaults to
+        // true: unless HR explicitly opts out, creating an
+        // employee also creates their self-service login (see
+        // services/employeeAccountService.js).
+        createLogin = true,
         ...rest
       } = req.body;
 
@@ -399,6 +411,8 @@ router.post(
       // CREATE EMPLOYEE
       // --------------------------------------------------
 
+      const workEmail = await generateWorkEmail(firstName, lastName);
+
       const employee =
         await Employee.create({
           company,
@@ -408,6 +422,7 @@ router.post(
 
           firstName,
           lastName,
+          workEmail,
 
           ...rest,
 
@@ -429,6 +444,33 @@ router.post(
       );
 
       // --------------------------------------------------
+      // OPTIONAL: CREATE SELF-SERVICE LOGIN
+      // --------------------------------------------------
+      // Best-effort — a missing/duplicate work email should not
+      // fail the employee creation itself, just skip the login and
+      // tell HR why via `loginError` in the response so they can
+      // create one later from the employee's "Self-service access"
+      // panel once the email issue is fixed.
+
+      let generatedLogin = null;
+      let loginError = null;
+
+      if (createLogin) {
+        try {
+          const { temporaryPassword } = await createLoginForEmployee(
+            employee,
+            req.user.id
+          );
+          generatedLogin = {
+            email: employee.workEmail,
+            temporaryPassword,
+          };
+        } catch (err) {
+          loginError = err.message;
+        }
+      }
+
+      // --------------------------------------------------
       // RESPONSE
       // --------------------------------------------------
 
@@ -444,6 +486,8 @@ router.post(
       res.status(201).json({
         success: true,
         data: employee,
+        generatedLogin,
+        loginError,
         message:
           "Employee created successfully",
       });
@@ -1017,6 +1061,116 @@ router.delete(
         message:
           "Error deleting employee",
         error: error.message,
+      });
+    }
+  }
+);
+
+// ======================================================
+// CREATE A NEW LOGIN FOR AN EXISTING EMPLOYEE
+// POST /api/employees/:id/create-login
+// For employees created before this feature existed, or whose
+// login wasn't created at creation time (e.g. missing work email
+// back then). Generates a new User + temporary password the same
+// way employee creation does — see services/employeeAccountService.js.
+// ======================================================
+
+router.post(
+  "/:id/create-login",
+  auth,
+  requireHRAccess,
+  async (req, res) => {
+    try {
+      if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+        return res.status(400).json({ success: false, message: "Invalid employee ID" });
+      }
+
+      const employee = await Employee.findById(req.params.id);
+      if (!employee) {
+        return res.status(404).json({ success: false, message: "Employee not found" });
+      }
+
+      const company = await Company.findById(employee.company);
+      if (!canManage(req, company)) {
+        return res.status(403).json({
+          success: false,
+          message: "Not authorized to create a login for this employee",
+        });
+      }
+
+      const { temporaryPassword } = await createLoginForEmployee(employee, req.user.id);
+
+      await logAudit(req, {
+        company: company._id,
+        action: "update",
+        resourceType: "Employee",
+        resourceId: employee._id,
+        resourceLabel: `Created login for ${employee.workEmail}`,
+      });
+
+      res.status(201).json({
+        success: true,
+        message: "Login created successfully",
+        data: { email: employee.workEmail, temporaryPassword },
+      });
+    } catch (error) {
+      console.error("POST create-login error:", error);
+      res.status(error.status || 500).json({
+        success: false,
+        message: error.message || "Error creating login",
+      });
+    }
+  }
+);
+
+// ======================================================
+// RESET PASSWORD FOR AN EMPLOYEE'S LINKED LOGIN
+// POST /api/employees/:id/reset-password
+// ======================================================
+
+router.post(
+  "/:id/reset-password",
+  auth,
+  requireHRAccess,
+  async (req, res) => {
+    try {
+      if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+        return res.status(400).json({ success: false, message: "Invalid employee ID" });
+      }
+
+      const employee = await Employee.findById(req.params.id);
+      if (!employee) {
+        return res.status(404).json({ success: false, message: "Employee not found" });
+      }
+
+      const company = await Company.findById(employee.company);
+      if (!canManage(req, company)) {
+        return res.status(403).json({
+          success: false,
+          message: "Not authorized to reset this employee's password",
+        });
+      }
+
+      const { user, temporaryPassword } = await resetPasswordForEmployee(employee._id);
+
+      await logAudit(req, {
+        company: company._id,
+        action: "update",
+        resourceType: "Employee",
+        resourceId: employee._id,
+        resourceLabel: `Reset password for ${user.email}`,
+      });
+
+      res.json({
+        success: true,
+        message: "Password reset successfully",
+        data: { email: user.email, temporaryPassword },
+      });
+    } catch (error) {
+      console.error("POST reset-password error:", error);
+      res.status(error.status || 500).json({
+        success: false,
+        message: error.message || "Error resetting password",
       });
     }
   }

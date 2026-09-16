@@ -4,6 +4,7 @@ import { AuthProvider } from './context/AuthContext'
 import LoginPage from './pages/LoginPage'
 import Profile from './pages/Profile'
 import Company from './pages/owner/Company'
+import WorkSchedule from './pages/owner/WorkSchedule'
 import ProtectedRoute from './components/ProtectedRoute'
 import Layout from './components/Layout'
 import Users from './pages/owner/Users'
@@ -19,7 +20,7 @@ import Reports from './pages/hr/Reports'
 import AuditLog from './pages/hr/AuditLog'
 import OrgChart from './pages/hr/OrgChart'
 import MySpace from './pages/me/MySpace'
-import { canAccessHR, canSelfService } from './utils/permissions'
+import { canAccessHR, canSelfService, canManageCompanySettings } from './utils/permissions'
 import './styles/global.css';
 
 // Every HR page needs the same two things: logged in (outer
@@ -60,6 +61,14 @@ export default function App() {
               <Route path="/profile" element={<Profile />} />
               <Route path="/organization/company" element={<Company />} />
               <Route path="/organization/users" element={<Users />} />
+              <Route
+                path="/organization/work-schedule"
+                element={
+                  <ProtectedRoute permission={canManageCompanySettings}>
+                    <WorkSchedule />
+                  </ProtectedRoute>
+                }
+              />
 
               {/* HR module */}
               <Route path="/hr/employees" element={hrRoute(<Employees />)} />

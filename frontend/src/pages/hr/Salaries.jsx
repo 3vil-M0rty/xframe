@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 
 import { useI18n } from "../../hooks/useI18n";
+import { useAuth } from "../../hooks/useAuth";
 
 import CollapsibleForm from "../../components/useful/CollapsibleForm";
 import CustomSelect from "../../components/useful/CustomSelect";
@@ -24,6 +25,7 @@ import {
 import { getEmployees } from "../../services/employeeService";
 import { getCompanies } from "../../services/companyService";
 import { buildEmployeeSearchOptions } from "../../utils/employeeSearch";
+import { isAdmin } from "../../utils/permissions";
 
 import styles from "./Salaries.module.css";
 
@@ -48,6 +50,8 @@ function sumItems(items) {
 
 export default function Salaries() {
   const { t, tVar } = useI18n();
+  const { user: currentUser } = useAuth();
+  const userIsAdmin = isAdmin(currentUser);
 
   // ========================================
   // COMPANIES
@@ -492,16 +496,16 @@ export default function Salaries() {
               <span className="dataTableCellMuted">
                 {formatAmount(
                   salary.grossSalary ??
-                  salary.baseSalary + sumItems(salary.allowances),
+                    salary.baseSalary + sumItems(salary.allowances),
                   salary.currency
                 )}
               </span>
               <span className="dataTableCellMuted">
                 {formatAmount(
                   salary.netSalary ??
-                  salary.baseSalary +
-                  sumItems(salary.allowances) -
-                  sumItems(salary.deductions),
+                    salary.baseSalary +
+                      sumItems(salary.allowances) -
+                      sumItems(salary.deductions),
                   salary.currency
                 )}
               </span>
@@ -528,14 +532,16 @@ export default function Salaries() {
                   <History size={15} />
                 </button>
 
-                <button
-                  type="button"
-                  className="tableActionBtn tableActionBtnDanger"
-                  title={t("common.delete")}
-                  onClick={() => askDelete(salary)}
-                >
-                  <Trash2 size={15} />
-                </button>
+                {userIsAdmin && (
+                  <button
+                    type="button"
+                    className="tableActionBtn tableActionBtnDanger"
+                    title={t("common.delete")}
+                    onClick={() => askDelete(salary)}
+                  >
+                    <Trash2 size={15} />
+                  </button>
+                )}
               </div>
             </div>
           ))}
@@ -580,14 +586,16 @@ export default function Salaries() {
               <div
                 className="dataTableHead"
                 style={{
-                  gridTemplateColumns:
-                    "minmax(110px,1fr) minmax(110px,1fr) minmax(110px,1fr) minmax(90px,0.6fr)",
+                  gridTemplateColumns: userIsAdmin
+                    ? "minmax(110px,1fr) minmax(110px,1fr) minmax(110px,1fr) minmax(90px,0.6fr) 60px"
+                    : "minmax(110px,1fr) minmax(110px,1fr) minmax(110px,1fr) minmax(90px,0.6fr)",
                 }}
               >
                 <span>{t("salaries.table.base")}</span>
                 <span>{t("salaries.fields.effectiveDate")}</span>
                 <span>{t("salaries.table.endDate")}</span>
                 <span>{t("salaries.table.status")}</span>
+                {userIsAdmin && <span />}
               </div>
 
               {history.map((record) => (
@@ -595,15 +603,12 @@ export default function Salaries() {
                   key={record._id}
                   className="dataTableRow"
                   style={{
-                    gridTemplateColumns:
-                      "minmax(110px,1fr) minmax(110px,1fr) minmax(110px,1fr) minmax(90px,0.6fr)",
+                    gridTemplateColumns: userIsAdmin
+                      ? "minmax(110px,1fr) minmax(110px,1fr) minmax(110px,1fr) minmax(90px,0.6fr) 60px"
+                      : "minmax(110px,1fr) minmax(110px,1fr) minmax(110px,1fr) minmax(90px,0.6fr)",
                   }}
                 >
-                  <span className={`${record.endDate
-                        ? "pastSalary"
-                        : "currentSalary"
-                      }`}
-                  >{formatAmount(record.baseSalary, record.currency)}</span>
+                  <span>{formatAmount(record.baseSalary, record.currency)}</span>
                   <span className="dataTableCellMuted">
                     {formatDate(record.effectiveDate)}
                   </span>
@@ -612,16 +617,23 @@ export default function Salaries() {
                       ? formatDate(record.endDate)
                       : t("salaries.table.ongoing")}
                   </span>
-                  <span
-                    className={`statusPill ${record.endDate
-                        ? "statusPillNeutral"
-                        : "current"
-                      }`}
-                  >
+                  <span className="statusPill statusPillNeutral">
                     {record.endDate
                       ? t("salaries.history.past")
                       : t("salaries.history.current")}
                   </span>
+                  {userIsAdmin && (
+                    <div className="dataTableActions">
+                      <button
+                        type="button"
+                        className="tableActionBtn tableActionBtnDanger"
+                        title={t("salaries.history.deleteRecord")}
+                        onClick={() => askDelete(record)}
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>

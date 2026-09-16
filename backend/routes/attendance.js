@@ -6,6 +6,7 @@ const router = express.Router();
 const Attendance = require("../models/Attendance");
 const Employee = require("../models/Employee");
 const Company = require("../models/Company");
+const WorkSchedule = require("../models/WorkSchedule");
 
 const auth = require("../middleware/auth");
 const {
@@ -19,12 +20,23 @@ const {
 // Each route below checks the right permission for what it does.
 router.use(auth);
 
-// Simple expected-schedule constants — there's no per-company
-// schedule model yet, so this is a single default for the whole
-// app. Move this into Company settings once that's needed.
-const EXPECTED_START_HOUR = 9; // 09:00
-const EXPECTED_WORKDAY_MINUTES = 8 * 60; // 8 hours
-const GRACE_MINUTES = 10;
+// Used if a company hasn't configured a work schedule yet (see
+// models/WorkSchedule.js and pages/owner/WorkSchedule.jsx) — same
+// numbers as the schema's own defaults, kept here too so this file
+// works standalone even if the schedule lookup fails for any reason.
+const FALLBACK_DAY_CONFIG = {
+  isWorkingDay: true,
+  startHour: 9,
+  startMinute: 0,
+  workHours: 8,
+  graceMinutes: 10,
+};
+
+async function getDayConfigForDate(companyId, date) {
+  const schedule = await WorkSchedule.findOne({ company: companyId });
+  if (!schedule) return FALLBACK_DAY_CONFIG;
+  return schedule.getDayConfig(date) || FALLBACK_DAY_CONFIG;
+}
 
 function startOfDay(date) {
   const d = new Date(date);
@@ -60,10 +72,12 @@ router.post("/clock-in", async (req, res) => {
       return res.status(400).json({ success: false, message: "Already clocked in today" });
     }
 
+    const dayConfig = await getDayConfigForDate(employee.company, today);
+
     const expectedStart = new Date(today);
-    expectedStart.setHours(EXPECTED_START_HOUR, 0, 0, 0);
+    expectedStart.setHours(dayConfig.startHour, dayConfig.startMinute, 0, 0);
     const lateMinutes = Math.max(
-      Math.round((now - expectedStart) / 60000) - GRACE_MINUTES,
+      Math.round((now - expectedStart) / 60000) - dayConfig.graceMinutes,
       0
     );
 
@@ -77,8 +91,11 @@ router.post("/clock-in", async (req, res) => {
     }
 
     record.clockIn = now;
-    record.status = lateMinutes > 0 ? "late" : "present";
-    record.lateMinutes = lateMinutes;
+    // Not a scheduled working day (e.g. Sunday) but the employee
+    // clocked in anyway — record it as present without flagging
+    // "late" against a schedule that doesn't apply that day.
+    record.status = dayConfig.isWorkingDay && lateMinutes > 0 ? "late" : "present";
+    record.lateMinutes = dayConfig.isWorkingDay ? lateMinutes : 0;
     await record.save();
 
     res.status(201).json({ success: true, data: record, message: "Clocked in" });
@@ -102,6 +119,11 @@ router.post("/clock-out", async (req, res) => {
       });
     }
 
+    const employee = await Employee.findById(req.user.employee);
+    if (!employee) {
+      return res.status(404).json({ success: false, message: "Employee record not found" });
+    }
+
     const today = startOfDay(new Date());
     const now = new Date();
 
@@ -117,12 +139,14 @@ router.post("/clock-out", async (req, res) => {
       return res.status(400).json({ success: false, message: "Already clocked out today" });
     }
 
+    const dayConfig = await getDayConfigForDate(employee.company, today);
+
     record.clockOut = now;
 
     const minutesWorked = Math.round((now - record.clockIn) / 60000);
     record.hoursWorked = Math.round((minutesWorked / 60) * 100) / 100;
     record.overtimeMinutes = Math.max(
-      minutesWorked - EXPECTED_WORKDAY_MINUTES,
+      minutesWorked - dayConfig.workHours * 60,
       0
     );
 

@@ -9,6 +9,8 @@ export const getAbsences = async ({
   employeeId,
   status,
   type,
+  from,
+  to,
   page = 1,
   limit = 20,
 } = {}) => {
@@ -18,6 +20,8 @@ export const getAbsences = async ({
   if (employeeId) params.append("employeeId", employeeId);
   if (status) params.append("status", status);
   if (type) params.append("type", type);
+  if (from) params.append("from", from);
+  if (to) params.append("to", to);
 
   params.append("page", page);
   params.append("limit", limit);

@@ -20,7 +20,7 @@ const seedAdmin = async () => {
       lastName: 'User',
       email: 'admin@company.com',
       password: 'Admin@123',
-      role: 'Owner'
+      role: 'owner'
     });
 
     await admin.save();

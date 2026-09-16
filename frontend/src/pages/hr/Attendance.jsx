@@ -5,6 +5,7 @@ import { useI18n } from "../../hooks/useI18n";
 
 import CustomSelect from "../../components/useful/CustomSelect";
 import SearchSelect from "../../components/useful/SearchSelect";
+import DateRangeFilter from "../../components/useful/DateRangeFilter";
 import Breadcrumbs from "../../components/useful/Breadcrumbs";
 import Pagination from "../../components/useful/Pagination";
 import StatusPill from "../../components/useful/StatusPill";
@@ -94,7 +95,10 @@ export default function Attendance() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  useEffect(() => { setPage(1); }, [selectedCompanyId, employeeFilter]);
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+
+  useEffect(() => { setPage(1); }, [selectedCompanyId, employeeFilter, dateFrom, dateTo]);
 
   useEffect(() => {
     if (!selectedCompanyId) { setRecords([]); setLoading(false); return; }
@@ -106,6 +110,8 @@ export default function Attendance() {
         const { records: data, pagination: p } = await getAttendance({
           companyId: selectedCompanyId,
           employeeId: employeeFilter || undefined,
+          from: dateFrom || undefined,
+          to: dateTo || undefined,
           page,
           limit: PAGE_SIZE,
         });
@@ -120,7 +126,7 @@ export default function Attendance() {
       }
     })();
     return () => { cancelled = true; };
-  }, [selectedCompanyId, employeeFilter, page, t]);
+  }, [selectedCompanyId, employeeFilter, dateFrom, dateTo, page, t]);
 
   const gridColumns = "minmax(140px,1.3fr) minmax(90px,0.7fr) minmax(80px,0.6fr) minmax(80px,0.6fr) minmax(90px,0.7fr) 1fr";
 
@@ -155,6 +161,14 @@ export default function Attendance() {
             noResultsLabel={t("common.noResults")}
           />
         </div>
+        <DateRangeFilter
+          from={dateFrom}
+          to={dateTo}
+          onFromChange={setDateFrom}
+          onToChange={setDateTo}
+          fromLabel={t("common.dateFrom")}
+          toLabel={t("common.dateTo")}
+        />
       </div>
 
       {!selectedCompanyId && !companiesLoading && (

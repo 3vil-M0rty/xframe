@@ -191,11 +191,13 @@ router.post("/", documentUpload.single("file"), async (req, res) => {
 });
 
 // ======================================================
-// UPDATE DOCUMENT METADATA (not the file itself — delete + re-upload for that)
+// UPDATE DOCUMENT (metadata, and optionally replace the file)
 // PUT /api/documents/:id
+// multipart/form-data: type, label, issueDate, expiryDate, notes,
+//                       file (optional — only present if replacing)
 // ======================================================
 
-router.put("/:id", async (req, res) => {
+router.put("/:id", documentUpload.single("file"), async (req, res) => {
   try {
     if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
       return res.status(400).json({ success: false, message: "Invalid document ID" });
@@ -209,16 +211,56 @@ router.put("/:id", async (req, res) => {
       return res.status(403).json({ success: false, message: "Not authorized" });
     }
 
+    const before = document.toObject();
+
     const { type, label, issueDate, expiryDate, notes } = req.body;
     if (type !== undefined) document.type = type;
     if (label !== undefined) document.label = label;
-    if (issueDate !== undefined) document.issueDate = issueDate;
-    if (expiryDate !== undefined) document.expiryDate = expiryDate;
+    if (issueDate !== undefined) document.issueDate = issueDate || null;
+    if (expiryDate !== undefined) document.expiryDate = expiryDate || null;
     if (notes !== undefined) document.notes = notes;
+
+    // A new file was attached — upload it and swap it in, then
+    // clean up the old one from Cloudinary so replacing a document
+    // doesn't leave orphaned files behind.
+    if (req.file) {
+      const oldPublicId = document.file?.publicId;
+
+      const result = await uploadFile(
+        req.file.buffer,
+        `frame/companies/${document.company._id}/employees/${document.employee}/documents`,
+        req.file.originalname
+      );
+
+      document.file = {
+        url: result.secure_url,
+        publicId: result.public_id,
+        originalName: req.file.originalname,
+      };
+
+      if (oldPublicId) {
+        await deleteFile(oldPublicId);
+      }
+    }
 
     await document.save();
 
-    res.json({ success: true, data: document, message: "Document updated successfully" });
+    const populated = await document.populate(
+      "employee",
+      "firstName lastName employeeNumber photo"
+    );
+
+    await logAudit(req, {
+      company: document.company._id,
+      action: "update",
+      resourceType: "EmployeeDocument",
+      resourceId: document._id,
+      resourceLabel: document.label || document.type,
+      before,
+      after: document.toObject(),
+    });
+
+    res.json({ success: true, data: populated, message: "Document updated successfully" });
   } catch (error) {
     console.error("PUT document error:", error);
     res.status(500).json({ success: false, message: "Error updating document", error: error.message });

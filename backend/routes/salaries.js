@@ -8,7 +8,10 @@ const Employee = require("../models/Employee");
 const Company = require("../models/Company");
 
 const auth = require("../middleware/auth");
-const { requireHRAccess } = require("../middleware/permissionMiddleware");
+const {
+  requireHRAccess,
+  requireAdmin,
+} = require("../middleware/permissionMiddleware");
 const { canAccessHRForCompany } = require("../permissions/permissions");
 
 // Every route below the module-wide requireHRAccess check applies
@@ -355,9 +358,13 @@ router.put("/:id", async (req, res) => {
 // ======================================================
 // DELETE SALARY RECORD
 // DELETE /api/salaries/:id
+//
+// Restricted to platform admins — salary records are a sensitive
+// historical/compliance trail, so even an owner or HR-department
+// user (who can otherwise manage salaries freely) can't erase one.
 // ======================================================
 
-router.delete("/:id", async (req, res) => {
+router.delete("/:id", requireAdmin, async (req, res) => {
   try {
     if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
       return res.status(400).json({

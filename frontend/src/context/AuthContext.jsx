@@ -1,4 +1,4 @@
-import { createContext, useState, useEffect } from 'react';
+import { createContext, useState, useEffect, useMemo } from 'react';
 import api from '../services/api';
 import { getCurrentUser } from '../services/userService';
 
@@ -76,8 +76,21 @@ export const AuthProvider = ({ children }) => {
     delete api.defaults.headers.common['Authorization'];
   };
 
+  // Memoized so consumers only re-render when something in here
+  // actually changed — previously this object literal was rebuilt
+  // on every AuthProvider render, which (combined with the
+  // sidebar's section-expand logic depending on `user`) could
+  // cause a manually-expanded sidebar section to keep getting
+  // silently re-collapsed back to whichever section matches the
+  // current route.
+  const value = useMemo(
+    () => ({ user, token, login, logout, loading }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [user, token, loading]
+  );
+
   return (
-    <AuthContext.Provider value={{ user, token, login, logout, loading }}>
+    <AuthContext.Provider value={value}>
       {children}
     </AuthContext.Provider>
   );

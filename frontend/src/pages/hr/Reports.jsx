@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { BarChart3, BriefcaseBusiness } from "lucide-react";
+import { BarChart3, BriefcaseBusiness, Maximize2 } from "lucide-react";
 import {
   ResponsiveContainer,
   BarChart,
@@ -20,18 +20,25 @@ import { useI18n } from "../../hooks/useI18n";
 
 import CustomSelect from "../../components/useful/CustomSelect";
 import Breadcrumbs from "../../components/useful/Breadcrumbs";
+import ChartModal from "./ChartModal";
 
 import {
   getHeadcountReport,
   getTurnoverReport,
   getAbsenteeismReport,
   getPayrollCostReport,
+  getCurrentPayrollEstimate,
 } from "../../services/reportService";
 import { getCompanies } from "../../services/companyService";
 
 import styles from "./Reports.module.css";
 
 const PIE_COLORS = ["#4c8dff", "#4cc38a", "#e8b93f", "#ff6b6b", "#a06bff", "#3ecfcf", "#ff9f4c"];
+
+function formatAmount(amount, currency = "MAD") {
+  if (amount === undefined || amount === null) return "—";
+  return `${Number(amount).toLocaleString("en-US")} ${currency}`;
+}
 
 export default function Reports() {
   const { t } = useI18n();
@@ -66,54 +73,83 @@ export default function Reports() {
   const [turnover, setTurnover] = useState([]);
   const [absenteeism, setAbsenteeism] = useState([]);
   const [payrollCost, setPayrollCost] = useState([]);
+  const [currentEstimate, setCurrentEstimate] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
 
   useEffect(() => {
     if (!selectedCompanyId) { setLoading(false); return; }
     let cancelled = false;
     (async () => {
-      try {
-        setLoading(true);
-        const [hc, tv, ab, pc] = await Promise.all([
-          getHeadcountReport(selectedCompanyId),
-          getTurnoverReport(selectedCompanyId, 12),
-          getAbsenteeismReport(selectedCompanyId, 6),
-          getPayrollCostReport(selectedCompanyId, 12),
-        ]);
-        if (cancelled) return;
-        setHeadcount(hc);
-        setTurnover(tv);
-        setAbsenteeism(ab);
-        setPayrollCost(pc);
-      } catch (error) {
-        console.error("Failed to load reports:", error);
-      } finally {
-        if (!cancelled) setLoading(false);
+      setLoading(true);
+      setLoadError("");
+
+      // Promise.allSettled (not Promise.all) — one endpoint
+      // failing (e.g. the current-payroll-estimate call) used to
+      // reject the whole batch, and since the catch block below
+      // only logged to console without setting any error state,
+      // the page silently rendered NOTHING at all (headcount
+      // stayed null, so every chart's render condition was false)
+      // — no error message, just a blank page. Each report now
+      // loads independently: the ones that succeed still render,
+      // and a real error is shown if any of them failed.
+      const [hc, tv, ab, pc, est] = await Promise.allSettled([
+        getHeadcountReport(selectedCompanyId),
+        getTurnoverReport(selectedCompanyId, 12),
+        getAbsenteeismReport(selectedCompanyId, 6),
+        getPayrollCostReport(selectedCompanyId, 12),
+        getCurrentPayrollEstimate(selectedCompanyId),
+      ]);
+
+      if (cancelled) return;
+
+      if (hc.status === "fulfilled") setHeadcount(hc.value);
+      if (tv.status === "fulfilled") setTurnover(tv.value);
+      if (ab.status === "fulfilled") setAbsenteeism(ab.value);
+      if (pc.status === "fulfilled") setPayrollCost(pc.value);
+      if (est.status === "fulfilled") setCurrentEstimate(est.value);
+
+      const failures = [hc, tv, ab, pc, est].filter((r) => r.status === "rejected");
+      if (failures.length > 0) {
+        failures.forEach((f) => console.error("Failed to load a report:", f.reason));
+        setLoadError(
+          failures[0].reason?.response?.data?.message || t("reports.loadError")
+        );
       }
+
+      setLoading(false);
     })();
     return () => { cancelled = true; };
-  }, [selectedCompanyId]);
+    return () => { cancelled = true; };
+  }, [selectedCompanyId, t]);
+
+  const monthLabel = (index0) => t(`payroll.months.${index0}`).slice(0, 3);
 
   const departmentData = headcount
     ? Object.entries(headcount.byDepartment).map(([name, value]) => ({ name, value }))
     : [];
 
   const turnoverData = turnover.map((row) => ({
-    label: `${t(`payroll.months.${row.month - 1}`).slice(0, 3)} ${String(row.year).slice(2)}`,
+    label: `${monthLabel(row.month - 1)} ${String(row.year).slice(2)}`,
     hires: row.hires,
     terminations: row.terminations,
   }));
 
   const absenteeismData = absenteeism.map((row) => ({
-    label: `${t(`payroll.months.${row.month - 1}`).slice(0, 3)} ${String(row.year).slice(2)}`,
+    label: `${monthLabel(row.month - 1)} ${String(row.year).slice(2)}`,
     rate: row.ratePercent,
   }));
 
   const payrollCostData = payrollCost.map((row) => ({
-    label: `${t(`payroll.months.${row.month - 1}`).slice(0, 3)} ${String(row.year).slice(2)}`,
+    label: `${monthLabel(row.month - 1)} ${String(row.year).slice(2)}${row.estimated ? " *" : ""}`,
     gross: row.totalGross,
     net: row.totalNet,
   }));
+
+  const hasEstimatedPoint = payrollCost.some((row) => row.estimated);
+
+  // ---------- Full-screen modal state ----------
+  const [openChart, setOpenChart] = useState(null); // "turnover" | "absenteeism" | "payrollCost" | null
 
   return (
     <div className="pageShell">
@@ -146,6 +182,8 @@ export default function Reports() {
         </div>
       )}
 
+      {loadError && <div className={styles.errorBanner}>{loadError}</div>}
+
       {selectedCompanyId && !loading && headcount && (
         <>
           <div className={styles.statsRow}>
@@ -157,7 +195,25 @@ export default function Reports() {
               <span className={styles.statLabel}>{t("reports.stats.activeEmployees")}</span>
               <span className={styles.statValue}>{headcount.active}</span>
             </div>
+            {currentEstimate && (
+              <>
+                <div className={styles.statCard}>
+                  <span className={styles.statLabel}>{t("reports.stats.currentGross")}</span>
+                  <span className={styles.statValue}>{formatAmount(currentEstimate.totalGross)}</span>
+                </div>
+                <div className={styles.statCard}>
+                  <span className={styles.statLabel}>{t("reports.stats.currentNet")}</span>
+                  <span className={styles.statValue}>{formatAmount(currentEstimate.totalNet)}</span>
+                </div>
+              </>
+            )}
           </div>
+
+          {currentEstimate && currentEstimate.employeesWithoutSalary > 0 && (
+            <div className={styles.noteBanner}>
+              {t("reports.stats.missingSalaryNote").replace("{count}", currentEstimate.employeesWithoutSalary)}
+            </div>
+          )}
 
           <div className={styles.chartsGrid}>
             <div className={styles.chartCard}>
@@ -176,7 +232,12 @@ export default function Reports() {
             </div>
 
             <div className={styles.chartCard}>
-              <h3>{t("reports.charts.turnover")}</h3>
+              <div className={styles.chartCardHeader}>
+                <h3>{t("reports.charts.turnover")}</h3>
+                <button type="button" className="tableActionBtn" title={t("reports.expand")} onClick={() => setOpenChart("turnover")}>
+                  <Maximize2 size={14} />
+                </button>
+              </div>
               <ResponsiveContainer width="100%" height={260}>
                 <BarChart data={turnoverData}>
                   <CartesianGrid strokeDasharray="3 3" opacity={0.15} />
@@ -191,7 +252,12 @@ export default function Reports() {
             </div>
 
             <div className={styles.chartCard}>
-              <h3>{t("reports.charts.absenteeism")}</h3>
+              <div className={styles.chartCardHeader}>
+                <h3>{t("reports.charts.absenteeism")}</h3>
+                <button type="button" className="tableActionBtn" title={t("reports.expand")} onClick={() => setOpenChart("absenteeism")}>
+                  <Maximize2 size={14} />
+                </button>
+              </div>
               <ResponsiveContainer width="100%" height={260}>
                 <LineChart data={absenteeismData}>
                   <CartesianGrid strokeDasharray="3 3" opacity={0.15} />
@@ -204,7 +270,12 @@ export default function Reports() {
             </div>
 
             <div className={styles.chartCard}>
-              <h3>{t("reports.charts.payrollCost")}</h3>
+              <div className={styles.chartCardHeader}>
+                <h3>{t("reports.charts.payrollCost")}</h3>
+                <button type="button" className="tableActionBtn" title={t("reports.expand")} onClick={() => setOpenChart("payrollCost")}>
+                  <Maximize2 size={14} />
+                </button>
+              </div>
               <ResponsiveContainer width="100%" height={260}>
                 <LineChart data={payrollCostData}>
                   <CartesianGrid strokeDasharray="3 3" opacity={0.15} />
@@ -216,10 +287,49 @@ export default function Reports() {
                   <Line type="monotone" dataKey="net" name={t("payroll.table.net")} stroke="#4cc38a" strokeWidth={2} />
                 </LineChart>
               </ResponsiveContainer>
+              {hasEstimatedPoint && (
+                <p className={styles.chartFootnote}>{t("reports.charts.estimatedFootnote")}</p>
+              )}
             </div>
           </div>
         </>
       )}
+
+      <ChartModal
+        isOpen={openChart === "turnover"}
+        onClose={() => setOpenChart(null)}
+        title={t("reports.charts.turnover")}
+        type="bar"
+        monthLabel={monthLabel}
+        lines={[
+          { key: "hires", name: t("reports.charts.hires"), color: "#4cc38a" },
+          { key: "terminations", name: t("reports.charts.terminations"), color: "#ff6b6b" },
+        ]}
+        fetchSeries={(months) => getTurnoverReport(selectedCompanyId, months)}
+      />
+
+      <ChartModal
+        isOpen={openChart === "absenteeism"}
+        onClose={() => setOpenChart(null)}
+        title={t("reports.charts.absenteeism")}
+        type="line"
+        monthLabel={monthLabel}
+        lines={[{ key: "ratePercent", name: t("reports.charts.absenteeismRate"), color: "#e8b93f" }]}
+        fetchSeries={(months) => getAbsenteeismReport(selectedCompanyId, months)}
+      />
+
+      <ChartModal
+        isOpen={openChart === "payrollCost"}
+        onClose={() => setOpenChart(null)}
+        title={t("reports.charts.payrollCost")}
+        type="line"
+        monthLabel={monthLabel}
+        lines={[
+          { key: "totalGross", name: t("payroll.table.gross"), color: "#4c8dff" },
+          { key: "totalNet", name: t("payroll.table.net"), color: "#4cc38a" },
+        ]}
+        fetchSeries={(months) => getPayrollCostReport(selectedCompanyId, months)}
+      />
     </div>
   );
 }

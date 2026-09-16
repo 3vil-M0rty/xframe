@@ -25,3 +25,10 @@ export const getPayrollCostReport = async (companyId, months = 12) => {
   );
   return response.data.data;
 };
+
+export const getCurrentPayrollEstimate = async (companyId) => {
+  const response = await api.get(
+    `/reports/current-payroll-estimate?companyId=${companyId}`
+  );
+  return response.data.data;
+};

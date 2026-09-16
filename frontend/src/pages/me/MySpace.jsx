@@ -10,6 +10,7 @@ import {
   Square,
   Plus,
   X,
+  Download,
 } from "lucide-react";
 
 import { useI18n } from "../../hooks/useI18n";
@@ -19,11 +20,13 @@ import CollapsibleForm from "../../components/useful/CollapsibleForm";
 import ActionModal from "../../components/useful/ActionModal";
 import StatusPill from "../../components/useful/StatusPill";
 import Pagination from "../../components/useful/Pagination";
+import DateRangeFilter from "../../components/useful/DateRangeFilter";
 
 import {
   getMyEmployeeProfile,
   getMyLeaveBalance,
   getMyPayslips,
+  downloadMyPayslipPdf,
   getMyAbsences,
   requestMyAbsence,
   cancelMyAbsence,
@@ -66,11 +69,19 @@ export default function MySpace() {
   const location = useLocation();
   const navigate = useNavigate();
 
-  const initialTab = TABS.find((tab) => location.pathname.endsWith(`/${tab}`)) || "profile";
-  const [activeTab, setActiveTab] = useState(initialTab);
+  // Derived directly from the URL on every render — NOT stored in
+  // its own useState. All five /me/* routes render this same
+  // <MySpace> component, so navigating between them (e.g. clicking
+  // "My Attendance" in the sidebar) re-renders this component
+  // rather than remounting it. A useState initialized once at
+  // mount would never pick up the new URL on a later render, which
+  // is exactly why clicking a sidebar subitem used to leave the
+  // view stuck on whichever tab was active when the page first
+  // loaded. Deriving it fresh each render means there's only one
+  // source of truth (the URL) and it can never drift out of sync.
+  const activeTab = TABS.find((tab) => location.pathname.endsWith(`/${tab}`)) || "profile";
 
   const goToTab = (tab) => {
-    setActiveTab(tab);
     navigate(tab === "profile" ? "/me" : `/me/${tab}`);
   };
 
@@ -237,6 +248,14 @@ function PayslipsTab({ t }) {
   const [pagination, setPagination] = useState({ total: 0, page: 1, limit: PAGE_SIZE, pages: 1 });
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
+  // Was previously declared AFTER the early "empty state" return
+  // below — a Rules-of-Hooks violation, since that return meant
+  // this useState call got skipped entirely whenever the employee
+  // had zero payslips, changing the number of hooks called between
+  // renders. React detects that and throws ("change in the order
+  // of Hooks"). Every hook now runs unconditionally before any
+  // early return, so the call order can never differ between renders.
+  const [downloadingId, setDownloadingId] = useState(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -256,6 +275,17 @@ function PayslipsTab({ t }) {
     return () => { cancelled = true; };
   }, [page]);
 
+  const handleDownload = async (payslip) => {
+    setDownloadingId(payslip._id);
+    try {
+      await downloadMyPayslipPdf(payslip._id, `bulletin-${payslip.month}-${payslip.year}.pdf`);
+    } catch (error) {
+      console.error("Failed to download payslip:", error);
+    } finally {
+      setDownloadingId(null);
+    }
+  };
+
   if (!loading && payslips.length === 0) {
     return (
       <div className="emptyStateBlock">
@@ -266,7 +296,7 @@ function PayslipsTab({ t }) {
     );
   }
 
-  const gridColumns = "minmax(110px,1fr) minmax(90px,0.8fr) minmax(90px,0.8fr) minmax(90px,0.7fr)";
+  const gridColumns = "minmax(110px,1fr) minmax(90px,0.8fr) minmax(90px,0.8fr) minmax(90px,0.7fr) 60px";
 
   return (
     <>
@@ -276,6 +306,7 @@ function PayslipsTab({ t }) {
           <span>{t("payroll.table.gross")}</span>
           <span>{t("payroll.table.net")}</span>
           <span>{t("payroll.fields.status")}</span>
+          <span />
         </div>
         {payslips.map((p) => (
           <div key={p._id} className="dataTableRow" style={{ gridTemplateColumns: gridColumns }}>
@@ -283,6 +314,17 @@ function PayslipsTab({ t }) {
             <span className="dataTableCellMuted">{formatAmount(p.grossSalary, p.currency)}</span>
             <span className="dataTableCellMuted">{formatAmount(p.netSalary, p.currency)}</span>
             <StatusPill status={p.status === "paid" ? "accepted" : "pending"} label={t(`payroll.payslipStatus.${p.status}`)} />
+            <div className="dataTableActions">
+              <button
+                type="button"
+                className="tableActionBtn"
+                title={t("payroll.actions.downloadPdf")}
+                disabled={downloadingId === p._id}
+                onClick={() => handleDownload(p)}
+              >
+                <Download size={15} />
+              </button>
+            </div>
           </div>
         ))}
       </div>
@@ -304,19 +346,27 @@ function AbsencesTab({ t }) {
   const [modal, setModal] = useState({ open: false, type: "confirm", title: "", message: "" });
   const [pendingData, setPendingData] = useState(null);
   const [actionLoading, setActionLoading] = useState(false);
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
 
   const reload = async (targetPage = page) => {
-    const { absences: data, pagination: p } = await getMyAbsences({ page: targetPage, limit: PAGE_SIZE });
+    const { absences: data, pagination: p } = await getMyAbsences({
+      page: targetPage, limit: PAGE_SIZE, from: dateFrom || undefined, to: dateTo || undefined,
+    });
     setAbsences(data);
     setPagination(p);
   };
+
+  useEffect(() => { setPage(1); }, [dateFrom, dateTo]);
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
         setLoading(true);
-        const { absences: data, pagination: p } = await getMyAbsences({ page, limit: PAGE_SIZE });
+        const { absences: data, pagination: p } = await getMyAbsences({
+          page, limit: PAGE_SIZE, from: dateFrom || undefined, to: dateTo || undefined,
+        });
         if (cancelled) return;
         setAbsences(data);
         setPagination(p);
@@ -327,7 +377,7 @@ function AbsencesTab({ t }) {
       }
     })();
     return () => { cancelled = true; };
-  }, [page]);
+  }, [page, dateFrom, dateTo]);
 
   const fields = [
     { name: "type", label: t("absences.fields.type"), type: "select", required: true, options: [
@@ -385,7 +435,16 @@ function AbsencesTab({ t }) {
 
   return (
     <>
-      <div className={styles.tabActions}>
+      <div className={styles.tabToolbar}>
+        <DateRangeFilter
+          from={dateFrom}
+          to={dateTo}
+          onFromChange={setDateFrom}
+          onToChange={setDateTo}
+          fromLabel={t("common.dateFrom")}
+          toLabel={t("common.dateTo")}
+        />
+
         <button type="button" className="btnPrimary" onClick={() => setShowForm((p) => !p)}>
           <Plus size={16} /> {t("absences.addAbsence")}
         </button>
@@ -565,11 +624,13 @@ function AttendanceTab({ t }) {
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
 
-  const load = async () => {
+  const load = async (from = dateFrom, to = dateTo) => {
     const [todayRecord, records] = await Promise.all([
       getTodayAttendance(),
-      getMyAttendance({}),
+      getMyAttendance({ from: from || undefined, to: to || undefined }),
     ]);
     setToday(todayRecord);
     setHistory(records);
@@ -579,14 +640,14 @@ function AttendanceTab({ t }) {
     (async () => {
       try {
         setLoading(true);
-        await load();
+        await load(dateFrom, dateTo);
       } catch (error) {
         console.error("Failed to load attendance:", error);
       } finally {
         setLoading(false);
       }
     })();
-  }, []);
+  }, [dateFrom, dateTo]);
 
   const handleClockIn = async () => {
     setActionLoading(true);
@@ -637,6 +698,17 @@ function AttendanceTab({ t }) {
             </button>
           )}
         </div>
+      </div>
+
+      <div className={styles.tabToolbar}>
+        <DateRangeFilter
+          from={dateFrom}
+          to={dateTo}
+          onFromChange={setDateFrom}
+          onToChange={setDateTo}
+          fromLabel={t("common.dateFrom")}
+          toLabel={t("common.dateTo")}
+        />
       </div>
 
       {history.length === 0 ? (

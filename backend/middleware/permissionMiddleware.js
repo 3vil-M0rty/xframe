@@ -1,4 +1,4 @@
-const { ROLES, canAccessHR } = require("../permissions/permissions");
+const { ROLES, canAccessHR, canAccessProduction } = require("../permissions/permissions");
 
 /**
  * requireRole('admin', 'owner')
@@ -27,6 +27,11 @@ const requireRole = (...allowedRoles) => (req, res, next) => {
 // Convenience shorthand for the very common "admin or owner" gate
 const requireAdminOrOwner = requireRole(ROLES.ADMIN, ROLES.OWNER);
 
+// For actions restricted to platform admins only — e.g. deleting
+// salary history or audit-log entries, where even an owner/HR
+// department user shouldn't be able to erase the record.
+const requireAdmin = requireRole(ROLES.ADMIN);
+
 /**
  * Coarse, route-level gate for the entire HR module (employees,
  * salaries, absences, advances, and any future HR resource).
@@ -46,8 +51,27 @@ const requireHRAccess = (req, res, next) => {
   next();
 };
 
+/**
+ * Route-level gate for the Production module (inventory, product
+ * categories, purchase requests). Mirrors `canAccessProduction` in
+ * permissions/permissions.js — admins and "production" department
+ * users only, deliberately narrower than requireHRAccess (no
+ * owner bypass).
+ */
+const requireProductionAccess = (req, res, next) => {
+  if (!canAccessProduction(req.user)) {
+    return res.status(403).json({
+      success: false,
+      message: "You do not have permission to access the Production module",
+    });
+  }
+  next();
+};
+
 module.exports = {
   requireRole,
   requireAdminOrOwner,
+  requireAdmin,
   requireHRAccess,
+  requireProductionAccess,
 };

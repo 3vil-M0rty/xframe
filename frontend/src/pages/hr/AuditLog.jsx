@@ -1,14 +1,18 @@
 import { useEffect, useState } from "react";
-import { History, BriefcaseBusiness } from "lucide-react";
+import { History, BriefcaseBusiness, Trash2 } from "lucide-react";
 
 import { useI18n } from "../../hooks/useI18n";
+import { useAuth } from "../../hooks/useAuth";
 
 import CustomSelect from "../../components/useful/CustomSelect";
 import Breadcrumbs from "../../components/useful/Breadcrumbs";
 import Pagination from "../../components/useful/Pagination";
+import ActionModal from "../../components/useful/ActionModal";
+import DateRangeFilter from "../../components/useful/DateRangeFilter";
 
-import { getAuditLogs } from "../../services/auditLogService";
+import { getAuditLogs, deleteAuditLogEntry } from "../../services/auditLogService";
 import { getCompanies } from "../../services/companyService";
+import { isAdmin } from "../../utils/permissions";
 
 import styles from "./AuditLog.module.css";
 
@@ -16,7 +20,7 @@ const PAGE_SIZE = 25;
 
 const RESOURCE_TYPES = [
   "Employee", "Salary", "Absence", "Advance", "Contract",
-  "EmployeeDocument", "PayrollRun",
+  "EmployeeDocument", "PayrollRun", "WorkSchedule",
 ];
 
 function actorName(actor) {
@@ -31,6 +35,8 @@ function formatDateTime(date) {
 
 export default function AuditLog() {
   const { t } = useI18n();
+  const { user: currentUser } = useAuth();
+  const userIsAdmin = isAdmin(currentUser);
 
   const [companies, setCompanies] = useState([]);
   const [selectedCompanyId, setSelectedCompanyId] = useState("");
@@ -59,13 +65,15 @@ export default function AuditLog() {
   }));
 
   const [resourceTypeFilter, setResourceTypeFilter] = useState("");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
   const [page, setPage] = useState(1);
   const [pagination, setPagination] = useState({ total: 0, page: 1, limit: PAGE_SIZE, pages: 1 });
   const [entries, setEntries] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  useEffect(() => { setPage(1); }, [selectedCompanyId, resourceTypeFilter]);
+  useEffect(() => { setPage(1); }, [selectedCompanyId, resourceTypeFilter, dateFrom, dateTo]);
 
   useEffect(() => {
     if (!selectedCompanyId) { setEntries([]); setLoading(false); return; }
@@ -77,6 +85,8 @@ export default function AuditLog() {
         const { entries: data, pagination: p } = await getAuditLogs({
           companyId: selectedCompanyId,
           resourceType: resourceTypeFilter || undefined,
+          from: dateFrom || undefined,
+          to: dateTo || undefined,
           page,
           limit: PAGE_SIZE,
         });
@@ -91,9 +101,40 @@ export default function AuditLog() {
       }
     })();
     return () => { cancelled = true; };
-  }, [selectedCompanyId, resourceTypeFilter, page, t]);
+  }, [selectedCompanyId, resourceTypeFilter, dateFrom, dateTo, page, t]);
 
-  const gridColumns = "minmax(120px,0.8fr) minmax(130px,1fr) minmax(110px,0.8fr) minmax(150px,1.2fr) minmax(130px,1fr)";
+  const gridColumns = userIsAdmin
+    ? "minmax(120px,0.8fr) minmax(130px,1fr) minmax(110px,0.8fr) minmax(150px,1.2fr) minmax(130px,1fr) 50px"
+    : "minmax(120px,0.8fr) minmax(130px,1fr) minmax(110px,0.8fr) minmax(150px,1.2fr) minmax(130px,1fr)";
+
+  const [modal, setModal] = useState({ open: false, type: "confirm", title: "", message: "" });
+  const [pendingDeleteId, setPendingDeleteId] = useState(null);
+  const [actionLoading, setActionLoading] = useState(false);
+
+  const askDelete = (entry) => {
+    setPendingDeleteId(entry._id);
+    setModal({ open: true, type: "confirm", title: t("auditLog.deleteTitle"), message: t("auditLog.deleteSureMessage") });
+  };
+
+  const closeModal = () => {
+    if (actionLoading) return;
+    setModal((prev) => ({ ...prev, open: false }));
+    setPendingDeleteId(null);
+  };
+
+  const handleConfirmDelete = async () => {
+    setActionLoading(true);
+    try {
+      await deleteAuditLogEntry(pendingDeleteId);
+      setEntries((prev) => prev.filter((e) => e._id !== pendingDeleteId));
+      setModal((prev) => ({ ...prev, open: false }));
+      setPendingDeleteId(null);
+    } catch (error) {
+      setModal({ open: true, type: "error", title: t("common.fail"), message: error.response?.data?.message || t("auditLog.errors.actionFailed") });
+    } finally {
+      setActionLoading(false);
+    }
+  };
 
   return (
     <div className="pageShell">
@@ -120,9 +161,18 @@ export default function AuditLog() {
           <label>{t("auditLog.fields.resourceType")}</label>
           <CustomSelect value={resourceTypeFilter} onSelect={setResourceTypeFilter} options={[
             { value: "", label: t("absences.filters.allTypes") },
-            ...RESOURCE_TYPES.map((r) => ({ value: r, label: r })),
+            ...RESOURCE_TYPES.map((r) => ({ value: r, label: t(`auditLog.resourceTypes.${r}`) })),
           ]} />
         </div>
+
+        <DateRangeFilter
+          from={dateFrom}
+          to={dateTo}
+          onFromChange={setDateFrom}
+          onToChange={setDateTo}
+          fromLabel={t("common.dateFrom")}
+          toLabel={t("common.dateTo")}
+        />
       </div>
 
       {!selectedCompanyId && !companiesLoading && (
@@ -152,22 +202,40 @@ export default function AuditLog() {
               <span>{t("auditLog.fields.resource")}</span>
               <span>{t("auditLog.fields.actor")}</span>
               <span>{t("auditLog.fields.date")}</span>
+              {userIsAdmin && <span />}
             </div>
             {entries.map((entry) => (
               <div key={entry._id} className="dataTableRow" style={{ gridTemplateColumns: gridColumns }}>
                 <span className={styles.actionTag} data-action={entry.action}>
                   {t(`auditLog.actions.${entry.action}`)}
                 </span>
-                <span className="dataTableCellMuted">{entry.resourceType}</span>
+                <span className="dataTableCellMuted">{t(`auditLog.resourceTypes.${entry.resourceType}`)}</span>
                 <span className="dataTableCellMuted">{entry.resourceLabel || "—"}</span>
                 <span className="dataTableCellMuted">{actorName(entry.actor)}</span>
                 <span className="dataTableCellMuted">{formatDateTime(entry.createdAt)}</span>
+                {userIsAdmin && (
+                  <div className="dataTableActions">
+                    <button type="button" className="tableActionBtn tableActionBtnDanger" title={t("common.delete")} onClick={() => askDelete(entry)}>
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
+                )}
               </div>
             ))}
           </div>
           <Pagination page={pagination.page} pages={pagination.pages} total={pagination.total} limit={pagination.limit} onPageChange={setPage} />
         </>
       )}
+
+      <ActionModal
+        isOpen={modal.open}
+        type={modal.type}
+        title={modal.title}
+        message={modal.message}
+        loading={actionLoading}
+        onConfirm={modal.type === "confirm" ? handleConfirmDelete : undefined}
+        onClose={closeModal}
+      />
     </div>
   );
 }

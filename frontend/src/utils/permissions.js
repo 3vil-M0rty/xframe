@@ -26,7 +26,7 @@ const TOP_LEVEL_ROLES = [ROLES.ADMIN, ROLES.OWNER];
  */
 export const ALLOW_DEPARTMENT_SCOPED_USER_MANAGEMENT = false;
 
-const isAdmin = (actor) => actor?.role === ROLES.ADMIN;
+export const isAdmin = (actor) => actor?.role === ROLES.ADMIN;
 const isOwner = (actor) => actor?.role === ROLES.OWNER;
 const isPlainUser = (actor) => actor?.role === ROLES.USER;
 
@@ -73,6 +73,16 @@ export function canSelfService(actor) {
 // ------------------------------------------------------------
 
 export function canCreateCompany(actor) {
+  return isAdmin(actor) || isOwner(actor);
+}
+
+/**
+ * Route-level gate for company-wide policy settings (like the Work
+ * Schedule page) — company-agnostic here (any admin or owner), the
+ * backend enforces the specific per-company check once a company
+ * is actually selected on the page (see canManageCompany).
+ */
+export function canManageCompanySettings(actor) {
   return isAdmin(actor) || isOwner(actor);
 }
 

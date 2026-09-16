@@ -1,0 +1,111 @@
+.toolbar {
+    display: flex;
+    margin-bottom: 20px;
+    max-width: 320px;
+}
+
+.daysTable {
+    border: 1px solid var(--color-border);
+    border-radius: 12px;
+    overflow: hidden;
+    background: var(--color-bg-primary);
+}
+
+.daysHead,
+.dayRow {
+    display: grid;
+    grid-template-columns: 1.1fr 1.1fr 1.2fr 1fr 1fr;
+    align-items: center;
+    gap: 14px;
+    padding: 14px 18px;
+}
+
+.daysHead {
+    color: var(--color-text-tertiary);
+    background: var(--color-bg-secondary);
+    border-bottom: 1px solid var(--color-border);
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+}
+
+.dayRow {
+    border-bottom: 1px solid var(--color-border);
+    transition: opacity 0.15s ease;
+}
+
+.dayRow:last-of-type {
+    border-bottom: 0;
+}
+
+.dayRow[data-disabled="true"] {
+    opacity: 0.55;
+}
+
+.dayName {
+    color: var(--color-text-primary);
+    font-size: 0.88rem;
+    font-weight: 600;
+}
+
+.toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    width: fit-content;
+    cursor: pointer;
+    color: var(--color-text-secondary);
+    font-size: 0.8rem;
+}
+
+.toggle input {
+    width: 16px;
+    height: 16px;
+    accent-color: #4c8dff;
+    cursor: pointer;
+}
+
+.timeInputs,
+.hoursInput {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--color-text-tertiary);
+    font-size: 0.78rem;
+}
+
+.numberInput {
+    width: 56px;
+    height: 34px;
+    padding: 0 8px;
+    text-align: center;
+    color: var(--color-text-primary);
+    background: var(--color-bg-secondary);
+    border: 1px solid var(--color-border);
+    border-radius: 7px;
+    font-family: inherit;
+    font-size: 0.82rem;
+}
+
+.numberInput:disabled {
+    cursor: not-allowed;
+}
+
+.footnote {
+    padding: 14px 18px;
+    color: var(--color-text-tertiary);
+    font-size: 0.72rem;
+    border-top: 1px solid var(--color-border);
+}
+
+@media (max-width: 800px) {
+    .daysHead {
+        display: none;
+    }
+
+    .dayRow {
+        grid-template-columns: 1fr;
+        gap: 8px;
+    }
+}

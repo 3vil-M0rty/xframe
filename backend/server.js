@@ -18,6 +18,10 @@ const notificationRoutes = require("./routes/notifications");
 const auditLogRoutes = require("./routes/auditLogs");
 const reportRoutes = require("./routes/reports");
 const meRoutes = require("./routes/me");
+const workScheduleRoutes = require("./routes/workSchedule");
+const inventoryCategoryRoutes = require("./routes/inventoryCategories");
+const productRoutes = require("./routes/products");
+const purchaseRequestRoutes = require("./routes/purchaseRequests");
 
 const app = express();
 
@@ -53,6 +57,10 @@ app.use("/api/notifications", notificationRoutes);
 app.use("/api/audit-logs", auditLogRoutes);
 app.use("/api/reports", reportRoutes);
 app.use("/api/me", meRoutes);
+app.use("/api/work-schedule", workScheduleRoutes);
+app.use("/api/inventory-categories", inventoryCategoryRoutes);
+app.use("/api/products", productRoutes);
+app.use("/api/purchase-requests", purchaseRequestRoutes);
 
 // Health check
 app.get('/health', (req, res) => {

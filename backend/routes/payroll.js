@@ -19,6 +19,13 @@ const {
   notifyMany,
   getHRRecipientIds,
 } = require("../services/notificationService");
+const { generatePayslipPdf, computeYtdTotals } = require("../services/payslipPdfService");
+const { getLeaveBalance } = require("../services/leaveBalanceService");
+const {
+  buildCnssExport,
+  buildPayrollRegister,
+  buildBankTransferExport,
+} = require("../services/payrollExportService");
 
 router.use(auth, requireHRAccess);
 
@@ -498,6 +505,106 @@ router.get("/payslips", async (req, res) => {
   } catch (error) {
     console.error("GET payslips error:", error);
     res.status(500).json({ success: false, message: "Error fetching payslips", error: error.message });
+  }
+});
+
+// ======================================================
+// DOWNLOAD PAYSLIP PDF
+// GET /api/payroll/payslips/:id/pdf
+// ======================================================
+
+router.get("/payslips/:id/pdf", async (req, res) => {
+  try {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ success: false, message: "Invalid payslip ID" });
+    }
+
+    const payslip = await Payslip.findById(req.params.id)
+      .populate("company")
+      .populate("employee");
+
+    if (!payslip) {
+      return res.status(404).json({ success: false, message: "Payslip not found" });
+    }
+
+    if (!canManage(req, payslip.company)) {
+      return res.status(403).json({ success: false, message: "Not authorized to view this payslip" });
+    }
+
+    const [ytd, leaveBalance] = await Promise.all([
+      computeYtdTotals(Payslip, payslip.employee._id, payslip.year, payslip.month),
+      getLeaveBalance(payslip.employee),
+    ]);
+
+    const doc = generatePayslipPdf({
+      payslip,
+      employee: payslip.employee,
+      company: payslip.company,
+      ytdGross: ytd.gross,
+      ytdNet: ytd.net,
+      leaveBalance,
+    });
+
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader(
+      "Content-Disposition",
+      `inline; filename="bulletin-${payslip.employee.employeeNumber || payslip.employee._id}-${payslip.month}-${payslip.year}.pdf"`
+    );
+    doc.pipe(res);
+    doc.end();
+  } catch (error) {
+    console.error("GET payslip PDF error:", error);
+    res.status(500).json({ success: false, message: "Error generating payslip PDF", error: error.message });
+  }
+});
+
+// ======================================================
+// PAYROLL RUN EXPORTS (CNSS worksheet, register, bank transfer)
+// GET /api/payroll/runs/:id/export/:type
+// :type = cnss | register | bank-transfer
+// ======================================================
+
+router.get("/runs/:id/export/:type", async (req, res) => {
+  try {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ success: false, message: "Invalid run ID" });
+    }
+
+    const run = await PayrollRun.findById(req.params.id).populate("company");
+    if (!run) {
+      return res.status(404).json({ success: false, message: "Payroll run not found" });
+    }
+    if (!canManage(req, run.company)) {
+      return res.status(403).json({ success: false, message: "Not authorized" });
+    }
+
+    const payslips = await Payslip.find({ payrollRun: run._id }).populate("employee");
+
+    let csv;
+    let filenamePart;
+
+    if (req.params.type === "cnss") {
+      csv = buildCnssExport(run, payslips, run.company);
+      filenamePart = "cnss-bds";
+    } else if (req.params.type === "register") {
+      csv = buildPayrollRegister(run, payslips, run.company);
+      filenamePart = "etat-de-paie";
+    } else if (req.params.type === "bank-transfer") {
+      csv = buildBankTransferExport(run, payslips, run.company);
+      filenamePart = "virement-masse";
+    } else {
+      return res.status(400).json({ success: false, message: "Unknown export type" });
+    }
+
+    res.setHeader("Content-Type", "text/csv; charset=utf-8");
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="${filenamePart}-${run.month}-${run.year}.csv"`
+    );
+    res.send(csv);
+  } catch (error) {
+    console.error("GET payroll export error:", error);
+    res.status(500).json({ success: false, message: "Error generating export", error: error.message });
   }
 });
 

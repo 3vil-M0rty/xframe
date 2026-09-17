@@ -95,10 +95,10 @@ export default function EmployeeCard({
             </span>
           )}
 
-          {employee.department && (
+          {employee.department?.name && (
             <span className={`pillTag ${styles.employeeMetaItem}`}>
               <Users size={14} />
-              {employee.department}
+              {employee.department.name}
             </span>
           )}
 

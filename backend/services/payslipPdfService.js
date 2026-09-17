@@ -115,7 +115,7 @@ function generatePayslipPdf({ payslip, employee, company, ytdGross = 0, ytdNet =
   doc.text(`Poste: ${employee?.jobTitle || "—"}`, rightColX, boxTop + 20);
   doc.text(`Date d'embauche: ${formatDate(employee?.hireDate)}`, rightColX, boxTop + 32);
   doc.text(`Ancienneté: ${seniorityLabel(employee?.hireDate)}`, rightColX, boxTop + 44);
-  doc.text(`Département: ${employee?.department || "—"}`, rightColX, boxTop + 56);
+  doc.text(`Département: ${employee?.department?.name || "—"}`, rightColX, boxTop + 56);
 
   doc.y = boxTop + 86;
 

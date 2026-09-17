@@ -76,13 +76,20 @@ export default function WorkSchedule() {
     }));
   };
 
+  const updateHoursManagement = (field, value) => {
+    setSchedule((prev) => ({
+      ...prev,
+      hoursManagement: { ...prev.hoursManagement, [field]: value },
+    }));
+  };
+
   const handleSave = async () => {
     if (!schedule) return;
     setSaving(true);
     try {
       const days = {};
       for (const day of DAY_ORDER) days[day] = schedule[day];
-      const updated = await updateWorkSchedule(selectedCompanyId, days);
+      const updated = await updateWorkSchedule(selectedCompanyId, days, schedule.hoursManagement);
       setSchedule(updated);
       setModal({
         open: true,
@@ -207,6 +214,100 @@ export default function WorkSchedule() {
           })}
 
           <p className={styles.footnote}>{t("workSchedule.footnote")}</p>
+        </div>
+      )}
+
+      {selectedCompanyId && !loading && schedule && (
+        <div className={styles.hoursManagement}>
+          <h2>{t("workSchedule.hoursManagement.title")}</h2>
+          <p className={styles.hoursManagementSubtitle}>{t("workSchedule.hoursManagement.subtitle")}</p>
+
+          <div className={styles.toggleRow}>
+            <div className={styles.toggleInfo}>
+              <span className={styles.toggleLabel}>{t("workSchedule.hoursManagement.payOvertime")}</span>
+              <span className={styles.toggleHint}>{t("workSchedule.hoursManagement.payOvertimeHint")}</span>
+            </div>
+            <label className={styles.switch}>
+              <input
+                type="checkbox"
+                checked={!!schedule.hoursManagement?.payOvertime}
+                onChange={(e) => updateHoursManagement("payOvertime", e.target.checked)}
+              />
+              <span className={styles.slider} />
+            </label>
+            {schedule.hoursManagement?.payOvertime && (
+              <div className={styles.rateInput}>
+                <input
+                  type="number" min={1} step={0.05} className={styles.numberInput}
+                  value={schedule.hoursManagement?.overtimeRate ?? 1.25}
+                  onChange={(e) => updateHoursManagement("overtimeRate", Number(e.target.value))}
+                />
+                <span>{t("workSchedule.hoursManagement.rateSuffix")}</span>
+              </div>
+            )}
+          </div>
+
+          <div className={styles.toggleRow}>
+            <div className={styles.toggleInfo}>
+              <span className={styles.toggleLabel}>{t("workSchedule.hoursManagement.deductLateArrival")}</span>
+              <span className={styles.toggleHint}>{t("workSchedule.hoursManagement.deductLateArrivalHint")}</span>
+            </div>
+            <label className={styles.switch}>
+              <input
+                type="checkbox"
+                checked={!!schedule.hoursManagement?.deductLateArrival}
+                onChange={(e) => updateHoursManagement("deductLateArrival", e.target.checked)}
+              />
+              <span className={styles.slider} />
+            </label>
+          </div>
+
+          <div className={styles.toggleRow}>
+            <div className={styles.toggleInfo}>
+              <span className={styles.toggleLabel}>{t("workSchedule.hoursManagement.deductEarlyLeave")}</span>
+              <span className={styles.toggleHint}>{t("workSchedule.hoursManagement.deductEarlyLeaveHint")}</span>
+            </div>
+            <label className={styles.switch}>
+              <input
+                type="checkbox"
+                checked={!!schedule.hoursManagement?.deductEarlyLeave}
+                onChange={(e) => updateHoursManagement("deductEarlyLeave", e.target.checked)}
+              />
+              <span className={styles.slider} />
+            </label>
+          </div>
+
+          {(schedule.hoursManagement?.deductLateArrival || schedule.hoursManagement?.deductEarlyLeave) && (
+            <div className={styles.toggleRow}>
+              <div className={styles.toggleInfo}>
+                <span className={styles.toggleLabel}>{t("workSchedule.hoursManagement.deductionRate")}</span>
+                <span className={styles.toggleHint}>{t("workSchedule.hoursManagement.deductionRateHint")}</span>
+              </div>
+              <div className={styles.rateInput}>
+                <input
+                  type="number" min={0} step={0.05} className={styles.numberInput}
+                  value={schedule.hoursManagement?.deductionRate ?? 1}
+                  onChange={(e) => updateHoursManagement("deductionRate", Number(e.target.value))}
+                />
+                <span>{t("workSchedule.hoursManagement.rateSuffix")}</span>
+              </div>
+            </div>
+          )}
+
+          <div className={styles.toggleRow}>
+            <div className={styles.toggleInfo}>
+              <span className={styles.toggleLabel}>{t("workSchedule.hoursManagement.monthlyStandardHours")}</span>
+              <span className={styles.toggleHint}>{t("workSchedule.hoursManagement.monthlyStandardHoursHint")}</span>
+            </div>
+            <div className={styles.rateInput}>
+              <input
+                type="number" min={1} step={1} className={styles.numberInput}
+                value={schedule.hoursManagement?.monthlyStandardHours ?? 191}
+                onChange={(e) => updateHoursManagement("monthlyStandardHours", Number(e.target.value))}
+              />
+              <span>{t("workSchedule.hoursUnit")}</span>
+            </div>
+          </div>
         </div>
       )}
 

@@ -168,6 +168,8 @@ router.get("/", auth, async (req, res) => {
           "manager",
           "firstName lastName employeeNumber jobTitle"
         )
+        .populate("department", "name permissionKey")
+        .populate("jobPosition", "title salaryBandMin salaryBandMax currency")
         .sort({
           lastName: 1,
           firstName: 1,
@@ -240,7 +242,9 @@ router.get("/:id", auth, async (req, res) => {
       .populate(
         "manager",
         "firstName lastName employeeNumber jobTitle"
-      );
+      )
+      .populate("department", "name permissionKey")
+      .populate("jobPosition", "title salaryBandMin salaryBandMax currency description requiredSkills");
 
     if (!employee) {
       return res.status(404).json({
@@ -483,6 +487,11 @@ router.post(
         after: employee.toObject(),
       });
 
+      await employee.populate([
+        { path: "department", select: "name permissionKey" },
+        { path: "jobPosition", select: "title salaryBandMin salaryBandMax currency" },
+      ]);
+
       res.status(201).json({
         success: true,
         data: employee,
@@ -627,6 +636,11 @@ router.put(
         before,
         after: employee.toObject(),
       });
+
+      await employee.populate([
+        { path: "department", select: "name permissionKey" },
+        { path: "jobPosition", select: "title salaryBandMin salaryBandMax currency" },
+      ]);
 
       res.json({
         success: true,

@@ -56,16 +56,20 @@ router.get("/headcount", async (req, res) => {
     const company = await requireCompanyAccess(req, res, req.query.companyId);
     if (!company) return;
 
-    const employees = await Employee.find({ company: company._id }).select(
-      "department employmentStatus employmentType"
-    );
+    const employees = await Employee.find({ company: company._id })
+      .select("department employmentStatus employmentType")
+      .populate("department", "name");
 
     const byDepartment = {};
     const byStatus = {};
     const byType = {};
 
     for (const emp of employees) {
-      const dept = emp.department || "unassigned";
+      // department is now a Department reference, not a plain
+      // string — group by its name (falling back to
+      // "Unassigned" for employees with none set yet) rather than
+      // the raw ObjectId, which wouldn't mean anything on a chart.
+      const dept = emp.department?.name || "Unassigned";
       byDepartment[dept] = (byDepartment[dept] || 0) + 1;
 
       const status = emp.employmentStatus || "unknown";

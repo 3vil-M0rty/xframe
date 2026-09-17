@@ -272,38 +272,27 @@ const employeeSchema = new mongoose.Schema(
         },
 
         department: {
-            type: String,
-            trim: true,
-            // Mirrors User.department exactly (see models/User.js) —
-            // this is what lets an auto-created self-service login
-            // inherit the same department as the employee record it
-            // came from (see services/employeeAccountService.js).
-            enum: [
-                "management",
-                "administration",
-                "hr",
-                "finance",
-                "accounting",
-                "sales",
-                "purchasing",
-                "marketing",
-                "production",
-                "production_planning",
-                "quality_control",
-                "maintenance",
-                "warehouse",
-                "logistics",
-                "procurement",
-                "engineering",
-                "design",
-                "research_development",
-                "it",
-                "customer_service",
-                "health_safety_environment",
-                "security",
-                null,
-                "",
-            ],
+            // Was a fixed enum string — now a reference to a
+            // company-defined Department (see models/Department.js
+            // and routes/departments.js, managed from Organization
+            // -> Departments). Optional so existing/legacy flows
+            // that haven't picked one yet don't break.
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "Department",
+            default: null,
+            index: true,
+        },
+
+        // Optional formal position from the department's "poste"
+        // registry (see models/JobPosition.js) — carries a defined
+        // salary band and required skills independent of who holds
+        // it. `jobTitle` below stays free text for employees whose
+        // exact role doesn't have a formal position defined yet, or
+        // for quick data entry; the two aren't mutually exclusive.
+        jobPosition: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "JobPosition",
+            default: null,
         },
 
         service: {

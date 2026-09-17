@@ -5,7 +5,7 @@ export const getWorkSchedule = async (companyId) => {
   return response.data.data;
 };
 
-export const updateWorkSchedule = async (companyId, days) => {
-  const response = await api.put("/work-schedule", { companyId, ...days });
+export const updateWorkSchedule = async (companyId, days, hoursManagement) => {
+  const response = await api.put("/work-schedule", { companyId, ...days, hoursManagement });
   return response.data.data;
 };

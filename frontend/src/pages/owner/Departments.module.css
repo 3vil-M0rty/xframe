@@ -1,0 +1,181 @@
+.toolbar {
+    display: flex;
+    margin-bottom: 20px;
+    max-width: 320px;
+}
+
+.errorMessage {
+    padding: 12px 16px;
+    margin-bottom: 16px;
+    border: 1px solid rgba(255, 80, 80, 0.25);
+    border-radius: 10px;
+    background: rgba(255, 80, 80, 0.06);
+    color: #ff8585;
+    font-size: 0.82rem;
+}
+
+.formCard {
+    padding: 18px;
+    margin-bottom: 20px;
+    border: 1px solid var(--color-border);
+    border-radius: 12px;
+    background: var(--color-bg-primary);
+}
+
+.formCard h3 {
+    margin: 0 0 14px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--color-text-primary);
+}
+
+.formGrid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(180px, 1fr));
+    gap: 14px;
+}
+
+.formField {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+}
+
+.formField label {
+    color: var(--color-text-secondary);
+    font-size: 0.72rem;
+    font-weight: 600;
+}
+
+.textInput {
+    height: 40px;
+    padding: 0 12px;
+    color: var(--color-text-primary);
+    background: var(--color-bg-primary);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    font-family: inherit;
+    font-size: var(--font-base);
+}
+
+.formHint {
+    margin: 10px 0 0;
+    color: var(--color-text-tertiary);
+    font-size: 0.7rem;
+}
+
+.formActions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 16px;
+}
+
+.deptList {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.deptCard {
+    border: 1px solid var(--color-border);
+    border-radius: 12px;
+    background: var(--color-bg-primary);
+    overflow: hidden;
+}
+
+.deptHeader {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    padding: 14px 16px;
+    color: var(--color-text-primary);
+    background: transparent;
+    border: 0;
+    font-size: 0.88rem;
+    font-weight: 600;
+    cursor: pointer;
+    text-align: left;
+}
+
+.deptHeader:hover {
+    background: var(--color-bg-hover);
+}
+
+.deptName {
+    flex: 1;
+}
+
+.permissionBadge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 8px;
+    color: #4c8dff;
+    background: rgba(76, 141, 255, 0.1);
+    border-radius: 999px;
+    font-size: 0.66rem;
+    font-weight: 700;
+}
+
+.positionCount {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 22px;
+    height: 20px;
+    padding: 0 6px;
+    color: var(--color-text-tertiary);
+    background: var(--color-bg-secondary);
+    border-radius: 999px;
+    font-size: 0.68rem;
+    font-weight: 700;
+}
+
+.deptBody {
+    padding: 0 16px 16px;
+    border-top: 1px solid var(--color-border);
+}
+
+.deptDescription {
+    margin: 14px 0 0;
+    color: var(--color-text-secondary);
+    font-size: 0.8rem;
+}
+
+.deptActions {
+    display: flex;
+    gap: 8px;
+    margin: 14px 0;
+}
+
+.positionForm {
+    padding: 16px;
+    margin-bottom: 14px;
+    border: 1px solid var(--color-border);
+    border-radius: 10px;
+    background: var(--color-bg-secondary);
+}
+
+.positionForm h4 {
+    margin: 0 0 12px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--color-text-primary);
+}
+
+.noPositions {
+    color: var(--color-text-tertiary);
+    font-size: 0.8rem;
+    padding: 8px 0;
+}
+
+@media (max-width: 700px) {
+    .formGrid {
+        grid-template-columns: 1fr;
+    }
+    .deptActions {
+        flex-wrap: wrap;
+    }
+}

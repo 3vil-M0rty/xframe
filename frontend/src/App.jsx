@@ -5,6 +5,7 @@ import LoginPage from './pages/LoginPage'
 import Profile from './pages/Profile'
 import Company from './pages/owner/Company'
 import WorkSchedule from './pages/owner/WorkSchedule'
+import Departments from './pages/owner/Departments'
 import ProtectedRoute from './components/ProtectedRoute'
 import Layout from './components/Layout'
 import Users from './pages/owner/Users'
@@ -20,7 +21,10 @@ import Reports from './pages/hr/Reports'
 import AuditLog from './pages/hr/AuditLog'
 import OrgChart from './pages/hr/OrgChart'
 import MySpace from './pages/me/MySpace'
-import { canAccessHR, canSelfService, canManageCompanySettings } from './utils/permissions'
+import Inventory from './pages/production/Inventory'
+import InventorySettings from './pages/production/InventorySettings'
+import PurchaseRequests from './pages/production/PurchaseRequests'
+import { canAccessHR, canSelfService, canManageCompanySettings, canAccessProduction } from './utils/permissions'
 import './styles/global.css';
 
 // Every HR page needs the same two things: logged in (outer
@@ -36,6 +40,11 @@ function hrRoute(element) {
 // of role/department.
 function selfServiceRoute(element) {
   return <ProtectedRoute permission={canSelfService}>{element}</ProtectedRoute>
+}
+
+// Production module — admins and the "production" department only.
+function productionRoute(element) {
+  return <ProtectedRoute permission={canAccessProduction}>{element}</ProtectedRoute>
 }
 
 export default function App() {
@@ -69,6 +78,14 @@ export default function App() {
                   </ProtectedRoute>
                 }
               />
+              <Route
+                path="/organization/departments"
+                element={
+                  <ProtectedRoute permission={canManageCompanySettings}>
+                    <Departments />
+                  </ProtectedRoute>
+                }
+              />
 
               {/* HR module */}
               <Route path="/hr/employees" element={hrRoute(<Employees />)} />
@@ -91,6 +108,11 @@ export default function App() {
               <Route path="/me/absences" element={selfServiceRoute(<MySpace />)} />
               <Route path="/me/advances" element={selfServiceRoute(<MySpace />)} />
               <Route path="/me/attendance" element={selfServiceRoute(<MySpace />)} />
+
+              {/* Production module */}
+              <Route path="/production/inventory" element={productionRoute(<Inventory />)} />
+              <Route path="/production/purchase-requests" element={productionRoute(<PurchaseRequests />)} />
+              <Route path="/production/settings" element={productionRoute(<InventorySettings />)} />
 
               {/* Unmatched routes (including the organization sidebar's
                   not-yet-built placeholder links — Departments, Job

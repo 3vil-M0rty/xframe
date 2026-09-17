@@ -171,7 +171,7 @@ function ProfileTab({ t }) {
       </div>
 
       <div className={styles.infoGrid}>
-        <div><label>{t("employees.detail.department")}</label><span>{profile.department || "—"}</span></div>
+        <div><label>{t("employees.detail.department")}</label><span>{profile.department?.name || "—"}</span></div>
         <div><label>{t("employees.fields.hireDate")}</label><span>{formatDate(profile.hireDate)}</span></div>
         <div><label>{t("employees.detail.phone")}</label><span>{profile.phone || "—"}</span></div>
         <div><label>{t("employees.detail.email")}</label><span>{profile.workEmail || "—"}</span></div>

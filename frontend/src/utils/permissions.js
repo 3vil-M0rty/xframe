@@ -59,6 +59,18 @@ export function canAccessHR(actor) {
 }
 
 /**
+ * Production module gate — deliberately narrower than canAccessHR:
+ * only platform admins and users in the "production" department,
+ * NOT owners by default. Mirrors the backend's canAccessProduction
+ * (permissions/permissions.js) exactly.
+ */
+export const PRODUCTION_DEPARTMENT = "production";
+
+export function canAccessProduction(actor) {
+  return isAdmin(actor) || actor?.department === PRODUCTION_DEPARTMENT;
+}
+
+/**
  * Mirrors the backend's canSelfService — does this user have a
  * linked employee record, unlocking the "My Space" self-service
  * section (My Profile / My Payslips / My Absences / My Advances /

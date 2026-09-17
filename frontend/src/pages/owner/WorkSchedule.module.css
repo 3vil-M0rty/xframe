@@ -99,6 +99,113 @@
     border-top: 1px solid var(--color-border);
 }
 
+.hoursManagement {
+    margin-top: 24px;
+    padding: 20px;
+    border: 1px solid var(--color-border);
+    border-radius: 12px;
+    background: var(--color-bg-primary);
+}
+
+.hoursManagement h2 {
+    margin: 0 0 4px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--color-text-primary);
+}
+
+.hoursManagementSubtitle {
+    margin: 0 0 18px;
+    color: var(--color-text-tertiary);
+    font-size: 0.78rem;
+}
+
+.toggleRow {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 16px;
+    padding: 14px 0;
+    border-top: 1px solid var(--color-border);
+}
+
+.toggleRow:first-of-type {
+    border-top: 0;
+}
+
+.toggleInfo {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    flex: 1 1 240px;
+}
+
+.toggleLabel {
+    color: var(--color-text-primary);
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+.toggleHint {
+    color: var(--color-text-tertiary);
+    font-size: 0.72rem;
+}
+
+.switch {
+    position: relative;
+    display: inline-block;
+    width: 40px;
+    height: 22px;
+    flex-shrink: 0;
+    cursor: pointer;
+}
+
+.switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.slider {
+    position: absolute;
+    inset: 0;
+    background: var(--color-bg-secondary);
+    border: 1px solid var(--color-border);
+    border-radius: 999px;
+    transition: background 0.15s ease;
+}
+
+.slider::before {
+    content: "";
+    position: absolute;
+    width: 16px;
+    height: 16px;
+    left: 2px;
+    top: 2px;
+    background: var(--color-text-tertiary);
+    border-radius: 50%;
+    transition: transform 0.15s ease, background 0.15s ease;
+}
+
+.switch input:checked + .slider {
+    background: rgba(76, 141, 255, 0.25);
+    border-color: rgba(76, 141, 255, 0.5);
+}
+
+.switch input:checked + .slider::before {
+    transform: translateX(18px);
+    background: #4c8dff;
+}
+
+.rateInput {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+    color: var(--color-text-tertiary);
+    font-size: 0.78rem;
+}
+
 @media (max-width: 800px) {
     .daysHead {
         display: none;

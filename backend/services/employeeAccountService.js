@@ -1,6 +1,7 @@
 const crypto = require("crypto");
 const User = require("../models/User");
 const Employee = require("../models/Employee");
+const Department = require("../models/Department");
 
 /**
  * Strips accents/diacritics (é → e, ç → c, ...) — common in
@@ -111,18 +112,27 @@ async function createLoginForEmployee(employee, actorId) {
 
   const temporaryPassword = generateTemporaryPassword();
 
+  // Employee.department is now a reference to a company-defined
+  // Department (see models/Department.js), not a fixed permission
+  // string — so this login's OWN department field (which the
+  // permission system checks — canAccessHR/canAccessProduction)
+  // comes from that department's `permissionKey`, not from copying
+  // the reference itself. Most departments have no permissionKey
+  // set, which correctly means "no special module access, just
+  // self-service" for employees there.
+  let permissionDepartment;
+  if (employee.department) {
+    const department = await Department.findById(employee.department).select("permissionKey");
+    permissionDepartment = department?.permissionKey || undefined;
+  }
+
   const user = await User.create({
     firstName: employee.firstName,
     lastName: employee.lastName,
     email: normalizedEmail,
     password: temporaryPassword, // hashed by User's pre('save') hook
     role: "user",
-    // Mirrors the employee's own department (same enum on both
-    // models — see models/Employee.js) — this is what lets a
-    // department-scoped permission like "hr department can access
-    // the HR module" apply automatically to an HR employee's own
-    // login, without HR having to configure it separately.
-    department: employee.department || undefined,
+    department: permissionDepartment,
     employee: employee._id,
   });
 

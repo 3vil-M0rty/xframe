@@ -150,6 +150,23 @@ router.post("/clock-out", async (req, res) => {
       0
     );
 
+    // Expected end time = start time + configured work hours for
+    // that day. Clocking out more than `graceMinutes` before that
+    // marks the day as a left-early day.
+    if (dayConfig.isWorkingDay) {
+      const expectedEnd = new Date(today);
+      expectedEnd.setHours(dayConfig.startHour, dayConfig.startMinute, 0, 0);
+      expectedEnd.setMinutes(expectedEnd.getMinutes() + dayConfig.workHours * 60);
+
+      const earlyMinutes = Math.max(
+        Math.round((expectedEnd - now) / 60000) - dayConfig.graceMinutes,
+        0
+      );
+
+      record.leftEarly = earlyMinutes > 0;
+      record.earlyLeaveMinutes = earlyMinutes;
+    }
+
     await record.save();
 
     res.json({ success: true, data: record, message: "Clocked out" });

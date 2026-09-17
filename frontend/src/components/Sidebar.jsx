@@ -11,13 +11,14 @@ import {
   UserRoundCog,
   Menu,
   IdCardLanyard,
+  Factory,
 } from "lucide-react";
 
 import { useI18n } from "../hooks/useI18n";
 import { useAuth } from "../hooks/useAuth";
 import styles from "./Sidebar.module.css";
 import LanguageSwitcher from "./useful/LanguageSwitcher";
-import { canAccessHR, canSelfService } from "../utils/permissions";
+import { canAccessHR, canSelfService, canAccessProduction } from "../utils/permissions";
 
 export default function Sidebar() {
   const [isOpen, setIsOpen] = useState(true);
@@ -62,10 +63,6 @@ export default function Sidebar() {
         {
           label: t("sidebar.departments"),
           href: "/organization/departments",
-        },
-        {
-          label: t("sidebar.jobPositions"),
-          href: "/organization/job-positions",
         },
         {
           label: t("sidebar.rolesPermissions"),
@@ -178,6 +175,29 @@ export default function Sidebar() {
         {
           label: t("sidebar.myAttendance"),
           href: "/me/attendance",
+        },
+      ],
+    },
+
+    {
+      id: "production",
+      label: t("sidebar.production"),
+      icon: Factory,
+      // Deliberately narrower than HR — admins and the "production"
+      // department only, no owner bypass. See utils/permissions.js.
+      permission: canAccessProduction,
+      subsections: [
+        {
+          label: t("sidebar.inventory"),
+          href: "/production/inventory",
+        },
+        {
+          label: t("sidebar.purchaseRequests"),
+          href: "/production/purchase-requests",
+        },
+        {
+          label: t("sidebar.inventorySettings"),
+          href: "/production/settings",
         },
       ],
     },

@@ -44,7 +44,7 @@ import {
   deleteEmployeePhoto,
 } from "../../services/employeeService";
 import { getCompanies } from "../../services/companyService";
-import { getDepartmentOptions } from "../../utils/departments";
+import { getDepartments } from "../../services/departmentService";
 
 import styles from "./Employees.module.css";
 
@@ -256,6 +256,31 @@ export default function Employees() {
       user?.companyId ||
       ""
     );
+
+  // Departments are now a real, company-defined registry (see
+  // Organization -> Departments) instead of the old fixed list —
+  // fetched per the FORM's company (not the grid filter), since
+  // that's what the create/edit form's department dropdown needs.
+  const [departments, setDepartments] = useState([]);
+
+  useEffect(() => {
+    if (!formCompanyId) { setDepartments([]); return; }
+    let cancelled = false;
+    (async () => {
+      try {
+        const data = await getDepartments(formCompanyId);
+        if (!cancelled) setDepartments(data);
+      } catch (error) {
+        console.error("Failed to load departments:", error);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [formCompanyId]);
+
+  const departmentOptions = departments.map((d) => ({
+    value: d._id,
+    label: d.name,
+  }));
 
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebouncedValue(search, 400);
@@ -886,7 +911,10 @@ export default function Employees() {
       jobTitle:
         employee.jobTitle || "",
       department:
-        employee.department || "",
+        // Now a populated Department object ({_id, name, ...})
+        // rather than a plain string — the select field needs the
+        // ID as its value, not the whole object.
+        employee.department?._id || employee.department || "",
       service:
         employee.service || "",
       position:
@@ -1400,7 +1428,8 @@ export default function Employees() {
           "employees.fields.department"
         ),
         type: "select",
-        options: getDepartmentOptions(t),
+        options: departmentOptions,
+        placeholder: departments.length === 0 ? t("employees.fields.noDepartments") : t("inventory.fields.selectCategory"),
       },
       {
         name: "service",
@@ -1607,7 +1636,7 @@ export default function Employees() {
           ]
         : []),
     ],
-    [t, editingEmployee]
+    [t, editingEmployee, departments]
   );
 
   /* ==========================================================
@@ -2293,11 +2322,11 @@ export default function Employees() {
                 </span>
               )}
 
-              {selectedEmployee.department && (
+              {selectedEmployee.department?.name && (
                 <span>
                   <Users size={15} />
                   {
-                    selectedEmployee.department
+                    selectedEmployee.department.name
                   }
                 </span>
               )}
@@ -2547,7 +2576,7 @@ export default function Employees() {
                   )}
                 </label>
                 <span>
-                  {selectedEmployee.department ||
+                  {selectedEmployee.department?.name ||
                     t(
                       "employees.detail.empty"
                     )}

@@ -59,7 +59,7 @@ router.get("/", async (req, res) => {
 
 router.put("/", async (req, res) => {
   try {
-    const { companyId, ...days } = req.body;
+    const { companyId, hoursManagement, ...days } = req.body;
 
     if (!companyId) {
       return res.status(400).json({ success: false, message: "companyId is required" });
@@ -87,6 +87,17 @@ router.put("/", async (req, res) => {
           graceMinutes: Number(days[day].graceMinutes) || 0,
         };
       }
+    }
+
+    if (hoursManagement) {
+      update.hoursManagement = {
+        payOvertime: !!hoursManagement.payOvertime,
+        overtimeRate: Number(hoursManagement.overtimeRate) || 1.25,
+        deductLateArrival: !!hoursManagement.deductLateArrival,
+        deductEarlyLeave: !!hoursManagement.deductEarlyLeave,
+        deductionRate: Number(hoursManagement.deductionRate) || 1,
+        monthlyStandardHours: Number(hoursManagement.monthlyStandardHours) || 191,
+      };
     }
 
     const schedule = await WorkSchedule.findOneAndUpdate(

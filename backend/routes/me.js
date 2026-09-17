@@ -40,10 +40,10 @@ router.use((req, res, next) => {
 
 router.get("/employee", async (req, res) => {
   try {
-    const employee = await Employee.findById(req.user.employee).populate(
-      "manager",
-      "firstName lastName jobTitle"
-    );
+    const employee = await Employee.findById(req.user.employee)
+      .populate("manager", "firstName lastName jobTitle")
+      .populate("department", "name")
+      .populate("jobPosition", "title salaryBandMin salaryBandMax currency");
 
     if (!employee) {
       return res.status(404).json({ success: false, message: "Employee record not found" });
@@ -154,7 +154,10 @@ router.get("/payslips/:id/pdf", async (req, res) => {
       status: { $ne: "draft" },
     })
       .populate("company")
-      .populate("employee");
+      .populate({
+        path: "employee",
+        populate: { path: "department", select: "name" },
+      });
 
     if (!payslip) {
       return res.status(404).json({ success: false, message: "Payslip not found" });

@@ -24,6 +24,8 @@ require("dotenv").config();
 const User = require("../models/User");
 const Company = require("../models/Company");
 const Employee = require("../models/Employee");
+const Department = require("../models/Department");
+const JobPosition = require("../models/JobPosition");
 const Salary = require("../models/Salary");
 const Contract = require("../models/Contract");
 const Absence = require("../models/Absence");
@@ -66,6 +68,8 @@ async function run() {
     User.deleteMany({}),
     Company.deleteMany({}),
     Employee.deleteMany({}),
+    Department.deleteMany({}),
+    JobPosition.deleteMany({}),
     Salary.deleteMany({}),
     Contract.deleteMany({}),
     Absence.deleteMany({}),
@@ -158,6 +162,72 @@ async function run() {
   console.log("✓ Company created:", company.name);
 
   // ==========================================================
+  // DEPARTMENTS + JOB POSITIONS
+  // ==========================================================
+  // Replaces the old fixed enum — these are now real, company-
+  // defined records (Organization -> Departments). Only the HR and
+  // Production departments carry a permissionKey: that's what lets
+  // an auto-created login for an employee in one of THOSE
+  // departments get the matching module access (see
+  // services/employeeAccountService.js) — every other department
+  // is just organizational data with no special access implied.
+
+  const departmentDefs = [
+    { name: "Ressources Humaines", permissionKey: "hr", description: "Gestion du personnel et de la paie" },
+    { name: "Production", permissionKey: "production", description: "Fabrication et gestion des stocks" },
+    { name: "Finance", permissionKey: null },
+    { name: "Ventes", permissionKey: null },
+    { name: "Direction", permissionKey: null },
+  ];
+
+  const departmentsByName = {};
+  for (const def of departmentDefs) {
+    const department = await Department.create({
+      company: company._id,
+      name: def.name,
+      description: def.description,
+      permissionKey: def.permissionKey,
+      createdBy: hrUser._id,
+      updatedBy: hrUser._id,
+    });
+    departmentsByName[def.name] = department;
+  }
+
+  console.log(`✓ ${departmentDefs.length} departments created`);
+
+  const productionDept = departmentsByName["Production"];
+  const hrDept = departmentsByName["Ressources Humaines"];
+  const financeDept = departmentsByName["Finance"];
+  const salesDept = departmentsByName["Ventes"];
+
+  const productionManagerPosition = await JobPosition.create({
+    company: company._id,
+    department: productionDept._id,
+    title: "Responsable de Production",
+    salaryBandMin: 12000,
+    salaryBandMax: 18000,
+    currency: "MAD",
+    requiredSkills: ["Gestion d'équipe", "Lean manufacturing", "Excel avancé"],
+    createdBy: hrUser._id,
+    updatedBy: hrUser._id,
+  });
+
+  const productionOperatorPosition = await JobPosition.create({
+    company: company._id,
+    department: productionDept._id,
+    title: "Opérateur de Production",
+    salaryBandMin: 4000,
+    salaryBandMax: 6500,
+    currency: "MAD",
+    requiredSkills: ["Sécurité industrielle"],
+    reportsTo: productionManagerPosition._id,
+    createdBy: hrUser._id,
+    updatedBy: hrUser._id,
+  });
+
+  console.log("✓ 2 job positions created (with a reporting line between them)");
+
+  // ==========================================================
   // EMPLOYEES
   // ==========================================================
 
@@ -178,7 +248,8 @@ async function run() {
     employmentStatus: "active",
     employmentType: "permanent",
     jobTitle: "Production Manager",
-    department: "production",
+    department: productionDept._id,
+    jobPosition: productionManagerPosition._id,
     workLocation: "Casablanca Plant",
     cnssNumber: "CNSS-0001",
     createdBy: hrUser._id,
@@ -202,7 +273,7 @@ async function run() {
     employmentStatus: "active",
     employmentType: "permanent",
     jobTitle: "Production Line Operator",
-    department: "production",
+    department: productionDept._id,
     workLocation: "Casablanca Plant",
     manager: managerEmployee._id,
     cnssNumber: "CNSS-0002",
@@ -217,7 +288,7 @@ async function run() {
       lastName: "Alaoui",
       gender: "female",
       jobTitle: "Accountant",
-      department: "finance",
+      department: financeDept._id,
       employmentType: "permanent",
       manager: null,
       hireDate: daysAgo(900),
@@ -228,7 +299,7 @@ async function run() {
       lastName: "Benali",
       gender: "male",
       jobTitle: "Sales Representative",
-      department: "sales",
+      department: salesDept._id,
       employmentType: "fixed_term",
       manager: null,
       hireDate: daysAgo(150),
@@ -239,7 +310,7 @@ async function run() {
       lastName: "Idrissi",
       gender: "female",
       jobTitle: "HR Assistant",
-      department: "hr",
+      department: hrDept._id,
       employmentType: "permanent",
       manager: null,
       hireDate: daysAgo(600),
@@ -250,10 +321,11 @@ async function run() {
       lastName: "Tahiri",
       gender: "male",
       jobTitle: "Machine Operator",
-      department: "production",
+      department: productionDept._id,
       employmentType: "temporary",
       manager: managerEmployee._id,
       hireDate: daysAgo(60),
+      jobPosition: productionOperatorPosition._id,
     },
   ];
 
@@ -338,7 +410,6 @@ async function run() {
       // exercise the "expiring contracts" banner.
       endDate: emp.employeeNumber === "EMP-004" ? daysFromNow(20) : isFixedTerm ? daysFromNow(90) : null,
       jobTitle: emp.jobTitle,
-      department: emp.department,
       status: "active",
       createdBy: hrUser._id,
       updatedBy: hrUser._id,

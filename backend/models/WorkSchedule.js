@@ -59,6 +59,37 @@ const workScheduleSchema = new mongoose.Schema(
     saturday: { type: dayConfigSchema, default: defaultWorkday },
     sunday: { type: dayConfigSchema, default: defaultWeekend },
 
+    // ----------------------------------------------------------
+    // GESTION DES HEURES — company-wide toggles for how attendance
+    // feeds into payroll (see services/payrollAttendanceService.js,
+    // used by routes/payroll.js when generating a run). Each one is
+    // independently on/off, exactly as asked: an admin can enable
+    // overtime pay without enabling late/early deductions, or vice
+    // versa.
+    // ----------------------------------------------------------
+    hoursManagement: {
+      payOvertime: { type: Boolean, default: false },
+      // Multiplier on the hourly rate for overtime pay — Morocco's
+      // legal minimums vary by when the overtime falls (day/night/
+      // rest day, roughly 25%/50%/100% premiums); this is a single
+      // configurable rate as a starting point, not a full day-type
+      // breakdown.
+      overtimeRate: { type: Number, default: 1.25, min: 1 },
+
+      deductLateArrival: { type: Boolean, default: false },
+      deductEarlyLeave: { type: Boolean, default: false },
+      // Multiplier on the hourly rate for these deductions —
+      // normally 1 (a straight pay-for-time-not-worked deduction).
+      deductionRate: { type: Number, default: 1, min: 0 },
+
+      // Hours used as the denominator for "hourly rate = base
+      // salary / monthlyStandardHours". 191 is a commonly-cited
+      // legal monthly hour count in Morocco (26 days × ~7.33h, or
+      // equivalently 44h/week) — adjust if your company's standard
+      // differs.
+      monthlyStandardHours: { type: Number, default: 191, min: 1 },
+    },
+
     updatedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
   },
   { timestamps: true }

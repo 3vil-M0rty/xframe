@@ -50,6 +50,13 @@ const attendanceSchema = new mongoose.Schema(
     hoursWorked: { type: Number, default: 0 },
     lateMinutes: { type: Number, default: 0 },
     overtimeMinutes: { type: Number, default: 0 },
+    // Left before the expected end time (start + work hours) minus
+    // the day's grace period — mirrors lateMinutes/status but for
+    // clock-out. Kept separate from `status` (rather than adding a
+    // "left_early" enum value there) because an employee can be
+    // BOTH late AND leave early on the same day.
+    leftEarly: { type: Boolean, default: false },
+    earlyLeaveMinutes: { type: Number, default: 0 },
 
     source: {
       type: String,

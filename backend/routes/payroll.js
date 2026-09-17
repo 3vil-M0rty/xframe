@@ -9,12 +9,18 @@ const Employee = require("../models/Employee");
 const Salary = require("../models/Salary");
 const Company = require("../models/Company");
 const User = require("../models/User");
+const Advance = require("../models/Advance");
+const WorkSchedule = require("../models/WorkSchedule");
 
 const auth = require("../middleware/auth");
 const { requireHRAccess } = require("../middleware/permissionMiddleware");
 const { canAccessHRForCompany } = require("../permissions/permissions");
 const { calculatePayslip } = require("../services/payrollCalculationService");
 const { logAudit } = require("../services/auditLogger");
+const {
+  computePayrollAdjustments,
+  computeAdvanceDeductions,
+} = require("../services/payrollAttendanceService");
 const {
   notifyMany,
   getHRRecipientIds,
@@ -109,6 +115,9 @@ async function generateRun({ company, month, year, actorId, existingRun }) {
     employmentStatus: "active",
   });
 
+  const workSchedule = await WorkSchedule.findOne({ company });
+  const hoursManagement = workSchedule?.hoursManagement;
+
   const run =
     existingRun ||
     (await PayrollRun.create({
@@ -138,11 +147,24 @@ async function generateRun({ company, month, year, actorId, existingRun }) {
     // fail the whole run; HR can add a salary and regenerate.
     if (!currentSalary) continue;
 
+    // Absences (unpaid/unjustified), advances, and attendance
+    // (overtime/lateness) all fold into this one payslip here —
+    // see services/payrollAttendanceService.js.
+    const adjustments = await computePayrollAdjustments({
+      employeeId: employee._id,
+      month,
+      year,
+      baseSalary: currentSalary.baseSalary,
+      hoursManagement,
+    });
+
     const calc = calculatePayslip({
       baseSalary: currentSalary.baseSalary,
       allowances: currentSalary.allowances,
-      deductions: [],
+      deductions: adjustments.otherDeductions,
       numberOfDependents: employee.numberOfDependents || 0,
+      overtimeAmount: adjustments.overtimeAmount,
+      unpaidDeduction: adjustments.unpaidDeduction,
     });
 
     await Payslip.create({
@@ -374,6 +396,24 @@ router.post("/runs/:id/complete", async (req, res) => {
       { $set: { status: "validated" } }
     );
 
+    // Mark advances as repaid ONLY now, at completion — not during
+    // (possibly repeated) draft generation. Completing a run is a
+    // one-time, final action, so this is the one safe point to
+    // actually mutate Advance records; generating/regenerating a
+    // draft just shows what WOULD be deducted, without touching
+    // anything yet (see services/payrollAttendanceService.js).
+    const runPayslips = await Payslip.find({ payrollRun: run._id }).select("employee");
+    for (const payslip of runPayslips) {
+      const { toMarkRepaid } = await computeAdvanceDeductions({ employeeId: payslip.employee });
+      for (const { advanceId, amount } of toMarkRepaid) {
+        const advance = await Advance.findById(advanceId);
+        if (!advance) continue;
+        advance.repaidAmount = Math.round(((advance.repaidAmount || 0) + amount) * 100) / 100;
+        advance.repaid = advance.repaidAmount >= advance.amount;
+        await advance.save();
+      }
+    }
+
     // Notify every employee with a linked User account that a new
     // payslip is available.
     const payslips = await Payslip.find({ payrollRun: run._id }).populate({
@@ -521,7 +561,10 @@ router.get("/payslips/:id/pdf", async (req, res) => {
 
     const payslip = await Payslip.findById(req.params.id)
       .populate("company")
-      .populate("employee");
+      .populate({
+        path: "employee",
+        populate: { path: "department", select: "name" },
+      });
 
     if (!payslip) {
       return res.status(404).json({ success: false, message: "Payslip not found" });

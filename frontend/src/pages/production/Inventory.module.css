@@ -1,437 +1,447 @@
-/* ============================================================
-   INVENTORY PRODUCTS PAGE
-
-   Page-specific styles only.
-
-   Shared page/layout/button/empty-state primitives remain
-   in global.css.
-   ============================================================ */
-
-
-/* ============================================================
-   INVENTORY TABS
-   ============================================================ */
-
-.inventoryTabs {
+.toolbar {
     display: flex;
     flex-wrap: wrap;
-
-    gap: 6px;
-
-    margin-bottom: 20px;
-    padding-bottom: 12px;
-
-    border-bottom: 1px solid var(--color-border);
+    align-items: flex-end;
+    gap: 18px;
+    margin-bottom: 18px;
 }
 
-.inventoryTab {
-    display: inline-flex;
-    align-items: center;
+.searchGroup {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+    flex: 1 1 260px;
+    min-width: 220px;
+}
 
-    gap: 6px;
-
-    padding: 8px 12px;
-
+.searchGroup label {
     color: var(--color-text-secondary);
-
-    background: transparent;
-
-    border: 1px solid transparent;
-    border-radius: 8px;
-
-    font-family: inherit;
-    font-size: 0.8rem;
+    font-size: 0.72rem;
     font-weight: 600;
-
-    cursor: pointer;
-
-    transition:
-        color 0.15s ease,
-        background 0.15s ease,
-        border-color 0.15s ease;
 }
 
-.inventoryTab svg {
-    flex-shrink: 0;
+.searchBox {
+    position: relative;
+    display: flex;
+    align-items: center;
 }
 
-.inventoryTab:hover {
+.searchIcon {
+    position: absolute;
+    left: 12px;
+    color: var(--color-text-tertiary);
+    pointer-events: none;
+}
+
+.searchInput {
+    width: 100%;
+    height: 40px;
+    padding: 0 36px;
     color: var(--color-text-primary);
+    background: var(--color-bg-primary);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    font-family: inherit;
+    font-size: var(--font-base);
+}
 
+.clearSearch {
+    position: absolute;
+    right: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    color: var(--color-text-tertiary);
+    background: transparent;
+    border: 0;
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+.clearSearch:hover {
+    color: var(--color-text-primary);
     background: var(--color-bg-hover);
 }
 
-.inventoryTabActive {
-    color: var(--color-text-primary);
-
-    background: var(--color-bg-secondary);
-
-    border-color: var(--color-border);
-}
-
-
-/* ============================================================
-   INVENTORY INFO
-   ============================================================ */
-
-.inventoryInfo {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-
-    gap: 16px;
-
-    padding: 13px 16px;
-    margin-bottom: 18px;
-
+.suggestions {
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0;
+    right: 0;
+    z-index: 100;
+    max-height: 280px;
+    overflow-y: auto;
+    background: var(--color-bg-primary);
     border: 1px solid var(--color-border);
     border-radius: 10px;
-
-    background: var(--color-bg-secondary);
+    box-shadow: var(--color-shadow-lg);
 }
 
-.inventoryInfoHeader {
+.suggestionItem {
     display: flex;
     align-items: center;
-
     gap: 10px;
-
-    min-width: 0;
-
-    color: var(--color-text-secondary);
+    width: 100%;
+    padding: 9px 12px;
+    background: transparent;
+    border: 0;
+    border-bottom: 1px solid var(--color-border);
+    text-align: left;
+    cursor: pointer;
 }
 
-.inventoryInfoHeader > svg {
-    flex-shrink: 0;
+.suggestionItem:last-child {
+    border-bottom: 0;
 }
 
-.inventoryInfoHeader strong {
-    display: block;
+.suggestionItem:hover {
+    background: var(--color-bg-hover);
+}
 
-    overflow: hidden;
+.suggestionItem img {
+    width: 28px;
+    height: 28px;
+    object-fit: cover;
+    border-radius: 6px;
+}
 
+.suggestionName {
+    flex: 1;
     color: var(--color-text-primary);
-
-    font-size: 0.85rem;
-    font-weight: 650;
-
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    font-size: 0.82rem;
+    font-weight: 500;
 }
 
-.inventoryInfoHeader span {
-    display: block;
-
-    margin-top: 2px;
-
+.suggestionRef {
     color: var(--color-text-tertiary);
-
     font-size: 0.72rem;
 }
 
-.inventoryStats {
+.lowStockToggle {
     display: flex;
     align-items: center;
-
     gap: 8px;
+    height: 40px;
+    padding: 0 4px;
+    color: var(--color-text-secondary);
+    font-size: 0.8rem;
+    cursor: pointer;
 }
 
-.inventoryStats span {
-    flex-shrink: 0;
+.lowStockToggle input {
+    width: 16px;
+    height: 16px;
+    accent-color: #4c8dff;
+    cursor: pointer;
+}
 
-    padding: 4px 9px;
+.asOfBanner {
+    padding: 10px 14px;
+    margin-bottom: 16px;
+    border: 1px solid rgba(76, 141, 255, 0.3);
+    border-radius: 10px;
+    background: rgba(76, 141, 255, 0.08);
+    color: #4c8dff;
+    font-size: 0.82rem;
+}
 
+.errorMessage {
+    padding: 12px 16px;
+    margin-bottom: 16px;
+    border: 1px solid rgba(255, 80, 80, 0.25);
+    border-radius: 10px;
+    background: rgba(255, 80, 80, 0.06);
+    color: #ff8585;
+    font-size: 0.82rem;
+}
+
+/* ---------- Create/edit form ---------- */
+
+.formCard {
+    padding: 18px;
+    margin-bottom: 20px;
     border: 1px solid var(--color-border);
-    border-radius: 999px;
-
-    color: var(--color-text-secondary);
-
+    border-radius: 12px;
     background: var(--color-bg-primary);
+}
 
-    font-size: 0.7rem;
+.formCard h3 {
+    margin: 0 0 14px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--color-text-primary);
+}
+
+.formGrid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(180px, 1fr));
+    gap: 14px;
+}
+
+.formField {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+}
+
+.formField label {
+    color: var(--color-text-secondary);
+    font-size: 0.72rem;
     font-weight: 600;
 }
 
+.textInput {
+    height: 40px;
+    padding: 0 12px;
+    color: var(--color-text-primary);
+    background: var(--color-bg-primary);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    font-family: inherit;
+    font-size: var(--font-base);
+}
 
-/* ============================================================
-   TOOLBAR
-   ============================================================ */
+.formActions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 16px;
+}
 
-.toolbar {
+.pricesSection {
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid var(--color-border);
+}
+
+.pricesHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+}
+
+.pricesHeader label {
+    color: var(--color-text-secondary);
+    font-size: 0.72rem;
+    font-weight: 600;
+}
+
+.priceRow {
     display: grid;
-
-    grid-template-columns:
-        minmax(220px, 1fr)
-        auto;
-
-    align-items: end;
-
-    gap: 14px;
-
-    margin-bottom: 18px;
+    grid-template-columns: 1fr 1fr 1fr 40px;
+    gap: 8px;
+    margin-bottom: 8px;
 }
 
-.searchWrapper {
-    min-width: 0;
-}
-
-
-/* ============================================================
-   LOADING
-   ============================================================ */
-
-.loadingText {
-    color: var(--color-text-tertiary);
-
-    font-size: 0.85rem;
-}
-
-
-/* ============================================================
-   PRODUCT GRID
-   ============================================================ */
+/* ---------- Product grid ---------- */
 
 .productGrid {
     display: grid;
-
-    grid-template-columns:
-        repeat(
-            3,
-            minmax(0, 1fr)
-        );
-
-    gap: 14px;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 16px;
 }
-
-
-/* ============================================================
-   PRODUCT CARD
-   ============================================================ */
 
 .productCard {
     display: flex;
     flex-direction: column;
-
-    min-width: 0;
-
-    padding: 16px;
-
     border: 1px solid var(--color-border);
     border-radius: 12px;
-
     background: var(--color-bg-primary);
-
-    transition:
-        border-color 0.15s ease,
-        background 0.15s ease;
+    overflow: hidden;
 }
 
-.productCard:hover {
-    border-color: var(--color-text-tertiary);
-
-    background: var(--color-bg-secondary);
+.productCard[data-low="true"] {
+    border-color: rgba(232, 185, 63, 0.4);
 }
 
-
-/* ============================================================
-   PRODUCT HEADER
-   ============================================================ */
-
-.productHeader {
-    display: flex;
-    align-items: flex-start;
-
-    gap: 10px;
-
-    min-width: 0;
-
-    margin-bottom: 16px;
-}
-
-.productIcon {
+.productImage {
     display: flex;
     align-items: center;
     justify-content: center;
-
-    width: 42px;
-    height: 42px;
-
-    flex: 0 0 42px;
-
-    overflow: hidden;
-
+    height: 130px;
     color: var(--color-text-tertiary);
-
     background: var(--color-bg-secondary);
-
-    border: 1px solid var(--color-border);
-    border-radius: 9px;
+    cursor: pointer;
 }
 
-.productIcon img {
+.productImage img {
     width: 100%;
     height: 100%;
-
-    display: block;
-
     object-fit: cover;
 }
 
-.productHeading {
-    min-width: 0;
-
+.productBody {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 12px 14px;
     flex: 1;
 }
 
-.productHeading h3 {
-    overflow: hidden;
+.productHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
 
-    margin: 1px 0 3px;
+.categoryBadge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 0.66rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+}
 
+.lowBadge {
+    display: inline-flex;
+    color: #e8b93f;
+}
+
+.productName {
+    margin: 2px 0 0;
     color: var(--color-text-primary);
-
     font-size: 0.9rem;
     font-weight: 600;
-
-    text-overflow: ellipsis;
-    white-space: nowrap;
 }
 
-.productHeading span {
-    display: block;
-
-    overflow: hidden;
-
+.productRef {
     color: var(--color-text-tertiary);
-
     font-size: 0.7rem;
-
-    text-overflow: ellipsis;
-    white-space: nowrap;
 }
 
-
-/* ============================================================
-   PRODUCT DETAILS
-   ============================================================ */
-
-.productDetails {
-    display: grid;
-
-    grid-template-columns:
-        repeat(
-            2,
-            minmax(0, 1fr)
-        );
-
-    gap: 8px;
-
-    margin-bottom: 14px;
+.quantityRow {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    margin-top: 6px;
 }
 
-.productDetails > div {
-    min-width: 0;
-
-    padding: 9px 10px;
-
-    border: 1px solid var(--color-border);
-    border-radius: 8px;
-
-    background: var(--color-bg-secondary);
+.quantityValue {
+    color: var(--color-text-primary);
+    font-size: 1.2rem;
+    font-weight: 700;
 }
 
-.productDetails label {
-    display: block;
-
-    margin-bottom: 4px;
-
+.quantityUnit {
     color: var(--color-text-tertiary);
+    font-size: 0.75rem;
+}
 
+.thresholdHint {
+    margin-left: auto;
+    color: var(--color-text-tertiary);
     font-size: 0.66rem;
 }
 
-.productDetails strong,
-.productDetails span {
-    display: block;
-
-    overflow: hidden;
-
-    color: var(--color-text-primary);
-
-    font-size: 0.76rem;
-    font-weight: 600;
-
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-.productDetails span {
-    color: var(--color-text-secondary);
-
-    font-weight: 500;
-}
-
-
-/* ============================================================
-   PRODUCT FOOTER
-   ============================================================ */
-
-.productFooter {
+.pricesList {
     display: flex;
-    justify-content: flex-end;
+    flex-direction: column;
+    gap: 2px;
+    margin-top: 6px;
+}
 
+.priceTag {
+    color: var(--color-text-secondary);
+    font-size: 0.7rem;
+}
+
+.sellingPrice {
+    margin-top: 4px;
+    color: var(--color-text-secondary);
+    font-size: 0.72rem;
+    font-weight: 600;
+}
+
+.productActions {
+    display: flex;
+    align-items: center;
+    justify-content: center;
     gap: 6px;
-
-    margin-top: auto;
-    padding-top: 12px;
-
+    padding: 10px;
     border-top: 1px solid var(--color-border);
 }
 
+/* ---------- Small modals (adjust / purchase request) ---------- */
 
-/* ============================================================
-   RESPONSIVE
-   ============================================================ */
-
-@media (max-width: 1100px) {
-    .productGrid {
-        grid-template-columns:
-            repeat(
-                2,
-                minmax(0, 1fr)
-            );
-    }
+.overlay {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    background: rgba(0, 0, 0, 0.6);
+    z-index: 400;
 }
 
-@media (max-width: 760px) {
-    .toolbar {
-        grid-template-columns: 1fr;
-    }
-
-    .toolbar > button {
-        width: 100%;
-    }
-
-    .inventoryInfo {
-        flex-direction: column;
-        align-items: flex-start;
-    }
+.smallModal {
+    width: 100%;
+    max-width: 400px;
+    padding: 20px;
+    background: var(--color-bg-primary);
+    border: 1px solid var(--color-border);
+    border-radius: 14px;
 }
 
-@media (max-width: 600px) {
-    .productGrid {
+.smallModal h3 {
+    margin: 0 0 14px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--color-text-primary);
+}
+
+.successText {
+    color: #4cc38a;
+    font-size: 0.85rem;
+}
+
+/* ---------- Expanded image ---------- */
+
+.imageOverlay {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 40px;
+    background: rgba(0, 0, 0, 0.85);
+    z-index: 500;
+}
+
+.expandedImage {
+    max-width: 100%;
+    max-height: 100%;
+    border-radius: 10px;
+    object-fit: contain;
+}
+
+.imageCloseBtn {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    color: #fff;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 50%;
+    cursor: pointer;
+}
+
+@media (max-width: 700px) {
+    .formGrid {
         grid-template-columns: 1fr;
     }
-
-    .inventoryTabs {
-        overflow-x: auto;
-
-        flex-wrap: nowrap;
-
-        padding-bottom: 10px;
-    }
-
-    .inventoryTab {
-        flex-shrink: 0;
+    .priceRow {
+        grid-template-columns: 1fr 1fr;
     }
 }

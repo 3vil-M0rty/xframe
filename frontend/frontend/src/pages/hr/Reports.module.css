@@ -1,0 +1,113 @@
+.toolbar {
+    display: grid;
+    grid-template-columns: minmax(220px, 320px);
+    gap: 14px;
+    margin-bottom: 18px;
+}
+
+.filterGroup {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+}
+
+.filterGroup label {
+    color: var(--color-text-secondary);
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+}
+
+.statsRow {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 14px;
+    margin-bottom: 18px;
+}
+
+.statCard {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 16px;
+    border: 1px solid var(--color-border);
+    border-radius: 12px;
+    background: var(--color-bg-primary);
+}
+
+.statLabel {
+    color: var(--color-text-tertiary);
+    font-size: 0.72rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+}
+
+.statValue {
+    color: var(--color-text-primary);
+    font-size: 1.6rem;
+    font-weight: 700;
+}
+
+.chartsGrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+    gap: 16px;
+}
+
+.chartCard {
+    padding: 16px;
+    border: 1px solid var(--color-border);
+    border-radius: 12px;
+    background: var(--color-bg-primary);
+}
+
+.chartCard h3 {
+    margin: 0 0 10px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--color-text-primary);
+}
+
+.chartCardHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+}
+
+.chartCardHeader h3 {
+    margin: 0;
+}
+
+.chartFootnote {
+    margin: 8px 0 0;
+    color: var(--color-text-tertiary);
+    font-size: 0.68rem;
+}
+
+.noteBanner {
+    padding: 10px 14px;
+    margin-bottom: 16px;
+    border: 1px solid rgba(232, 185, 63, 0.3);
+    border-radius: 10px;
+    background: rgba(232, 185, 63, 0.08);
+    color: #e8b93f;
+    font-size: 0.8rem;
+}
+
+.errorBanner {
+    padding: 10px 14px;
+    margin-bottom: 16px;
+    border: 1px solid rgba(255, 80, 80, 0.25);
+    border-radius: 10px;
+    background: rgba(255, 80, 80, 0.06);
+    color: #ff8585;
+    font-size: 0.82rem;
+}
+
+@media (max-width: 700px) {
+    .toolbar {
+        grid-template-columns: 1fr;
+    }
+}

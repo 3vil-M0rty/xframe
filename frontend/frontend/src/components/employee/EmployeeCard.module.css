@@ -1,0 +1,124 @@
+/* ============================================================
+   EmployeeCard — page-agnostic styles for a single employee card.
+
+   Shared card/avatar/pill/button primitives live once in
+   src/styles/global.css as plain global classes (resourceCard,
+   avatarCircle, pillTag, cardFooterActions, cardFooterActionBtn,
+   cardFooterActionBtnDanger, ...) and are applied directly in the
+   JSX (e.g. className="cardFooterActions") — this file does NOT
+   use CSS Modules `composes`. It only holds styles that are
+   genuinely specific to EmployeeCard, or that add a little extra
+   on top of a shared class (e.g. .employeeCard, .employeeAvatar
+   below), so it stays in sync with UserCard and any other
+   resource card in the app without duplicating the shared rules.
+   ============================================================ */
+
+/* .employeeCard only carries the responsive override further
+   down on top of the shared "resourceCard" class, applied in JSX
+   as: className={`resourceCard ${styles.employeeCard}`}. Where a
+   rule here sets the SAME property as the shared class (like
+   .employeeCard's padding or .employeeAvatar's width/height
+   below), it uses a `:global(.sharedClass).localClass` compound
+   selector instead of a bare rule, so the override reliably wins
+   regardless of CSS load order. */
+
+.employeeCardTop {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+/* ---------- Avatar (photo or fallback icon) ---------- */
+
+/* Extra overflow clipping on top of the shared "avatarCircle"
+   class, applied in JSX as:
+   className={`avatarCircle ${styles.employeeAvatar}`} */
+.employeeAvatar {
+    overflow: hidden;
+}
+
+.employeeAvatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+/* ---------- Body ---------- */
+
+.employeeCardBody h3 {
+    margin: 0 0 0.4rem;
+    overflow: hidden;
+    color: var(--color-text-primary);
+    font-size: 0.9rem;
+    font-weight: 600;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.employeeJob {
+    margin: 0 0 8px;
+    color: var(--color-text-secondary);
+    font-size: 0.78rem;
+}
+
+.employeeMeta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+/* Extra text-truncation on top of the shared "pillTag" class,
+   applied in JSX as:
+   className={`pillTag ${styles.employeeMetaItem}`} */
+.employeeMetaItem {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* ---------- Status badge ---------- */
+
+.statusBadge {
+    display: inline-flex;
+    align-items: center;
+    flex-shrink: 0;
+    padding: 4px 8px;
+    border: 1px solid var(--color-border);
+    border-radius: 999px;
+    color: var(--color-text-tertiary);
+    background: var(--color-bg-primary);
+    font-size: 0.62rem;
+    font-weight: 600;
+    text-transform: capitalize;
+    white-space: nowrap;
+}
+
+.statusActive {
+    color: #d8d8d8;
+    border-color: rgba(255, 255, 255, 0.18);
+    background: rgba(255, 255, 255, 0.07);
+}
+
+.statusInactive {
+    opacity: 0.7;
+}
+
+/* ---------- Responsive ---------- */
+
+@media (max-width: 480px) {
+    :global(.resourceCard).employeeCard {
+        padding: 12px;
+    }
+
+    :global(.avatarCircle).employeeAvatar {
+        width: 40px;
+        height: 40px;
+    }
+
+    .employeeCardBody h3 {
+        font-size: 0.82rem;
+    }
+}

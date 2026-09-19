@@ -1,0 +1,87 @@
+/* ============================================================
+   Company page — page-specific styles only.
+
+   Shared layout/button/empty-state/detail-card/loading/danger-
+   zone rules live once in src/styles/global.css as plain global
+   classes (pageShell, pageHeader, btnPrimary, detailCard, etc.).
+   This file does NOT use CSS Modules `composes` — the shared
+   classes are applied directly in the JSX (e.g.
+   className="btnPrimary"), and this file only holds styles that
+   are genuinely specific to the Company page, or that add a
+   little extra on top of a shared class (e.g. .editButton below).
+   ============================================================ */
+
+/* ---------- Buttons ---------- */
+
+/* Extra responsive tweak on top of the shared "btnEdit" class,
+   applied in JSX as: className={`btnEdit ${styles.editButton}`}.
+   Uses a :global(...) compound selector (rather than a bare
+   ".editButton" rule) so this reliably wins over any width the
+   shared "btnEdit" class might set, regardless of CSS load order. */
+@media (max-width: 700px) {
+  :global(.btnEdit).editButton {
+    width: 100%;
+  }
+}
+
+/* ---------- Company card / detail ---------- */
+
+.logoSection {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  padding: 1.5rem;
+
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+  background: rgba(255, 255, 255, 0.015);
+}
+
+.logo {
+  max-width: 200px;
+  max-height: 120px;
+  object-fit: contain;
+}
+
+/* ---------- Employee count block (page-specific, no equivalent elsewhere) ---------- */
+
+.employeeSection {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+
+  padding: 1.5rem;
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.employeeIcon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  width: 42px;
+  height: 42px;
+
+  color: #aaa;
+
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+}
+
+.employeeSection div:last-child {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.employeeSection span {
+  color: #666;
+  font-size: 0.75rem;
+}
+
+.employeeSection strong {
+  color: #fff;
+  font-size: 1.25rem;
+  font-weight: 600;
+}

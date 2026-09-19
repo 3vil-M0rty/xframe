@@ -1,19 +1,24 @@
 import { useEffect, useRef, useState } from "react";
 import {
   Boxes, Plus, Minus, Edit, Trash2, X, Search,
-  AlertTriangle, ShoppingCart, BriefcaseBusiness, Package,
+  AlertTriangle, ShoppingCart, BriefcaseBusiness, Package, Languages, Ruler,
 } from "lucide-react";
 
 import { useI18n } from "../../hooks/useI18n";
+import { buildUnitOptions, getUnitLabel } from "../../config/units";
 import { useAuth } from "../../hooks/useAuth";
 import { useDebouncedValue } from "../../hooks/useDebouncedValue";
 
 import CustomSelect from "../../components/useful/CustomSelect";
+import SearchSelect from "../../components/useful/SearchSelect";
 import DateRangeFilter from "../../components/useful/DateRangeFilter";
 import Breadcrumbs from "../../components/useful/Breadcrumbs";
 import Pagination from "../../components/useful/Pagination";
 import ActionModal from "../../components/useful/ActionModal";
 import IconPicker from "../../components/useful/IconPicker";
+import TranslatedText from "../../components/useful/TranslatedText";
+import TranslationEditorModal from "../../components/useful/TranslationEditorModal";
+import FileInput from "../../components/useful/FileInput";
 
 import {
   getProducts,
@@ -177,7 +182,6 @@ export default function Inventory() {
   const [formFile, setFormFile] = useState(null);
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState("");
-  const fileInputRef = useRef(null);
 
   const openCreateForm = () => {
     setEditingProduct(null);
@@ -207,7 +211,22 @@ export default function Inventory() {
   const closeForm = () => {
     setShowForm(false);
     setEditingProduct(null);
-    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  // ---------- Translations editor (name) ----------
+  const [translatingProduct, setTranslatingProduct] = useState(null);
+
+  // Patches the just-saved/regenerated translation bucket into the
+  // already-loaded product list, so every language switch and every
+  // other view of this product reflects it immediately — no refetch.
+  const handleTranslationSaved = (field, bucket) => {
+    setProducts((prev) =>
+      prev.map((p) =>
+        p._id === translatingProduct?._id
+          ? { ...p, translations: { ...p.translations, [field]: bucket } }
+          : p
+      )
+    );
   };
 
   const addPriceRow = () => setFormPrices((prev) => [...prev, { supplierName: "", price: "", supplierReference: "" }]);
@@ -494,7 +513,14 @@ export default function Inventory() {
             )}
             <div className={styles.formField}>
               <label>{t("inventory.fields.unit")}</label>
-              <input type="text" className={styles.textInput} value={formData.unit || ""} onChange={(e) => setFormData((p) => ({ ...p, unit: e.target.value }))} />
+              <SearchSelect
+                value={formData.unit || "unit"}
+                onSelect={(value) => setFormData((p) => ({ ...p, unit: value }))}
+                options={buildUnitOptions(t, formData.unit)}
+                placeholder={t("inventory.fields.unit")}
+                noResultsLabel={t("common.noResults")}
+                icon={Ruler}
+              />
             </div>
             <div className={styles.formField}>
               <label>{t("inventory.fields.threshold")}</label>
@@ -506,7 +532,13 @@ export default function Inventory() {
             </div>
             <div className={styles.formField}>
               <label>{t("inventory.fields.image")}</label>
-              <input ref={fileInputRef} type="file" accept="image/*" className={styles.textInput} onChange={(e) => setFormFile(e.target.files?.[0] || null)} />
+              <FileInput
+                value={formFile}
+                onChange={setFormFile}
+                accept="image/*"
+                chooseLabel={t("common.chooseFile")}
+                emptyLabel={t("common.noFileChosen")}
+              />
             </div>
           </div>
 
@@ -579,12 +611,22 @@ export default function Inventory() {
                       )}
                     </div>
 
-                    <h3 className={styles.productName}>{product.name}</h3>
+                    <div className={styles.productNameRow}>
+                      <TranslatedText as="h3" className={styles.productName} doc={product} field="name" />
+                      <button
+                        type="button"
+                        className="tableActionBtn"
+                        title={t("contentTranslation.editButton")}
+                        onClick={() => setTranslatingProduct(product)}
+                      >
+                        <Languages size={13} />
+                      </button>
+                    </div>
                     <span className={styles.productRef}>{product.internalReference}</span>
 
                     <div className={styles.quantityRow}>
                       <span className={styles.quantityValue}>{product.quantity}</span>
-                      <span className={styles.quantityUnit}>{product.unit}</span>
+                      <span className={styles.quantityUnit}>{getUnitLabel(t, product.unit)}</span>
                       <span className={styles.thresholdHint}>{t("inventory.fields.threshold")}: {product.threshold}</span>
                     </div>
 
@@ -695,6 +737,15 @@ export default function Inventory() {
 
       <ActionModal isOpen={modal.open} type={modal.type} title={modal.title} message={modal.message} loading={actionLoading}
         onConfirm={modal.type === "confirm" ? handleConfirmDelete : undefined} onClose={closeModal} />
+
+      <TranslationEditorModal
+        isOpen={!!translatingProduct}
+        onClose={() => setTranslatingProduct(null)}
+        resourceType="product"
+        resourceId={translatingProduct?._id}
+        fields={[{ key: "name", label: t("inventory.fields.name") }]}
+        onSaved={handleTranslationSaved}
+      />
     </div>
   );
 }

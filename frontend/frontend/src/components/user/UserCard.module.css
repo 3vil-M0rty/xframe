@@ -1,0 +1,149 @@
+/* ============================================================
+   UserCard — page-agnostic styles for a single user card.
+
+   Shared card/avatar/pill/button primitives live once in
+   src/styles/global.css as plain global classes (resourceCard,
+   avatarCircle, pillTag, cardActionsOverlay, cardActionIconBtn,
+   cardActionIconBtnDanger, ...) and are applied directly in the
+   JSX (e.g. className="cardActionsOverlay") — this file does NOT
+   use CSS Modules `composes`. It only holds styles that are
+   genuinely specific to UserCard, or that add a little extra on
+   top of a shared class (e.g. .userCard, .avatar below), so it
+   stays in sync with EmployeeCard and any other resource card in
+   the app without duplicating the shared rules.
+
+   Where a rule here sets the SAME CSS property as the shared
+   class it's layered on top of (e.g. padding, width, height), it
+   uses a `:global(.sharedClass).localClass` compound selector
+   instead of a bare `.localClass` rule, so the override reliably
+   wins regardless of CSS load order.
+   ============================================================ */
+
+/* Extra grid layout on top of the shared "resourceCard" class,
+   applied in JSX as: className={`resourceCard ${styles.userCard}`} */
+.userCard {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-rows: auto auto;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    text-align: left;
+}
+
+/* ---------- Avatar ---------- */
+
+/* Extra grid placement on top of the shared "avatarCircle" class,
+   applied in JSX as: className={`avatarCircle ${styles.avatar}`} */
+.avatar {
+    grid-row: 1;
+}
+
+/* ---------- Main info ---------- */
+
+.userMain {
+    min-width: 0;
+    padding-right: 38px;
+}
+
+.userMain h2 {
+    margin: 0 0 0.4rem;
+    overflow: hidden;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--color-text-primary);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.email {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    margin-top: 5px;
+    color: var(--color-text-tertiary);
+    font-size: var(--font-xs);
+}
+
+.email svg {
+    flex-shrink: 0;
+}
+
+.email span {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* ---------- Meta row (role / department / status) ---------- */
+
+.userMeta {
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+    flex-wrap: wrap;
+    padding-top: 2px;
+}
+
+/* .role, .department and .status below only carry the responsive
+   override further down on top of the shared "pillTag" class,
+   applied in JSX as e.g. className={`pillTag ${styles.role}`} */
+
+/* ---------- Responsive ---------- */
+
+@media (max-width: 700px) {
+    .userCard {
+        grid-template-columns: auto minmax(0, 1fr);
+    }
+
+    :global(.resourceCard).userCard {
+        padding: 14px;
+    }
+
+    .userMain {
+        padding-right: 40px;
+    }
+
+    .userMeta {
+        flex-wrap: wrap;
+        gap: 5px;
+    }
+}
+
+@media (max-width: 480px) {
+    .userCard {
+        gap: 10px;
+    }
+
+    :global(.resourceCard).userCard {
+        padding: 12px;
+    }
+
+    :global(.avatarCircle).avatar {
+        width: 36px;
+        height: 36px;
+    }
+
+    .userMain h2 {
+        font-size: 0.8rem;
+    }
+
+    .email {
+        font-size: 0.68rem;
+    }
+
+    .userMeta {
+        width: 100%;
+        gap: 5px;
+    }
+
+    :global(.pillTag).role,
+    :global(.pillTag).department,
+    :global(.pillTag).status {
+        font-size: 0.7rem;
+        padding: 4px 7px;
+    }
+}

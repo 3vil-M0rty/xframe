@@ -88,3 +88,14 @@ export const deleteAbsence = async (id) => {
   const response = await api.delete(`/absences/${id}`);
   return response.data;
 };
+
+// ======================================================
+// LEAVE CALENDAR (approved absences within a date range)
+// ======================================================
+
+export const getLeaveCalendar = async (companyId, from, to) => {
+  const response = await api.get(
+    `/absences/calendar?companyId=${companyId}&from=${from}&to=${to}`
+  );
+  return response.data.data;
+};

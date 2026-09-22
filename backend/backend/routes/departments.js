@@ -12,6 +12,7 @@ const auth = require("../middleware/auth");
 const { canManageCompany } = require("../permissions/permissions");
 const { logAudit } = require("../services/auditLogger");
 const { attachTranslationRoutes } = require("../utils/translationRoutes");
+const { DEFAULT_DEPARTMENTS } = require("../config/defaultDepartments");
 
 router.use(auth);
 
@@ -54,7 +55,7 @@ router.get("/", async (req, res) => {
 
 router.post("/", async (req, res) => {
   try {
-    const { company, name, description, permissionKey } = req.body;
+    const { company, name, description, permissionKey, category } = req.body;
 
     if (!company || !mongoose.Types.ObjectId.isValid(company)) {
       return res.status(400).json({ success: false, message: "A valid company is required" });
@@ -76,6 +77,7 @@ router.post("/", async (req, res) => {
       name,
       description,
       permissionKey: permissionKey || null,
+      category: category || null,
       createdBy: req.user.id,
       updatedBy: req.user.id,
     });
@@ -103,6 +105,114 @@ router.post("/", async (req, res) => {
 });
 
 // ======================================================
+// SEED DEFAULT DEPARTMENTS
+// POST /api/departments/seed-defaults
+// body: { company, categories: ["hr", "production", ...] }
+// ======================================================
+// Quick-start option offered from the Departments page instead of
+// making a new company build its list one department at a time.
+// Silently skips any requested category that already has a
+// department for this company (running it twice, or picking a
+// category someone already created manually, never creates a
+// duplicate).
+
+router.post("/seed-defaults", async (req, res) => {
+  try {
+    const { company, categories } = req.body;
+
+    if (!company || !mongoose.Types.ObjectId.isValid(company)) {
+      return res.status(400).json({ success: false, message: "A valid company is required" });
+    }
+    if (!Array.isArray(categories) || categories.length === 0) {
+      return res.status(400).json({ success: false, message: "At least one category is required" });
+    }
+
+    const companyDoc = await Company.findById(company);
+    if (!companyDoc) {
+      return res.status(404).json({ success: false, message: "Company not found" });
+    }
+    if (!canManage(req, companyDoc)) {
+      return res.status(403).json({ success: false, message: "Not authorized" });
+    }
+
+    const templatesByCategory = new Map(DEFAULT_DEPARTMENTS.map((d) => [d.category, d]));
+    const requested = categories.filter((c) => templatesByCategory.has(c));
+    if (requested.length === 0) {
+      return res.status(400).json({ success: false, message: "None of the given categories are recognized" });
+    }
+
+    const existing = await Department.find({ company, category: { $in: requested } }).select("category");
+    const alreadyPresent = new Set(existing.map((d) => d.category));
+
+    const toCreate = requested
+      .filter((c) => !alreadyPresent.has(c))
+      .map((c) => {
+        const template = templatesByCategory.get(c);
+        return {
+          company,
+          name: template.name,
+          description: template.description,
+          category: template.category,
+          permissionKey: template.permissionKey,
+          createdBy: req.user.id,
+          updatedBy: req.user.id,
+        };
+      });
+
+    const created = [];
+    for (const data of toCreate) {
+      // eslint-disable-next-line no-await-in-loop
+      created.push(await Department.create(data));
+    }
+
+    // Seed a starter set of real JobPosition records for each newly
+    // created department too — a department with no positions gives
+    // the Employee form's Job Title field nothing to offer, which
+    // defeats the point of a "quick start" (see
+    // config/defaultDepartments.js's own comment for why this
+    // matters, especially for "hr", whose 4 titles are load-bearing
+    // for the User.hrRole inheritance).
+    let positionsCreatedCount = 0;
+    for (const department of created) {
+      const template = templatesByCategory.get(department.category);
+      const positionTitles = template?.positions || [];
+      // eslint-disable-next-line no-await-in-loop
+      const positionDocs = await Promise.all(
+        positionTitles.map((title) =>
+          JobPosition.create({
+            company,
+            department: department._id,
+            title,
+            createdBy: req.user.id,
+            updatedBy: req.user.id,
+          })
+        )
+      );
+      positionsCreatedCount += positionDocs.length;
+    }
+
+    await logAudit(req, {
+      company,
+      action: "create",
+      resourceType: "Department",
+      resourceId: company,
+      resourceLabel: `${created.length} default department(s) and ${positionsCreatedCount} position(s) seeded`,
+    });
+
+    res.status(201).json({
+      success: true,
+      data: created,
+      skipped: requested.length - created.length,
+      positionsCreated: positionsCreatedCount,
+      message: `${created.length} department(s) and ${positionsCreatedCount} position(s) created${requested.length > created.length ? `, ${requested.length - created.length} department(s) already existed and were skipped` : ""}`,
+    });
+  } catch (error) {
+    console.error("POST seed-defaults error:", error);
+    res.status(500).json({ success: false, message: "Error seeding default departments", error: error.message });
+  }
+});
+
+// ======================================================
 // UPDATE DEPARTMENT
 // PUT /api/departments/:id
 // ======================================================
@@ -123,10 +233,11 @@ router.put("/:id", async (req, res) => {
 
     const before = department.toObject();
 
-    const { name, description, permissionKey } = req.body;
+    const { name, description, permissionKey, category } = req.body;
     if (name !== undefined) department.name = name;
     if (description !== undefined) department.description = description;
     if (permissionKey !== undefined) department.permissionKey = permissionKey || null;
+    if (category !== undefined) department.category = category || null;
     department.updatedBy = req.user.id;
 
     await department.save();

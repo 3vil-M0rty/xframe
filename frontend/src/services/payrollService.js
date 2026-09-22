@@ -1,5 +1,5 @@
 import api from "./api";
-import { downloadBlob } from "../utils/download";
+import { downloadBlob, normalizeBlobError } from "../utils/download";
 
 // ---------- Payroll runs ----------
 
@@ -66,18 +66,26 @@ export const markPayslipPaid = async (id) => {
 // ---------- Downloads (PDF payslip, CSV exports) ----------
 
 export const downloadPayslipPdf = async (id, filename = "bulletin.pdf") => {
-  const response = await api.get(`/payroll/payslips/${id}/pdf`, {
-    responseType: "blob",
-  });
-  downloadBlob(response.data, filename, true);
+  try {
+    const response = await api.get(`/payroll/payslips/${id}/pdf`, {
+      responseType: "blob",
+    });
+    downloadBlob(response.data, filename, true);
+  } catch (err) {
+    throw await normalizeBlobError(err);
+  }
 };
 
 /**
  * `type` is one of: "cnss" | "register" | "bank-transfer"
  */
 export const downloadPayrollExport = async (runId, type, filename) => {
-  const response = await api.get(`/payroll/runs/${runId}/export/${type}`, {
-    responseType: "blob",
-  });
-  downloadBlob(response.data, filename || `export-${type}.csv`, false);
+  try {
+    const response = await api.get(`/payroll/runs/${runId}/export/${type}`, {
+      responseType: "blob",
+    });
+    downloadBlob(response.data, filename || `export-${type}.csv`, false);
+  } catch (err) {
+    throw await normalizeBlobError(err);
+  }
 };

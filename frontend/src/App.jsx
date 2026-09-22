@@ -20,6 +20,9 @@ import Attendance from './pages/hr/Attendance'
 import Reports from './pages/hr/Reports'
 import AuditLog from './pages/hr/AuditLog'
 import OrgChart from './pages/hr/OrgChart'
+import PerformanceReviews from './pages/hr/PerformanceReviews'
+import DisciplinaryActions from './pages/hr/DisciplinaryActions'
+import LeaveCalendar from './pages/hr/LeaveCalendar'
 import MySpace from './pages/me/MySpace'
 import Inventory from './pages/production/Inventory'
 import InventorySettings from './pages/production/InventorySettings'
@@ -99,6 +102,9 @@ export default function App() {
               <Route path="/hr/reports" element={hrRoute(<Reports />)} />
               <Route path="/hr/audit-log" element={hrRoute(<AuditLog />)} />
               <Route path="/hr/org-chart" element={hrRoute(<OrgChart />)} />
+              <Route path="/hr/performance-reviews" element={hrRoute(<PerformanceReviews />)} />
+              <Route path="/hr/disciplinary-actions" element={hrRoute(<DisciplinaryActions />)} />
+              <Route path="/hr/leave-calendar" element={hrRoute(<LeaveCalendar />)} />
 
               {/* My Space (self-service) — one tabbed page, several
                   paths so each tab is directly linkable/bookmarkable

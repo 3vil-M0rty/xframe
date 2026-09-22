@@ -3,13 +3,22 @@ import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 import styles from './LoginPage.module.css'
 import ShinyText from '../components/useful/ShinyText'
+import { ShieldCheck } from 'lucide-react'
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
-  const { login, loading, token } = useAuth()
+  const { login, verifyTwoFactorLogin, loading, token } = useAuth()
   const navigate = useNavigate()
+
+  // 'credentials' is the normal email/password form. An account
+  // with 2FA enabled moves to 'twoFactor' after a correct password
+  // instead of logging straight in — see handleSubmit below.
+  const [step, setStep] = useState('credentials')
+  const [challengeToken, setChallengeToken] = useState('')
+  const [code, setCode] = useState('')
+  const [useBackupCode, setUseBackupCode] = useState(false)
 
   // If there's already a valid session (e.g. the user hit the
   // browser's Back button to "/" while still logged in), send them
@@ -26,8 +35,51 @@ export default function LoginPage() {
     e.preventDefault()
     setError('')
     const result = await login(email, password)
-    if (result.success) navigate('/profile')
-    else setError(result.error || 'Login failed')
+    if (result.success) {
+      navigate('/profile')
+      return
+    }
+    if (result.requires2FA) {
+      setChallengeToken(result.challengeToken)
+      setStep('twoFactor')
+      return
+    }
+    setError(result.error || 'Login failed')
+  }
+
+  const handleVerifyCode = async (e) => {
+    e.preventDefault()
+    setError('')
+    const result = await verifyTwoFactorLogin(challengeToken, code)
+    if (result.success) {
+      navigate('/profile')
+      return
+    }
+    setError(result.error || 'Invalid code')
+  }
+
+  const handleBackToCredentials = () => {
+    setStep('credentials')
+    setChallengeToken('')
+    setCode('')
+    setUseBackupCode(false)
+    setError('')
+  }
+
+  // A `useEffect` only runs AFTER a render, so relying on the one
+  // above alone means this component still renders the full login
+  // form for one paint — or for the whole duration of the /users/me
+  // validation call — before the redirect fires. That's the visible
+  // "flash of the login page" on refresh, and on navigating back to
+  // "/" while already logged in. Whenever a token is present (still
+  // being validated, OR just confirmed valid and about to redirect
+  // via the effect above), render a neutral placeholder instead of
+  // the form — the login form itself should only ever appear once
+  // we're sure there's no valid session, i.e. `token` is falsy
+  // (nothing stored, or AuthContext determined it was invalid and
+  // cleared it).
+  if (token) {
+    return <div className={styles.container} />
   }
 
   return (
@@ -36,11 +88,48 @@ export default function LoginPage() {
       <div className={styles.card}>
         <h4 className={styles.title}>FRAME</h4>
         {error && <div className={styles.error}>{error}</div>}
-        <form onSubmit={handleSubmit} className={styles.form}>
-          <input type="email" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} required className={styles.input} />
-          <input type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} required className={styles.input} />
-          <button type="submit" disabled={loading} className={styles.button}>{loading ? 'Signing in...' : 'Sign In'}</button>
-        </form>
+
+        {step === 'credentials' ? (
+          <form onSubmit={handleSubmit} className={styles.form}>
+            <input type="email" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} required className={styles.input} />
+            <input type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} required className={styles.input} />
+            <button type="submit" disabled={loading} className={styles.button}>{loading ? 'Signing in...' : 'Sign In'}</button>
+          </form>
+        ) : (
+          <form onSubmit={handleVerifyCode} className={styles.form}>
+            <div className={styles.twoFactorHint}>
+              <ShieldCheck size={16} />
+              <span>
+                {useBackupCode
+                  ? 'Enter one of your backup codes.'
+                  : 'Enter the 6-digit code from your authenticator app.'}
+              </span>
+            </div>
+            <input
+              type="text"
+              placeholder={useBackupCode ? 'XXXX-XXXX' : '000000'}
+              value={code}
+              onChange={(e) => setCode(e.target.value)}
+              autoFocus
+              required
+              className={styles.input}
+              inputMode={useBackupCode ? 'text' : 'numeric'}
+              maxLength={useBackupCode ? 9 : 6}
+            />
+            <button type="submit" disabled={loading} className={styles.button}>
+              {loading ? 'Verifying...' : 'Verify'}
+            </button>
+            <div className={styles.twoFactorLinks}>
+              <button type="button" className={styles.linkButton} onClick={() => { setUseBackupCode((v) => !v); setCode(''); setError(''); }}>
+                {useBackupCode ? 'Use authenticator code instead' : 'Use a backup code instead'}
+              </button>
+              <button type="button" className={styles.linkButton} onClick={handleBackToCredentials}>
+                Back
+              </button>
+            </div>
+          </form>
+        )}
+
         <ShinyText
           text="⬡ FRAME powered by: "
           a="HB"

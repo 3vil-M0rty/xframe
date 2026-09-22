@@ -180,3 +180,119 @@
         flex-wrap: wrap;
     }
 }
+
+.modalOverlay {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    padding: 1.5rem;
+
+    background: rgba(0, 0, 0, 0.58);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+}
+
+.defaultsModal {
+    width: min(100%, 520px);
+    max-height: 85vh;
+
+    display: flex;
+    flex-direction: column;
+
+    padding: 1.25rem;
+
+    background: rgba(15, 15, 15, 0.96);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 14px;
+    box-shadow: 0 25px 80px rgba(0, 0, 0, 0.6);
+}
+
+.defaultsModalHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0.6rem;
+}
+
+.defaultsModalTitle {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #fff;
+}
+
+.defaultsModalTitle h3 {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 600;
+}
+
+.defaultsModalClose {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    color: #666;
+    background: transparent;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+}
+
+.defaultsModalClose:hover {
+    color: #fff;
+    background: rgba(255, 255, 255, 0.06);
+}
+
+.defaultsList {
+    overflow-y: auto;
+    max-height: 320px;
+    margin: 0.6rem 0 1rem;
+
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 4px;
+
+    padding: 4px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 10px;
+}
+
+.defaultsItem {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+
+    padding: 0.45rem 0.55rem;
+
+    color: #ddd;
+    font-size: 0.82rem;
+
+    border-radius: 7px;
+    cursor: pointer;
+}
+
+.defaultsItem:hover {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.spinner {
+    animation: defaultsSpin 0.8s linear infinite;
+}
+
+@keyframes defaultsSpin {
+    to { transform: rotate(360deg); }
+}
+
+@media (max-width: 520px) {
+    .defaultsList {
+        grid-template-columns: 1fr;
+    }
+}

@@ -11,6 +11,7 @@ const auth = require("../middleware/auth");
 const { requireProductionAccess, requireAdmin } = require("../middleware/permissionMiddleware");
 const { logAudit } = require("../services/auditLogger");
 const { attachTranslationRoutes } = require("../utils/translationRoutes");
+const { notify, notifyMany, getProductionRecipientIds } = require("../services/notificationService");
 
 router.use(auth, requireProductionAccess);
 
@@ -112,6 +113,14 @@ router.post("/", requireAdmin, async (req, res) => {
       after: request.toObject(),
     });
 
+    const recipientIds = await getProductionRecipientIds(companyDoc, req.user.id);
+    await notifyMany(recipientIds, {
+      type: "purchase_request_pending",
+      title: "New purchase request",
+      message: `A request for ${requestedQuantity} × ${productDoc.name} is awaiting review.`,
+      link: "/production/purchase-requests",
+    });
+
     res.status(201).json({ success: true, data: populated, message: "Purchase request submitted" });
   } catch (error) {
     console.error("POST purchase request error:", error);
@@ -147,6 +156,15 @@ router.patch("/:id/review", requireAdmin, async (req, res) => {
     await request.save();
 
     const populated = await request.populate("product", "name internalReference image unit translations");
+
+    if (status === "approved" || status === "rejected") {
+      await notify(request.requestedBy, {
+        type: "purchase_request_reviewed",
+        title: status === "approved" ? "Purchase request approved" : "Purchase request rejected",
+        message: `Your request for ${request.requestedQuantity} × ${populated.product?.name || "an item"} was ${status}.`,
+        link: "/production/purchase-requests",
+      });
+    }
 
     res.json({ success: true, data: populated, message: `Purchase request ${status}` });
   } catch (error) {

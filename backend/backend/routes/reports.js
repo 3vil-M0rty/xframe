@@ -4,6 +4,7 @@ const router = express.Router();
 
 const Employee = require("../models/Employee");
 const Absence = require("../models/Absence");
+const Attendance = require("../models/Attendance");
 const PayrollRun = require("../models/PayrollRun");
 const Salary = require("../models/Salary");
 const Company = require("../models/Company");
@@ -332,6 +333,118 @@ router.get("/payroll-cost", async (req, res) => {
   } catch (error) {
     console.error("GET payroll cost report error:", error);
     res.status(500).json({ success: false, message: "Error building payroll cost report", error: error.message });
+  }
+});
+
+// ======================================================
+// EMPLOYEE RANKINGS — attendance/absence/overtime leaderboards
+// GET /api/reports/employee-rankings?companyId=&days=30
+// ======================================================
+// Deliberately labeled around neutral, specific metrics ("most
+// absence days", "best attendance rate") rather than a blanket
+// "best/worst employee" score — a single combined ranking would
+// flatten genuinely different things (someone with perfect
+// attendance who works no overtime isn't "worse" than someone who
+// works a lot of overtime) into one number that invites unfair
+// comparison. Each list is its own metric; what to make of them is
+// left to the person reading the report, not decided here.
+
+router.get("/employee-rankings", async (req, res) => {
+  try {
+    const { companyId, days = 30 } = req.query;
+    const company = await requireCompanyAccess(req, res, companyId);
+    if (!company) return;
+
+    const windowDays = Math.min(Math.max(Number(days) || 30, 1), 365);
+    const to = new Date();
+    const from = new Date(to.getTime() - windowDays * 24 * 60 * 60 * 1000);
+
+    const companyObjectId = company._id;
+
+    const [attendanceAgg, absenceAgg, employees] = await Promise.all([
+      Attendance.aggregate([
+        { $match: { company: companyObjectId, date: { $gte: from, $lte: to } } },
+        {
+          $group: {
+            _id: "$employee",
+            totalDaysRecorded: { $sum: 1 },
+            presentDays: {
+              $sum: { $cond: [{ $in: ["$status", ["present", "late", "half_day"]] }, 1, 0] },
+            },
+            lateDays: { $sum: { $cond: [{ $gt: ["$lateMinutes", 0] }, 1, 0] } },
+            totalHoursWorked: { $sum: { $ifNull: ["$hoursWorked", 0] } },
+            totalOvertimeMinutes: { $sum: { $ifNull: ["$overtimeMinutes", 0] } },
+          },
+        },
+      ]),
+      Absence.aggregate([
+        {
+          $match: {
+            company: companyObjectId,
+            status: "accepted",
+            startDate: { $lte: to },
+            endDate: { $gte: from },
+          },
+        },
+        {
+          $group: {
+            _id: "$employee",
+            absenceCount: { $sum: 1 },
+            totalAbsenceDays: { $sum: { $ifNull: ["$daysCount", 0] } },
+          },
+        },
+      ]),
+      Employee.find({ company: companyId, employmentStatus: "active" }).select("firstName lastName employeeNumber jobTitle"),
+    ]);
+
+    const attendanceByEmployee = new Map(attendanceAgg.map((a) => [String(a._id), a]));
+    const absenceByEmployee = new Map(absenceAgg.map((a) => [String(a._id), a]));
+
+    const stats = employees.map((employee) => {
+      const att = attendanceByEmployee.get(String(employee._id)) || {};
+      const abs = absenceByEmployee.get(String(employee._id)) || {};
+      const totalDaysRecorded = att.totalDaysRecorded || 0;
+      const presentDays = att.presentDays || 0;
+
+      return {
+        employee: {
+          _id: employee._id,
+          firstName: employee.firstName,
+          lastName: employee.lastName,
+          employeeNumber: employee.employeeNumber,
+          jobTitle: employee.jobTitle,
+        },
+        totalAbsenceDays: abs.totalAbsenceDays || 0,
+        absenceCount: abs.absenceCount || 0,
+        lateDays: att.lateDays || 0,
+        totalOvertimeHours: Math.round(((att.totalOvertimeMinutes || 0) / 60) * 10) / 10,
+        totalHoursWorked: Math.round((att.totalHoursWorked || 0) * 10) / 10,
+        attendanceRate: totalDaysRecorded > 0 ? Math.round((presentDays / totalDaysRecorded) * 1000) / 10 : null,
+      };
+    });
+
+    const topN = (list, count = 10) => list.slice(0, count);
+    const byDesc = (key) => (a, b) => b[key] - a[key];
+    // Attendance rate ranking only makes sense for employees with
+    // at least some recorded attendance — an employee with zero
+    // records isn't "bad at attendance", there's just no data yet.
+    const withAttendanceData = stats.filter((s) => s.attendanceRate !== null);
+
+    res.json({
+      success: true,
+      data: {
+        periodDays: windowDays,
+        from,
+        to,
+        mostAbsenceDays: topN([...stats].sort(byDesc("totalAbsenceDays")).filter((s) => s.totalAbsenceDays > 0)),
+        bestAttendanceRate: topN([...withAttendanceData].sort(byDesc("attendanceRate"))),
+        mostOvertimeHours: topN([...stats].sort(byDesc("totalOvertimeHours")).filter((s) => s.totalOvertimeHours > 0)),
+        mostLateDays: topN([...stats].sort(byDesc("lateDays")).filter((s) => s.lateDays > 0)),
+      },
+    });
+  } catch (error) {
+    console.error("GET employee rankings report error:", error);
+    res.status(500).json({ success: false, message: "Error building employee rankings", error: error.message });
   }
 });
 

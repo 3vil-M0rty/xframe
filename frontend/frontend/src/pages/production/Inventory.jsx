@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import {
   Boxes, Plus, Minus, Edit, Trash2, X, Search,
-  AlertTriangle, ShoppingCart, BriefcaseBusiness, Package, Languages,
+  AlertTriangle, ShoppingCart, BriefcaseBusiness, Package, Languages, Ruler,
 } from "lucide-react";
 
 import { useI18n } from "../../hooks/useI18n";
@@ -10,6 +10,7 @@ import { useAuth } from "../../hooks/useAuth";
 import { useDebouncedValue } from "../../hooks/useDebouncedValue";
 
 import CustomSelect from "../../components/useful/CustomSelect";
+import SearchSelect from "../../components/useful/SearchSelect";
 import DateRangeFilter from "../../components/useful/DateRangeFilter";
 import Breadcrumbs from "../../components/useful/Breadcrumbs";
 import Pagination from "../../components/useful/Pagination";
@@ -512,11 +513,13 @@ export default function Inventory() {
             )}
             <div className={styles.formField}>
               <label>{t("inventory.fields.unit")}</label>
-              <CustomSelect
+              <SearchSelect
                 value={formData.unit || "unit"}
                 onSelect={(value) => setFormData((p) => ({ ...p, unit: value }))}
                 options={buildUnitOptions(t, formData.unit)}
                 placeholder={t("inventory.fields.unit")}
+                noResultsLabel={t("common.noResults")}
+                icon={Ruler}
               />
             </div>
             <div className={styles.formField}>

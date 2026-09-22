@@ -111,3 +111,68 @@
         grid-template-columns: 1fr;
     }
 }
+
+.rankingsSection {
+    margin-top: 24px;
+}
+
+.rankingsHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 14px;
+}
+
+.rankingsHeader h2 {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--color-text-primary);
+}
+
+.rankingsGrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 16px;
+}
+
+.rankingList {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    counter-reset: ranking;
+}
+
+.rankingList li {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+
+    padding: 7px 10px;
+
+    font-size: 0.8rem;
+    color: var(--color-text-secondary);
+
+    background: var(--color-bg-secondary, rgba(255, 255, 255, 0.03));
+    border-radius: 8px;
+    counter-increment: ranking;
+}
+
+.rankingList li::before {
+    content: counter(ranking) ".";
+    margin-right: 8px;
+    color: var(--color-text-tertiary);
+    font-weight: 600;
+}
+
+.rankingValue {
+    flex-shrink: 0;
+    color: var(--color-text-primary);
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+}

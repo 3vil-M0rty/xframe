@@ -5,21 +5,57 @@ const router = express.Router();
 
 const Employee = require("../models/Employee");
 const Company = require("../models/Company");
+const Salary = require("../models/Salary");
+const Contract = require("../models/Contract");
 const User = require("../models/User");
 
 const auth = require("../middleware/auth");
 const upload = require("../middleware/uploadMiddleware");
+const multer = require("multer");
+
+// Separate multer instance for the bulk-import CSV upload — the
+// shared `upload` above only accepts image mimetypes (it's built
+// for photos). CSV mimetype detection is notoriously inconsistent
+// across browsers/OS (text/csv, application/vnd.ms-excel,
+// application/csv, or nothing at all), so this checks the file
+// extension instead of trusting the reported mimetype.
+const uploadCsv = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    if (/\.csv$/i.test(file.originalname)) {
+      cb(null, true);
+    } else {
+      cb(new Error("Only .csv files are accepted"), false);
+    }
+  },
+});
 const {
   requireHRAccess,
 } = require("../middleware/permissionMiddleware");
 
 const {
   canAccessHRForCompany,
+  canDeleteEmployee,
+  canManageEmployeeRecords,
 } = require("../permissions/permissions");
 
 const { logAudit } = require("../services/auditLogger");
 const { createLoginForEmployee, generateWorkEmail, resetPasswordForEmployee } = require("../services/employeeAccountService");
 const { attachTranslationRoutes } = require("../utils/translationRoutes");
+const {
+  generateAttestationTravail,
+  generateAttestationSalaire,
+  generateCertificatTravail,
+} = require("../services/employeeDocumentsPdfService");
+const {
+  generateContratTravail,
+  generateSoldeToutCompte,
+} = require("../services/settlementDocumentsPdfService");
+const { getLeaveBalance } = require("../services/leaveBalanceService");
+const { fetchLogoBuffer } = require("../services/pdfHelpers");
+const { previewImport, commitImport } = require("../services/employeeBulkImportService");
+const { sendCsv } = require("../utils/csvHelpers");
 
 const {
   uploadImage,
@@ -212,6 +248,79 @@ router.get("/", auth, async (req, res) => {
 });
 
 // ======================================================
+// EXPORT EMPLOYEES (CSV)
+// GET /api/employees/export?companyId=
+// ======================================================
+// The natural companion to bulk import (further down this file) —
+// same column shape, so a company can export, edit in a
+// spreadsheet, and re-import cleanly. Not paginated: an export is
+// meant to be the whole list. Registered BEFORE GET /:id below —
+// Express matches routes in registration order, and /:id would
+// otherwise swallow a request to /export as if "export" were an
+// employee id, long before ever reaching a route defined later in
+// the file.
+
+router.get("/export", auth, requireHRAccess, async (req, res) => {
+  try {
+    const { companyId } = req.query;
+    if (!companyId || !mongoose.Types.ObjectId.isValid(companyId)) {
+      return res.status(400).json({ success: false, message: "A valid companyId is required" });
+    }
+
+    const company = await Company.findById(companyId);
+    if (!company) {
+      return res.status(404).json({ success: false, message: "Company not found" });
+    }
+    if (!canManage(req, company)) {
+      return res.status(403).json({ success: false, message: "Not authorized to export employees for this company" });
+    }
+
+    const employees = await Employee.find({ company: companyId })
+      .populate("department", "name")
+      .populate("manager", "firstName lastName")
+      .sort({ lastName: 1, firstName: 1 });
+
+    const formatDate = (d) => (d ? new Date(d).toISOString().slice(0, 10) : "");
+
+    const headers = [
+      "employeeNumber", "firstName", "lastName", "cin", "email", "phone",
+      "gender", "dateOfBirth", "hireDate", "jobTitle", "department", "manager",
+      "employmentType", "employmentStatus",
+    ];
+    const rows = employees.map((e) => [
+      e.employeeNumber || "",
+      e.firstName || "",
+      e.lastName || "",
+      e.cin || "",
+      e.workEmail || e.personalEmail || "",
+      e.phone || "",
+      e.gender || "",
+      formatDate(e.dateOfBirth),
+      formatDate(e.hireDate),
+      e.jobTitle || "",
+      e.department?.name || "",
+      e.manager ? `${e.manager.firstName} ${e.manager.lastName}`.trim() : "",
+      e.employmentType || "",
+      e.employmentStatus || "",
+    ]);
+
+    const safeName = (company.shortName || company.name || "employees").replace(/[^a-z0-9]+/gi, "-");
+    sendCsv(res, `employees-${safeName}-${formatDate(new Date())}.csv`, [headers, ...rows]);
+
+    await logAudit(req, {
+      company: company._id,
+      action: "review", // closest fit in AuditLog's fixed action enum (create/update/delete/review) -- an export reads/reviews data, doesn't mutate it
+      resourceType: "EmployeeExport",
+      resourceId: company._id,
+      resourceLabel: `${employees.length} employees exported`,
+    }).catch(() => {});
+  } catch (error) {
+    console.error("GET employees export error:", error);
+    res.status(500).json({ success: false, message: "Error exporting employees", error: error.message });
+  }
+});
+
+// ======================================================
 // GET SINGLE EMPLOYEE
 // GET /api/employees/:id
 // ======================================================
@@ -385,6 +494,14 @@ router.post(
           success: false,
           message:
             "Not authorized to create employees for this company",
+        });
+      }
+
+      if (!canManageEmployeeRecords(req.user)) {
+        return res.status(403).json({
+          success: false,
+          message:
+            "Creating employees requires Chargé RH authority or higher",
         });
       }
 
@@ -592,6 +709,14 @@ router.put(
           success: false,
           message:
             "Not authorized to update this employee",
+        });
+      }
+
+      if (!canManageEmployeeRecords(req.user)) {
+        return res.status(403).json({
+          success: false,
+          message:
+            "Editing employees requires Chargé RH authority or higher",
         });
       }
 
@@ -1015,6 +1140,14 @@ router.delete(
         });
       }
 
+      if (!canDeleteEmployee(req.user)) {
+        return res.status(403).json({
+          success: false,
+          message:
+            "Deleting an employee requires Responsable RH authority or higher",
+        });
+      }
+
       // --------------------------------------------------
       // DELETE EMPLOYEE PHOTO FROM CLOUDINARY
       // --------------------------------------------------
@@ -1311,6 +1444,199 @@ router.patch(
     }
   }
 );
+
+// ======================================================
+// BULK EMPLOYEE IMPORT (CSV)
+// POST /api/employees/bulk-import/preview   — multipart, field "file"
+// POST /api/employees/bulk-import/commit    — JSON { companyId, rows }
+// ======================================================
+// Both require Chargé RH authority or higher (same tier as
+// creating a single employee) — bulk import is just many employee
+// creations at once, so it's gated the same way.
+
+router.post(
+  "/bulk-import/preview",
+  auth,
+  requireHRAccess,
+  uploadCsv.single("file"),
+  async (req, res) => {
+    try {
+      const { companyId } = req.body;
+      if (!companyId || !mongoose.Types.ObjectId.isValid(companyId)) {
+        return res.status(400).json({ success: false, message: "A valid companyId is required" });
+      }
+      if (!req.file) {
+        return res.status(400).json({ success: false, message: "A CSV file is required" });
+      }
+
+      const company = await Company.findById(companyId);
+      if (!company) {
+        return res.status(404).json({ success: false, message: "Company not found" });
+      }
+      if (!canManage(req, company)) {
+        return res.status(403).json({ success: false, message: "Not authorized to import employees for this company" });
+      }
+      if (!canManageEmployeeRecords(req.user)) {
+        return res.status(403).json({
+          success: false,
+          message: "Importing employees requires Chargé RH authority or higher",
+        });
+      }
+
+      const result = await previewImport(req.file.buffer, company);
+      res.json({ success: true, data: result });
+    } catch (error) {
+      console.error("POST bulk-import preview error:", error);
+      res.status(error.status || 500).json({ success: false, message: error.message || "Error previewing import" });
+    }
+  }
+);
+
+router.post("/bulk-import/commit", auth, requireHRAccess, async (req, res) => {
+  try {
+    const { companyId, rows } = req.body;
+    if (!companyId || !mongoose.Types.ObjectId.isValid(companyId)) {
+      return res.status(400).json({ success: false, message: "A valid companyId is required" });
+    }
+    if (!Array.isArray(rows)) {
+      return res.status(400).json({ success: false, message: "rows must be an array (from a prior /bulk-import/preview call)" });
+    }
+
+    const company = await Company.findById(companyId);
+    if (!company) {
+      return res.status(404).json({ success: false, message: "Company not found" });
+    }
+    if (!canManage(req, company)) {
+      return res.status(403).json({ success: false, message: "Not authorized to import employees for this company" });
+    }
+    if (!canManageEmployeeRecords(req.user)) {
+      return res.status(403).json({
+        success: false,
+        message: "Importing employees requires Chargé RH authority or higher",
+      });
+    }
+
+    // Rows with a hard error from the preview step should never
+    // reach commit — the frontend filters them out, but this is
+    // the actual security/data-integrity boundary, not that.
+    const importableRows = rows.filter((row) => !row.errors || row.errors.length === 0);
+    if (importableRows.length === 0) {
+      return res.status(400).json({ success: false, message: "No valid rows to import" });
+    }
+
+    const result = await commitImport(importableRows, company, req.user.id);
+
+    await logAudit(req, {
+      company: company._id,
+      action: "create",
+      resourceType: "EmployeeBulkImport",
+      resourceId: company._id,
+      resourceLabel: `${result.createdCount} employees imported`,
+      after: { createdCount: result.createdCount },
+    });
+
+    res.json({ success: true, data: { createdCount: result.createdCount }, message: `${result.createdCount} employee(s) imported successfully` });
+  } catch (error) {
+    console.error("POST bulk-import commit error:", error);
+    res.status(error.status || 500).json({ success: false, message: error.message || "Error committing import" });
+  }
+});
+
+// ======================================================
+// EMPLOYEE DOCUMENTS (attestations & certificat de travail) — PDF
+// GET /api/employees/:id/documents/:type/pdf
+//   :type is one of: attestation-travail, attestation-salaire, certificat-travail
+// ======================================================
+
+router.get("/:id/documents/:type/pdf", auth, requireHRAccess, async (req, res) => {
+  try {
+    const { id, type } = req.params;
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ success: false, message: "Invalid employee ID" });
+    }
+
+    const GENERATORS = {
+      "attestation-travail": { fn: generateAttestationTravail, filenamePrefix: "attestation-travail", needsSalary: false },
+      "attestation-salaire": { fn: generateAttestationSalaire, filenamePrefix: "attestation-salaire", needsSalary: true },
+      "certificat-travail": { fn: generateCertificatTravail, filenamePrefix: "certificat-travail", needsSalary: false },
+      "contrat-travail": { fn: generateContratTravail, filenamePrefix: "contrat-travail", needsSalary: true, needsContract: true },
+      "solde-tout-compte": { fn: generateSoldeToutCompte, filenamePrefix: "solde-tout-compte", needsSalary: true, needsLeaveBalance: true },
+    };
+    const generatorSpec = GENERATORS[type];
+    if (!generatorSpec) {
+      return res.status(400).json({
+        success: false,
+        message: `Unknown document type "${type}". Expected one of: ${Object.keys(GENERATORS).join(", ")}`,
+      });
+    }
+
+    const employee = await Employee.findById(id)
+      .populate("company")
+      .populate("department", "name");
+
+    if (!employee) {
+      return res.status(404).json({ success: false, message: "Employee not found" });
+    }
+
+    if (!canManage(req, employee.company)) {
+      return res.status(403).json({
+        success: false,
+        message: "Not authorized to generate documents for this employee",
+      });
+    }
+
+    // The company's legal representative line is drawn from
+    // company.owner (see pdfHelpers/employeeDocumentsPdfService) —
+    // populate it here since the `.populate("company")` above only
+    // pulls the Company document itself, not its own owner ref.
+    await employee.company.populate("owner", "firstName lastName");
+
+    let salary = null;
+    if (generatorSpec.needsSalary) {
+      salary = await Salary.findOne({ employee: employee._id, endDate: null }).sort({ startDate: -1 });
+    }
+
+    let contract = null;
+    if (generatorSpec.needsContract) {
+      contract = await Contract.findOne({ employee: employee._id }).sort({ startDate: -1 });
+      if (!contract) {
+        return res.status(404).json({
+          success: false,
+          message: "This employee has no contract on file yet — add one from the Contracts page before generating this document.",
+        });
+      }
+    }
+
+    let leaveBalance = null;
+    if (generatorSpec.needsLeaveBalance) {
+      leaveBalance = await getLeaveBalance(employee, employee.terminationDate || new Date());
+    }
+
+    const logoBuffer = await fetchLogoBuffer(employee.company);
+
+    const doc = generatorSpec.fn({
+      employee,
+      company: employee.company,
+      salary,
+      contract,
+      leaveBalance,
+      terminationDate: employee.terminationDate,
+      logoBuffer,
+    });
+
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader(
+      "Content-Disposition",
+      `inline; filename="${generatorSpec.filenamePrefix}-${employee.employeeNumber || employee._id}.pdf"`
+    );
+    doc.pipe(res);
+    doc.end();
+  } catch (error) {
+    console.error("GET employee document PDF error:", error);
+    res.status(500).json({ success: false, message: "Error generating document", error: error.message });
+  }
+});
 
 // ======================================================
 // TRANSLATIONS (jobTitle, service, position, workLocation, notes)

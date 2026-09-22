@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Wallet,
   Plus,
@@ -11,12 +11,14 @@ import {
 
 import { useI18n } from "../../hooks/useI18n";
 import { useAuth } from "../../hooks/useAuth";
+import { useDebouncedValue } from "../../hooks/useDebouncedValue";
 
 import CollapsibleForm from "../../components/useful/CollapsibleForm";
 import CustomSelect from "../../components/useful/CustomSelect";
 import Breadcrumbs from "../../components/useful/Breadcrumbs";
 import ActionModal from "../../components/useful/ActionModal";
 import SearchBar from "../../components/useful/SearchBar";
+import Pagination from "../../components/useful/Pagination";
 
 import {
   getSalaries,
@@ -132,30 +134,32 @@ export default function Salaries() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  // Client-side search filter (all current salaries are already
-  // fully loaded above, not server-paginated) matches employee
-  // name/number.
+  // Real server-side pagination + search (was previously "fetch up
+  // to 500 at once, filter in the browser" — fine for a small
+  // company, but silently both over-fetches AND truncates past 500
+  // for a larger one). Matches the same pattern Absences/Advances/
+  // Contracts already use.
+  const SALARIES_PAGE_SIZE = 20;
   const [search, setSearch] = useState("");
-  const filteredSalaries = useMemo(() => {
-    const term = search.trim().toLowerCase();
-    if (!term) return salaries;
-    return salaries.filter((salary) => {
-      const emp = salary.employee;
-      return (
-        employeeName(emp).toLowerCase().includes(term) ||
-        (emp?.employeeNumber || "").toLowerCase().includes(term)
-      );
-    });
-  }, [salaries, search]);
+  const debouncedSearch = useDebouncedValue(search, 400);
+  const [page, setPage] = useState(1);
+  const [pagination, setPagination] = useState({ total: 0, page: 1, limit: SALARIES_PAGE_SIZE, pages: 1 });
+
+  useEffect(() => {
+    setPage(1);
+  }, [selectedCompanyId, debouncedSearch]);
 
   const reloadCurrentSalaries = async () => {
     if (!selectedCompanyId) return;
-    const { salaries: data } = await getSalaries({
+    const { salaries: data, pagination: paginationData } = await getSalaries({
       companyId: selectedCompanyId,
       current: true,
-      limit: 500,
+      search: debouncedSearch || undefined,
+      page,
+      limit: SALARIES_PAGE_SIZE,
     });
     setSalaries(data || []);
+    if (paginationData) setPagination(paginationData);
   };
 
   useEffect(() => {
@@ -172,13 +176,18 @@ export default function Salaries() {
         setLoading(true);
         setError("");
 
-        const { salaries: data } = await getSalaries({
+        const { salaries: data, pagination: paginationData } = await getSalaries({
           companyId: selectedCompanyId,
           current: true,
-          limit: 500,
+          search: debouncedSearch || undefined,
+          page,
+          limit: SALARIES_PAGE_SIZE,
         });
 
-        if (!cancelled) setSalaries(data || []);
+        if (!cancelled) {
+          setSalaries(data || []);
+          if (paginationData) setPagination(paginationData);
+        }
       } catch (err) {
         if (cancelled) return;
         console.error("Failed to load salaries:", err);
@@ -195,7 +204,7 @@ export default function Salaries() {
     return () => {
       cancelled = true;
     };
-  }, [selectedCompanyId, t]);
+  }, [selectedCompanyId, debouncedSearch, page, t]);
 
   // ========================================
   // HISTORY PANEL (per employee)
@@ -487,7 +496,7 @@ export default function Salaries() {
 
       {error && <div className={styles.errorMessage}>{error}</div>}
 
-      {selectedCompanyId && !loading && filteredSalaries.length === 0 && (
+      {selectedCompanyId && !loading && salaries.length === 0 && (
         <div className="emptyStateBlock">
           <div className="emptyStateIcon">
             <Wallet size={28} />
@@ -497,7 +506,7 @@ export default function Salaries() {
         </div>
       )}
 
-      {selectedCompanyId && filteredSalaries.length > 0 && (
+      {selectedCompanyId && salaries.length > 0 && (
         <div className="dataTable">
           <div
             className="dataTableHead"
@@ -511,7 +520,7 @@ export default function Salaries() {
             <span />
           </div>
 
-          {filteredSalaries.map((salary) => (
+          {salaries.map((salary) => (
             <div
               key={salary._id}
               className="dataTableRow"
@@ -572,6 +581,16 @@ export default function Salaries() {
             </div>
           ))}
         </div>
+      )}
+
+      {selectedCompanyId && salaries.length > 0 && (
+        <Pagination
+          page={pagination.page}
+          pages={pagination.pages}
+          total={pagination.total}
+          limit={pagination.limit}
+          onPageChange={setPage}
+        />
       )}
 
       {/* ==================================

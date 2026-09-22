@@ -103,6 +103,108 @@ function canAccessHRForCompany(actor, company) {
 }
 
 // ------------------------------------------------------------
+// HR JOB HIERARCHY (User.hrRole — only meaningful for "hr"
+// department accounts)
+// ------------------------------------------------------------
+// A real, named hierarchy — the same shape a French/Moroccan HR
+// department actually has — rather than one flat "has HR access"
+// bit. Ordered lowest to highest authority:
+//
+//   Assistant RH (hr_assistant)
+//     -> day-to-day support: view records, upload/manage
+//        documents, no approval or salary authority.
+//   Chargé(e) RH (hr_officer)
+//     -> full data-entry authority: create/edit employees,
+//        contracts, process (but not APPROVE) absences/advances.
+//        No salary authority, cannot delete employees.
+//   Responsable RH (hr_manager)
+//     -> full operational authority: approve/reject absences and
+//        advances, manage salaries, delete employee records.
+//        This is also the fallback level for any "hr" department
+//        account with no hrRole set (see hrRoleLevel below).
+//   Directeur/Directrice RH (hr_director)
+//     -> everything a manager can, plus managing OTHER hr staff's
+//        role/tier (canManageHRStaffRoles) — the one capability
+//        below a manager does NOT have.
+//
+// admin/owner sit above this hierarchy entirely (unchanged from
+// before this feature existed) — every function below still checks
+// them first and short-circuits to "yes".
+// ------------------------------------------------------------
+
+const HR_ROLES = Object.freeze({
+  ASSISTANT: "hr_assistant",
+  OFFICER: "hr_officer",
+  MANAGER: "hr_manager",
+  DIRECTOR: "hr_director",
+});
+
+// Index in this array IS the authority level — lowest to highest.
+const HR_ROLE_HIERARCHY = [HR_ROLES.ASSISTANT, HR_ROLES.OFFICER, HR_ROLES.MANAGER, HR_ROLES.DIRECTOR];
+
+/**
+ * Numeric authority level for `hasHRRoleAtLeast` comparisons.
+ * -1: not in the HR department at all (and not admin/owner).
+ * admin/owner: above every tier, always passes any comparison.
+ * An "hr" department account with hrRole unset defaults to the
+ * MANAGER tier (see the field's schema comment for why: so this
+ * feature can't silently downgrade access anyone already had).
+ */
+function hrRoleLevel(actor) {
+  if (isAdmin(actor) || isOwner(actor)) return HR_ROLE_HIERARCHY.length;
+  if (!isHRDepartment(actor)) return -1;
+  if (!actor.hrRole) return HR_ROLE_HIERARCHY.indexOf(HR_ROLES.MANAGER);
+  const idx = HR_ROLE_HIERARCHY.indexOf(actor.hrRole);
+  return idx === -1 ? HR_ROLE_HIERARCHY.indexOf(HR_ROLES.MANAGER) : idx;
+}
+
+/**
+ * Is this actor's HR tier at least `minRole`? admin/owner always
+ * pass. Anyone outside the HR department (and not admin/owner)
+ * always fails, regardless of `minRole`.
+ */
+function hasHRRoleAtLeast(actor, minRole) {
+  const level = hrRoleLevel(actor);
+  if (level < 0) return false;
+  if (isAdmin(actor) || isOwner(actor)) return true;
+  return level >= HR_ROLE_HIERARCHY.indexOf(minRole);
+}
+
+/** Chargé(e) RH and above: create/edit employees, contracts, day-to-day HR records. */
+function canManageEmployeeRecords(actor) {
+  return hasHRRoleAtLeast(actor, HR_ROLES.OFFICER);
+}
+
+/**
+ * Responsable RH and above: approve/reject absences & advances on
+ * HR's behalf, manage salaries, delete employee records.
+ *
+ * This is DELIBERATELY separate from — and doesn't replace —
+ * manager-based approval (canReviewRequest below): a line manager
+ * approving their own direct report's request via Employee.manager
+ * is a completely different door than an HR staffer approving on
+ * HR's behalf, and keeps working regardless of that manager's
+ * hrRole (they likely don't have one at all — most managers aren't
+ * in the HR department).
+ */
+function canApproveHRRequests(actor) {
+  return hasHRRoleAtLeast(actor, HR_ROLES.MANAGER);
+}
+
+function canManageSalaries(actor) {
+  return hasHRRoleAtLeast(actor, HR_ROLES.MANAGER);
+}
+
+function canDeleteEmployee(actor) {
+  return hasHRRoleAtLeast(actor, HR_ROLES.MANAGER);
+}
+
+/** Directeur/Directrice RH only (plus admin/owner): who may assign or change another HR staffer's hrRole. */
+function canManageHRStaffRoles(actor) {
+  return hasHRRoleAtLeast(actor, HR_ROLES.DIRECTOR);
+}
+
+// ------------------------------------------------------------
 // PRODUCTION MODULE (Inventory, categories, purchase requests)
 // ------------------------------------------------------------
 // Deliberately NARROWER than the HR module: only platform admins
@@ -155,15 +257,21 @@ function isOwnEmployeeRecord(actor, employeeId) {
 
 /**
  * Who may review (accept/reject) an absence or advance request.
- * - HR/admin/owner: always (existing behavior, unchanged).
- * - a manager: only for requests from an employee whose
+ * - admin/owner: always (existing behavior, unchanged).
+ * - HR department staff: only Responsable RH tier and above
+ *   (canApproveHRRequests) — a Chargé/Assistant RH can process and
+ *   view requests but the actual accept/reject decision needs
+ *   manager-tier HR authority or higher.
+ * - a line manager: only for requests from an employee whose
  *   `manager` field points at the reviewer's own linked employee.
  *   Pass in the requesting employee's record (with `manager`
  *   populated) once it's been fetched — this function doesn't hit
  *   the database itself.
  */
 function canReviewRequest(actor, company, requestingEmployee) {
-  if (canAccessHRForCompany(actor, company)) return true;
+  if (isAdmin(actor)) return true;
+  if (isOwner(actor)) return sameId(company?.owner, actor.id);
+  if (canApproveHRRequests(actor)) return true;
 
   if (canSelfService(actor) && requestingEmployee?.manager) {
     return sameId(actor.employee, requestingEmployee.manager);
@@ -313,6 +421,15 @@ module.exports = {
   isAdmin,
   canAccessHR,
   canAccessHRForCompany,
+  HR_ROLES,
+  HR_ROLE_HIERARCHY,
+  hrRoleLevel,
+  hasHRRoleAtLeast,
+  canManageEmployeeRecords,
+  canApproveHRRequests,
+  canManageSalaries,
+  canDeleteEmployee,
+  canManageHRStaffRoles,
   PRODUCTION_DEPARTMENT,
   isProductionDepartment,
   canAccessProduction,

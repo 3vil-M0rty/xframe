@@ -66,6 +66,15 @@ const contractSchema = new mongoose.Schema(
       index: true,
     },
 
+    // Set once a "contract_expiring" notification has been sent for
+    // this contract's CURRENT endDate — prevents the daily
+    // expiry-check job (see services/scheduledNotificationsService.js)
+    // from re-notifying HR every single day of the 30-day warning
+    // window. Cleared automatically if endDate is pushed further out
+    // (a renewal), so an extended contract can re-enter the window
+    // and be notified again for its new date.
+    expiryNotifiedAt: { type: Date, default: null },
+
     renewalCount: { type: Number, default: 0 },
 
     previousContract: {
@@ -96,5 +105,17 @@ contractSchema.index({ endDate: 1, status: 1 });
 // free-text field(s) below — every language in config/i18nContent.js's
 // CONTENT_LANGUAGES gets its own auto-translated + manually-editable slot.
 contractSchema.plugin(translatable, { fields: ["jobTitle", "department", "notes"] });
+
+// If endDate is pushed out (a renewal, or simply corrected), clear
+// any prior expiry notification flag so the daily expiry-check job
+// can notify HR again once the NEW date enters the warning window —
+// otherwise a renewed contract would silently never be flagged
+// again.
+contractSchema.pre("save", function clearStaleExpiryFlag(next) {
+  if (this.isModified("endDate") && this.expiryNotifiedAt) {
+    this.expiryNotifiedAt = null;
+  }
+  next();
+});
 
 module.exports = mongoose.model("Contract", contractSchema);

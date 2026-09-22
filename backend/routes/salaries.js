@@ -12,7 +12,7 @@ const {
   requireHRAccess,
   requireAdmin,
 } = require("../middleware/permissionMiddleware");
-const { canAccessHRForCompany } = require("../permissions/permissions");
+const { canAccessHRForCompany, canManageSalaries } = require("../permissions/permissions");
 const { findMatchingEmployeeIds } = require("../utils/employeeSearch");
 
 // Every route below the module-wide requireHRAccess check applies
@@ -234,6 +234,13 @@ router.post("/", async (req, res) => {
       });
     }
 
+    if (!canManageSalaries(req.user)) {
+      return res.status(403).json({
+        success: false,
+        message: "Managing salaries requires Responsable RH authority or higher",
+      });
+    }
+
     const employeeDoc = await Employee.findOne({ _id: employee, company });
 
     if (!employeeDoc) {
@@ -314,6 +321,13 @@ router.put("/:id", async (req, res) => {
       return res.status(403).json({
         success: false,
         message: "Not authorized to update this salary record",
+      });
+    }
+
+    if (!canManageSalaries(req.user)) {
+      return res.status(403).json({
+        success: false,
+        message: "Managing salaries requires Responsable RH authority or higher",
       });
     }
 

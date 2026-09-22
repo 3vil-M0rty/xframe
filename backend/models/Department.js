@@ -58,6 +58,30 @@ const departmentSchema = new mongoose.Schema(
       default: null,
     },
 
+    // A broader business-function tag than permissionKey — same
+    // taxonomy User.department already uses, but here it carries NO
+    // access-control meaning at all (unlike permissionKey, which
+    // gates real module access). Its only job is letting the
+    // Employees create/edit form suggest a standard set of job
+    // titles once this department is selected (see
+    // config/departmentJobTitles.js on both frontend and backend)
+    // instead of leaving Job Title free text for every department.
+    // A company can set this on as many departments as apply, or
+    // leave it unset — an unset category just means Job Title stays
+    // free text for employees there, same as before this feature
+    // existed.
+    category: {
+      type: String,
+      enum: [
+        "management", "administration", "hr", "finance", "accounting",
+        "sales", "purchasing", "marketing", "production", "production_planning",
+        "quality_control", "maintenance", "warehouse", "logistics", "procurement",
+        "engineering", "design", "research_development", "it", "customer_service",
+        "health_safety_environment", "security", null,
+      ],
+      default: null,
+    },
+
     createdBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
     updatedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
   },

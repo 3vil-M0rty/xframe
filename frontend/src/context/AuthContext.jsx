@@ -54,14 +54,47 @@ export const AuthProvider = ({ children }) => {
     setLoading(true);
     try {
       const response = await api.post('/auth/login', { email, password });
+
+      // An account with 2FA enabled doesn't get a real session here
+      // — the backend hands back a short-lived challengeToken
+      // instead (see routes/twoFactor.js), which only proves the
+      // password was correct. LoginPage.jsx uses this to show a
+      // second "enter your code" step, then calls
+      // verifyTwoFactorLogin below to actually finish logging in.
+      if (response.data.data.requires2FA) {
+        return { success: false, requires2FA: true, challengeToken: response.data.data.challengeToken };
+      }
+
       const { token: newToken, user: userData } = response.data.data;
-      
+
       setToken(newToken);
       setUser(userData);
       localStorage.setItem('token', newToken);
       api.defaults.headers.common['Authorization'] = `Bearer ${newToken}`;
-      
+
       return { success: true };
+    } catch (error) {
+      return { success: false, error: error.response?.data?.message };
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Completes a login that was interrupted by a 2FA challenge.
+  // `code` is either a 6-digit authenticator code or one of the
+  // account's backup codes — the backend tells them apart itself.
+  const verifyTwoFactorLogin = async (challengeToken, code) => {
+    setLoading(true);
+    try {
+      const response = await api.post('/2fa/verify-login', { challengeToken, token: code });
+      const { token: newToken, user: userData, usedBackupCode } = response.data.data;
+
+      setToken(newToken);
+      setUser(userData);
+      localStorage.setItem('token', newToken);
+      api.defaults.headers.common['Authorization'] = `Bearer ${newToken}`;
+
+      return { success: true, usedBackupCode };
     } catch (error) {
       return { success: false, error: error.response?.data?.message };
     } finally {
@@ -84,7 +117,7 @@ export const AuthProvider = ({ children }) => {
   // silently re-collapsed back to whichever section matches the
   // current route.
   const value = useMemo(
-    () => ({ user, token, login, logout, loading }),
+    () => ({ user, token, login, verifyTwoFactorLogin, logout, loading }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [user, token, loading]
   );

@@ -339,6 +339,53 @@
     gap: 8px;
 }
 
+.docsMenuWrapper {
+    position: relative;
+}
+
+.docsMenuWrapper > button {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.docsMenu {
+    position: absolute;
+    top: calc(100% + 6px);
+    right: 0;
+    z-index: 20;
+
+    display: flex;
+    flex-direction: column;
+
+    min-width: 220px;
+    padding: 6px;
+
+    background: rgba(15, 15, 15, 0.98);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
+}
+
+.docsMenuItem {
+    padding: 0.55rem 0.7rem;
+
+    color: #ddd;
+    font-size: 0.82rem;
+    text-align: left;
+
+    background: transparent;
+    border: none;
+    border-radius: 7px;
+    cursor: pointer;
+    transition: background 0.15s ease;
+}
+
+.docsMenuItem:hover {
+    background: rgba(255, 255, 255, 0.07);
+    color: #fff;
+}
+
 
 /* ============================================================
    PROFILE CARD
@@ -650,6 +697,16 @@
         flex: 1;
     }
 
+    .docsMenuWrapper {
+        flex: 1;
+    }
+
+    .docsMenu {
+        left: 0;
+        right: 0;
+        min-width: 0;
+    }
+
     .profileCard {
         flex-direction: column;
         align-items: flex-start;
@@ -664,4 +721,10 @@
     :global(.detailSection).detailSection {
         padding: 1.25rem;
     }
+}
+
+.pageHeaderActions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
 }

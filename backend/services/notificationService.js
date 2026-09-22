@@ -21,6 +21,27 @@ async function getHRRecipientIds(company) {
 }
 
 /**
+ * Finds the User accounts that should be notified about Production
+ * events for a given company: platform admins and any "production"
+ * department user. (Mirrors canAccessProduction in
+ * permissions/permissions.js.) `excludeUserId`, if given, is left
+ * out of the result — used so the person who just submitted a
+ * purchase request doesn't get notified about their own submission.
+ */
+async function getProductionRecipientIds(company, excludeUserId) {
+  const users = await User.find({
+    $or: [
+      { role: "admin" },
+      { department: "production" },
+    ],
+  }).select("_id");
+
+  return users
+    .map((u) => u._id.toString())
+    .filter((id) => id !== String(excludeUserId || ""));
+}
+
+/**
  * Creates an in-app notification for one user. This is the ONE
  * place to wire in real email/SMS later (e.g. call a mailer here
  * after the Notification.create) — every call site in the app
@@ -55,4 +76,4 @@ async function notifyMany(userIds = [], payload) {
   );
 }
 
-module.exports = { notify, notifyMany, getHRRecipientIds };
+module.exports = { notify, notifyMany, getHRRecipientIds, getProductionRecipientIds };

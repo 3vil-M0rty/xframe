@@ -1,5 +1,5 @@
 import api from "./api";
-import { downloadBlob } from "../utils/download";
+import { downloadBlob, normalizeBlobError } from "../utils/download";
 
 export const getMyEmployeeProfile = async () => {
   const response = await api.get("/me/employee");
@@ -25,10 +25,14 @@ export const getMyPayslipById = async (id) => {
 };
 
 export const downloadMyPayslipPdf = async (id, filename = "bulletin.pdf") => {
-  const response = await api.get(`/me/payslips/${id}/pdf`, {
-    responseType: "blob",
-  });
-  downloadBlob(response.data, filename, true);
+  try {
+    const response = await api.get(`/me/payslips/${id}/pdf`, {
+      responseType: "blob",
+    });
+    downloadBlob(response.data, filename, true);
+  } catch (err) {
+    throw await normalizeBlobError(err);
+  }
 };
 
 export const getMyAbsences = async ({ page = 1, limit = 20, from, to } = {}) => {

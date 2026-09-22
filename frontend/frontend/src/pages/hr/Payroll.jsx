@@ -287,8 +287,15 @@ export default function Payroll() {
   const handleDownloadPayslip = async (payslip) => {
     setDownloadingId(payslip._id);
     try {
-      const name = payslip.employee?.employeeNumber || payslip.employee?._id || "employe";
-      await downloadPayslipPdf(payslip._id, `bulletin-${name}-${payslip.month}-${payslip.year}.pdf`);
+      const employeeName = `${payslip.employee?.firstName || ""} ${payslip.employee?.lastName || ""}`.trim();
+      const monthLabel = t(`payroll.months.${payslip.month - 1}`) || MONTH_NAMES[payslip.month - 1] || "";
+      const safeName = ["Bulletin de paie", employeeName, monthLabel && payslip.year ? `${monthLabel} ${payslip.year}` : payslip.year]
+        .filter(Boolean)
+        .join(" - ")
+        .replace(/[/\\:*?"<>|]/g, "")
+        .replace(/\s+/g, " ")
+        .trim();
+      await downloadPayslipPdf(payslip._id, `${safeName}.pdf`);
     } catch (error) {
       console.error("Failed to download payslip:", error);
     } finally {

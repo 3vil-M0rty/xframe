@@ -278,7 +278,12 @@ function PayslipsTab({ t }) {
   const handleDownload = async (payslip) => {
     setDownloadingId(payslip._id);
     try {
-      await downloadMyPayslipPdf(payslip._id, `bulletin-${payslip.month}-${payslip.year}.pdf`);
+      const monthLabel = t(`payroll.months.${payslip.month - 1}`);
+      const safeName = `Bulletin de paie - ${monthLabel} ${payslip.year}`
+        .replace(/[/\\:*?"<>|]/g, "")
+        .replace(/\s+/g, " ")
+        .trim();
+      await downloadMyPayslipPdf(payslip._id, `${safeName}.pdf`);
     } catch (error) {
       console.error("Failed to download payslip:", error);
     } finally {

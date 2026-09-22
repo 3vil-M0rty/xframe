@@ -13,6 +13,9 @@ export const translations = {
     // ====================================================
 
     sidebar: {
+      leaveCalendar: "Leave Calendar",
+      performanceReviews: "Performance Reviews",
+      disciplinaryActions: "Disciplinary Actions",
       admin: "Admin",
       settings: "Settings",
       help: "Help & Support",
@@ -255,6 +258,9 @@ export const translations = {
       // DELETE
       // ==================================================
 
+      downloadFiche:
+        "Download fact sheet",
+
       deleteCompany:
         "Delete company",
 
@@ -296,6 +302,9 @@ export const translations = {
         viewNotAuthorized:
           "You are not authorized to view this company.",
 
+        ficheDownloadFailed:
+          "Error generating the company fact sheet.",
+
         duplicateCompany:
           "A company with this ICE, tax ID, registration number, or CNSS number already exists.",
 
@@ -329,6 +338,7 @@ export const translations = {
     users: {
       editUser: "Edit User",
       editSubtitle: "Update this user's account information.",
+      inheritedFromEmployee: "Department and HR role are inherited from the linked employee {name} ({department} — {jobTitle}). To change them, update the employee's Department or Job Title instead.",
 
       updateTitle: "Update User",
       updateSureMessage: "Are you sure you want to save these changes?",
@@ -338,6 +348,15 @@ export const translations = {
 
       updateFailTitle: "Update Failed",
       updateFailMessage: "We couldn't update the user. Please try again.",
+
+      hrRole: {
+        label: "HR Job Title",
+        notApplicable: "Not applicable (not HR)",
+        assistant: "Assistant(e) RH",
+        officer: "Chargé(e) RH",
+        manager: "Responsable RH",
+        director: "Directeur/Directrice RH",
+      },
       department: "Department",
       departments: {
         management: "Management",
@@ -615,6 +634,37 @@ export const translations = {
         identification: "Identification",
         company: "Company",
         notes: "Notes",
+      },
+
+      documents: {
+        menuButton: "Documents",
+        attestationTravail: "Attestation de travail",
+        attestationSalaire: "Attestation de salaire",
+        certificatTravail: "Certificat de travail",
+        contratTravail: "Contrat de travail",
+        soldeToutCompte: "Reçu pour solde de tout compte",
+        generationFailed: "Error generating the document.",
+      },
+
+      bulkImport: {
+        exportButton: "Export (CSV)",
+        exportFailed: "Could not export employees.",
+        openButton: "Import (CSV)",
+        title: "Bulk import employees",
+        helpText: "Upload a CSV file to create multiple employees at once. Every row is checked first — nothing is created until you confirm.",
+        downloadTemplate: "Download CSV template",
+        preview: "Check file",
+        previewing: "Checking...",
+        previewFailed: "Could not read this file.",
+        summaryValid: "{count} ready to import",
+        summaryErrors: "{count} with errors",
+        summaryWarnings: "{count} with warnings",
+        rowOk: "Looks good",
+        fixErrorsFirst: "Fix the rows with errors and re-upload the file before importing — rows with only warnings will still be imported.",
+        importButton: "Import {count} employee(s)",
+        committing: "Importing...",
+        commitFailed: "Could not complete the import.",
+        commitSuccess: "{count} employee(s) imported successfully.",
       },
 
       fields: {
@@ -1010,6 +1060,13 @@ export const translations = {
       title: "Departments",
       subtitle: "Define your organization's departments and the job positions (postes) within them.",
       addDepartment: "Add department",
+      addDefaults: "Add default departments",
+      defaultsModal: {
+        title: "Add default departments",
+        helpText: "Pick the departments you want to add — each comes with a standard name, description, and (for HR/Production) module access already set. You can still edit or add more later.",
+        adding: "Adding...",
+        addButton: "Add {count} department(s)",
+      },
       editDepartment: "Edit department",
       addPosition: "Add position",
       editPosition: "Edit position",
@@ -1023,6 +1080,9 @@ export const translations = {
       fields: {
         name: "Name", description: "Description", permissionKey: "Module access",
         permissionKeyHint: "Optional — only set this on ONE department if employees there (and their auto-created logins) should get HR or Production module access. Most departments should leave this as \"No special access\".",
+        category: "Job function",
+        noCategory: "No specific function",
+        categoryHint: "Optional — lets the employee form suggest standard job titles for this department instead of leaving it free text. Purely a suggestion; carries no access implications, unlike Module access above.",
         noSpecialAccess: "No special access", hrAccess: "HR module access", productionAccess: "Production module access",
         positionTitle: "Position title", reportsTo: "Reports to", noReportsTo: "None (top-level position)",
         salaryMin: "Salary band — min", salaryMax: "Salary band — max", salaryBand: "Salary band",
@@ -1318,7 +1378,7 @@ export const translations = {
         residence_permit: "Residence permit", contract: "Contract", diploma: "Diploma",
         cv: "CV", medical_certificate: "Medical certificate", other: "Other",
       },
-      actions: { view: "View" },
+      actions: { view: "View", loadMore: "Load more", loadMoreCount: "Showing {loaded} of {total}" },
       buttons: { upload: "Upload" },
       breadcrumbs: { hr: "HR", documents: "Documents" },
       errors: {
@@ -1352,6 +1412,18 @@ export const translations = {
       },
       breadcrumbs: { hr: "HR", reports: "Reports" },
       loadError: "Some report data failed to load. Please try again, or check the console for details.",
+      rankings: {
+        title: "Employee rankings",
+        last30Days: "Last 30 days",
+        last90Days: "Last 90 days",
+        last365Days: "Last 12 months",
+        mostAbsenceDays: "Most absence days",
+        bestAttendanceRate: "Best attendance rate",
+        mostOvertimeHours: "Most overtime hours",
+        mostLateDays: "Most late arrivals",
+        noData: "No data for this period.",
+        days: "days",
+      },
     },
 
     auditLog: {
@@ -1464,7 +1536,139 @@ export const translations = {
         regenerateFailed: "Failed to regenerate the translation.",
       },
     },
+  twoFactor: {
+    title: "Two-factor authentication",
+    disabledHint: "Add an extra layer of security to your account — after your password, you'll also need a code from an authenticator app to sign in.",
+    enabledHint: "Two-factor authentication is enabled on your account. You'll be asked for a code from your authenticator app every time you sign in.",
+    enableButton: "Enable two-factor authentication",
+    disableButton: "Disable two-factor authentication",
+    disabling: "Disabling...",
+    scanTitle: "Scan the QR code",
+    scanHint: "Scan this with an authenticator app (Google Authenticator, Authy, etc.), then enter the 6-digit code it shows to confirm.",
+    manualEntryLabel: "Can't scan it? Enter this code manually:",
+    confirmAndEnable: "Confirm and enable",
+    verifying: "Verifying...",
+    backupCodesTitle: "Save your backup codes",
+    backupCodesHint: "Each code can be used once to sign in if you lose access to your authenticator app. Save them somewhere safe — they won't be shown again.",
+    copyBackupCodes: "Copy codes",
+    copied: "Copied",
+    iSavedThem: "I've saved these codes",
+    confirmPasswordLabel: "Confirm your password to continue",
+    errors: {
+      statusFailed: "Could not check two-factor status.",
+      setupFailed: "Could not start two-factor setup.",
+      invalidCode: "That code didn't match — check your authenticator app and try again.",
+      disableFailed: "Could not disable two-factor authentication.",
+    },
+  },
 
+  disciplinaryActions: {
+    title: "Disciplinary Actions",
+    subtitle: "Track warnings and corrective actions issued to employees.",
+    addAction: "Add record",
+    editAction: "Edit record",
+    emptyTitle: "No disciplinary records yet",
+    emptyMessage: "This company has no disciplinary actions on file.",
+    deleteTitle: "Delete record",
+    deleteSureMessage: "Are you sure you want to delete this record? This cannot be undone.",
+    acknowledged: "Acknowledged",
+    notAcknowledged: "Not yet acknowledged",
+    breadcrumbs: {
+      hr: "HR",
+      disciplinaryActions: "Disciplinary Actions",
+    },
+    fields: {
+      employee: "Employee",
+      type: "Type",
+      date: "Date",
+      reason: "Reason",
+      description: "Description",
+      suspensionDays: "Suspension (days)",
+      issuedBy: "Issued by",
+      notes: "Notes",
+    },
+    types: {
+      verbal_warning: "Verbal warning",
+      written_warning: "Written warning",
+      final_warning: "Final warning",
+      suspension: "Suspension",
+      termination_notice: "Termination notice",
+    },
+    errors: {
+      fetchFailed: "Failed to load disciplinary records",
+      saveFailed: "Error saving record",
+      deleteFailed: "Error deleting record",
+    },
+  },
+  performanceReviews: {
+    title: "Performance Reviews",
+    subtitle: "Review cycles, goals, and ratings for your employees.",
+    addReview: "New review",
+    editReview: "Edit review",
+    emptyTitle: "No performance reviews yet",
+    emptyMessage: "This company has no performance reviews on file.",
+    deleteTitle: "Delete review",
+    deleteSureMessage: "Are you sure you want to delete this review? This cannot be undone.",
+    reviewedBy: "Reviewed by",
+    submitButton: "Submit to employee",
+    breadcrumbs: {
+      hr: "HR",
+      performanceReviews: "Performance Reviews",
+    },
+    fields: {
+      employee: "Employee",
+      reviewer: "Reviewer",
+      periodLabel: "Review period",
+      periodLabelPlaceholder: "e.g. Annual review 2026",
+      reviewDate: "Review date",
+      goals: "Goals (one per line)",
+      goalsPlaceholder: "Improve response time on support tickets\nComplete the onboarding certification",
+      strengths: "Strengths",
+      areasForImprovement: "Areas for improvement",
+      comments: "Comments",
+    },
+    criteria: {
+      jobKnowledge: "Job knowledge",
+      qualityOfWork: "Quality of work",
+      communication: "Communication",
+      teamwork: "Teamwork",
+      initiative: "Initiative",
+      punctuality: "Punctuality",
+    },
+    statuses: {
+      draft: "Draft",
+      submitted: "Submitted",
+      acknowledged: "Acknowledged",
+    },
+    errors: {
+      fetchFailed: "Failed to load performance reviews",
+      saveFailed: "Error saving review",
+      submitFailed: "Error submitting review",
+      deleteFailed: "Error deleting review",
+    },
+  },
+  leaveCalendar: {
+    title: "Leave Calendar",
+    subtitle: "See who's on approved leave at a glance.",
+    previousMonth: "Previous month",
+    nextMonth: "Next month",
+    breadcrumbs: {
+      hr: "HR",
+      leaveCalendar: "Leave Calendar",
+    },
+    weekdays: {
+      0: "Mon",
+      1: "Tue",
+      2: "Wed",
+      3: "Thu",
+      4: "Fri",
+      5: "Sat",
+      6: "Sun",
+    },
+    errors: {
+      fetchFailed: "Failed to load the leave calendar",
+    },
+  },
   },
 
   // ======================================================
@@ -1473,6 +1677,9 @@ export const translations = {
 
   fr: {
     sidebar: {
+      leaveCalendar: "Calendrier des congés",
+      performanceReviews: "Évaluations",
+      disciplinaryActions: "Actions disciplinaires",
       admin: "Admin",
       settings: "Paramètres",
       help: "Aide & Support",
@@ -1694,6 +1901,9 @@ export const translations = {
       loadFailMessage:
         "Impossible de charger les informations de l'entreprise.",
 
+      downloadFiche:
+        "Télécharger la fiche",
+
       deleteCompany:
         "Supprimer l'entreprise",
 
@@ -1730,6 +1940,9 @@ export const translations = {
 
         viewNotAuthorized:
           "Vous n'êtes pas autorisé à consulter cette entreprise.",
+
+        ficheDownloadFailed:
+          "Erreur lors de la génération de la fiche de l'entreprise.",
 
         duplicateCompany:
           "Une entreprise avec cet ICE, identifiant fiscal, numéro d'immatriculation ou numéro CNSS existe déjà.",
@@ -1892,6 +2105,7 @@ export const translations = {
 
       editUser: "Modifier l'utilisateur",
       editSubtitle: "Mettez à jour les informations du compte de cet utilisateur.",
+      inheritedFromEmployee: "Le département et le rôle RH sont hérités de l'employé lié {name} ({department} — {jobTitle}). Pour les modifier, mettez à jour le Département ou le Poste de l'employé.",
 
       updateTitle: "Modifier l'utilisateur",
       updateSureMessage: "Voulez-vous vraiment enregistrer ces modifications ?",
@@ -1901,6 +2115,15 @@ export const translations = {
 
       updateFailTitle: "Échec de la mise à jour",
       updateFailMessage: "Impossible de mettre à jour l'utilisateur. Veuillez réessayer.",
+
+      hrRole: {
+        label: "Poste RH",
+        notApplicable: "Non applicable (hors RH)",
+        assistant: "Assistant(e) RH",
+        officer: "Chargé(e) RH",
+        manager: "Responsable RH",
+        director: "Directeur/Directrice RH",
+      },
 
       department: "Département",
       departments: {
@@ -2017,6 +2240,37 @@ export const translations = {
         identification: "Identification",
         company: "Entreprise",
         notes: "Notes",
+      },
+
+      documents: {
+        menuButton: "Documents",
+        attestationTravail: "Attestation de travail",
+        attestationSalaire: "Attestation de salaire",
+        certificatTravail: "Certificat de travail",
+        contratTravail: "Contrat de travail",
+        soldeToutCompte: "Reçu pour solde de tout compte",
+        generationFailed: "Erreur lors de la génération du document.",
+      },
+
+      bulkImport: {
+        exportButton: "Exporter (CSV)",
+        exportFailed: "Impossible d'exporter les employés.",
+        openButton: "Importer (CSV)",
+        title: "Importer des employés en masse",
+        helpText: "Téléversez un fichier CSV pour créer plusieurs employés à la fois. Chaque ligne est d'abord vérifiée — rien n'est créé avant votre confirmation.",
+        downloadTemplate: "Télécharger le modèle CSV",
+        preview: "Vérifier le fichier",
+        previewing: "Vérification...",
+        previewFailed: "Impossible de lire ce fichier.",
+        summaryValid: "{count} prêt(s) à importer",
+        summaryErrors: "{count} avec des erreurs",
+        summaryWarnings: "{count} avec des avertissements",
+        rowOk: "Tout est correct",
+        fixErrorsFirst: "Corrigez les lignes en erreur et retéléversez le fichier avant d'importer — les lignes avec seulement des avertissements seront quand même importées.",
+        importButton: "Importer {count} employé(s)",
+        committing: "Importation...",
+        commitFailed: "Impossible de terminer l'importation.",
+        commitSuccess: "{count} employé(s) importé(s) avec succès.",
       },
 
       fields: {
@@ -2411,6 +2665,13 @@ export const translations = {
       title: "Départements",
       subtitle: "Définissez les départements de votre organisation et les postes qui les composent.",
       addDepartment: "Ajouter un département",
+      addDefaults: "Ajouter des départements par défaut",
+      defaultsModal: {
+        title: "Ajouter des départements par défaut",
+        helpText: "Choisissez les départements à ajouter — chacun est créé avec un nom, une description standard et (pour RH/Production) l'accès au module déjà défini. Vous pourrez toujours les modifier ou en ajouter d'autres ensuite.",
+        adding: "Ajout en cours...",
+        addButton: "Ajouter {count} département(s)",
+      },
       editDepartment: "Modifier le département",
       addPosition: "Ajouter un poste",
       editPosition: "Modifier le poste",
@@ -2424,6 +2685,9 @@ export const translations = {
       fields: {
         name: "Nom", description: "Description", permissionKey: "Accès au module",
         permissionKeyHint: "Facultatif — à définir sur UN SEUL département si les employés qui y travaillent (et leurs accès créés automatiquement) doivent avoir accès au module RH ou Production. La plupart des départements doivent rester sur « Aucun accès spécial ».",
+        category: "Fonction",
+        noCategory: "Aucune fonction spécifique",
+        categoryHint: "Facultatif — permet au formulaire employé de suggérer des intitulés de poste standard pour ce département au lieu de laisser un champ libre. Une simple suggestion, sans lien avec les accès contrairement au champ Accès au module ci-dessus.",
         noSpecialAccess: "Aucun accès spécial", hrAccess: "Accès au module RH", productionAccess: "Accès au module Production",
         positionTitle: "Intitulé du poste", reportsTo: "Rattaché à", noReportsTo: "Aucun (poste de tête)",
         salaryMin: "Salaire — min", salaryMax: "Salaire — max", salaryBand: "Fourchette salariale",
@@ -2719,7 +2983,7 @@ export const translations = {
         residence_permit: "Titre de séjour", contract: "Contrat", diploma: "Diplôme",
         cv: "CV", medical_certificate: "Certificat médical", other: "Autre",
       },
-      actions: { view: "Voir" },
+      actions: { view: "Voir", loadMore: "Charger plus", loadMoreCount: "{loaded} sur {total} affichés" },
       buttons: { upload: "Téléverser" },
       breadcrumbs: { hr: "RH", documents: "Documents" },
       errors: {
@@ -2753,6 +3017,18 @@ export const translations = {
       },
       breadcrumbs: { hr: "RH", reports: "Rapports" },
       loadError: "Certaines données du rapport n'ont pas pu être chargées. Veuillez réessayer, ou consulter la console pour plus de détails.",
+      rankings: {
+        title: "Classement des employés",
+        last30Days: "30 derniers jours",
+        last90Days: "90 derniers jours",
+        last365Days: "12 derniers mois",
+        mostAbsenceDays: "Le plus de jours d'absence",
+        bestAttendanceRate: "Meilleur taux de présence",
+        mostOvertimeHours: "Le plus d'heures supplémentaires",
+        mostLateDays: "Le plus de retards",
+        noData: "Aucune donnée pour cette période.",
+        days: "jours",
+      },
     },
 
     auditLog: {
@@ -2865,7 +3141,139 @@ export const translations = {
         regenerateFailed: "Échec de la régénération de la traduction.",
       },
     },
+  twoFactor: {
+    title: "Authentification à deux facteurs",
+    disabledHint: "Ajoutez une couche de sécurité supplémentaire à votre compte — après votre mot de passe, un code provenant d'une application d'authentification sera aussi requis pour vous connecter.",
+    enabledHint: "L'authentification à deux facteurs est activée sur votre compte. Un code de votre application d'authentification vous sera demandé à chaque connexion.",
+    enableButton: "Activer l'authentification à deux facteurs",
+    disableButton: "Désactiver l'authentification à deux facteurs",
+    disabling: "Désactivation...",
+    scanTitle: "Scannez le code QR",
+    scanHint: "Scannez-le avec une application d'authentification (Google Authenticator, Authy, etc.), puis saisissez le code à 6 chiffres affiché pour confirmer.",
+    manualEntryLabel: "Impossible de scanner ? Saisissez ce code manuellement :",
+    confirmAndEnable: "Confirmer et activer",
+    verifying: "Vérification...",
+    backupCodesTitle: "Enregistrez vos codes de secours",
+    backupCodesHint: "Chaque code peut être utilisé une fois pour vous connecter si vous perdez l'accès à votre application d'authentification. Conservez-les en lieu sûr — ils ne seront plus jamais affichés.",
+    copyBackupCodes: "Copier les codes",
+    copied: "Copié",
+    iSavedThem: "J'ai enregistré ces codes",
+    confirmPasswordLabel: "Confirmez votre mot de passe pour continuer",
+    errors: {
+      statusFailed: "Impossible de vérifier l'état de l'authentification à deux facteurs.",
+      setupFailed: "Impossible de démarrer la configuration de l'authentification à deux facteurs.",
+      invalidCode: "Ce code ne correspond pas — vérifiez votre application d'authentification et réessayez.",
+      disableFailed: "Impossible de désactiver l'authentification à deux facteurs.",
+    },
+  },
 
+  disciplinaryActions: {
+    title: "Actions disciplinaires",
+    subtitle: "Suivez les avertissements et mesures correctives émis aux employés.",
+    addAction: "Ajouter une fiche",
+    editAction: "Modifier la fiche",
+    emptyTitle: "Aucune action disciplinaire",
+    emptyMessage: "Cette entreprise n'a aucune action disciplinaire enregistrée.",
+    deleteTitle: "Supprimer la fiche",
+    deleteSureMessage: "Êtes-vous sûr de vouloir supprimer cette fiche ? Cette action est irréversible.",
+    acknowledged: "Accusé de réception",
+    notAcknowledged: "Non encore accusé",
+    breadcrumbs: {
+      hr: "RH",
+      disciplinaryActions: "Actions disciplinaires",
+    },
+    fields: {
+      employee: "Employé",
+      type: "Type",
+      date: "Date",
+      reason: "Motif",
+      description: "Description",
+      suspensionDays: "Suspension (jours)",
+      issuedBy: "Émis par",
+      notes: "Notes",
+    },
+    types: {
+      verbal_warning: "Avertissement verbal",
+      written_warning: "Avertissement écrit",
+      final_warning: "Dernier avertissement",
+      suspension: "Mise à pied",
+      termination_notice: "Notification de licenciement",
+    },
+    errors: {
+      fetchFailed: "Échec du chargement des actions disciplinaires",
+      saveFailed: "Erreur lors de l'enregistrement",
+      deleteFailed: "Erreur lors de la suppression",
+    },
+  },
+  performanceReviews: {
+    title: "Évaluations de performance",
+    subtitle: "Cycles d'évaluation, objectifs et notes pour vos employés.",
+    addReview: "Nouvelle évaluation",
+    editReview: "Modifier l'évaluation",
+    emptyTitle: "Aucune évaluation pour l'instant",
+    emptyMessage: "Cette entreprise n'a aucune évaluation enregistrée.",
+    deleteTitle: "Supprimer l'évaluation",
+    deleteSureMessage: "Êtes-vous sûr de vouloir supprimer cette évaluation ? Cette action est irréversible.",
+    reviewedBy: "Évalué par",
+    submitButton: "Envoyer à l'employé",
+    breadcrumbs: {
+      hr: "RH",
+      performanceReviews: "Évaluations",
+    },
+    fields: {
+      employee: "Employé",
+      reviewer: "Évaluateur",
+      periodLabel: "Période d'évaluation",
+      periodLabelPlaceholder: "ex. Évaluation annuelle 2026",
+      reviewDate: "Date d'évaluation",
+      goals: "Objectifs (un par ligne)",
+      goalsPlaceholder: "Améliorer le temps de réponse sur les tickets\nTerminer la certification d'intégration",
+      strengths: "Points forts",
+      areasForImprovement: "Axes d'amélioration",
+      comments: "Commentaires",
+    },
+    criteria: {
+      jobKnowledge: "Connaissance du poste",
+      qualityOfWork: "Qualité du travail",
+      communication: "Communication",
+      teamwork: "Travail d'équipe",
+      initiative: "Initiative",
+      punctuality: "Ponctualité",
+    },
+    statuses: {
+      draft: "Brouillon",
+      submitted: "Envoyée",
+      acknowledged: "Accusée réception",
+    },
+    errors: {
+      fetchFailed: "Échec du chargement des évaluations",
+      saveFailed: "Erreur lors de l'enregistrement",
+      submitFailed: "Erreur lors de l'envoi",
+      deleteFailed: "Erreur lors de la suppression",
+    },
+  },
+  leaveCalendar: {
+    title: "Calendrier des congés",
+    subtitle: "Visualisez en un coup d'œil qui est en congé approuvé.",
+    previousMonth: "Mois précédent",
+    nextMonth: "Mois suivant",
+    breadcrumbs: {
+      hr: "RH",
+      leaveCalendar: "Calendrier des congés",
+    },
+    weekdays: {
+      0: "Lun",
+      1: "Mar",
+      2: "Mer",
+      3: "Jeu",
+      4: "Ven",
+      5: "Sam",
+      6: "Dim",
+    },
+    errors: {
+      fetchFailed: "Échec du chargement du calendrier des congés",
+    },
+  },
   },
 
   // ======================================================
@@ -2874,6 +3282,9 @@ export const translations = {
 
   ar: {
     sidebar: {
+      leaveCalendar: "تقويم الإجازات",
+      performanceReviews: "تقييمات الأداء",
+      disciplinaryActions: "الإجراءات التأديبية",
       admin: "المسؤول",
       settings: "الإعدادات",
       help: "المساعدة والدعم",
@@ -3074,6 +3485,9 @@ export const translations = {
       loadFailMessage:
         "تعذر تحميل معلومات الشركة.",
 
+      downloadFiche:
+        "تنزيل بطاقة الشركة",
+
       deleteCompany:
         "حذف الشركة",
 
@@ -3110,6 +3524,9 @@ export const translations = {
 
         viewNotAuthorized:
           "ليس لديك صلاحية عرض هذه الشركة.",
+
+        ficheDownloadFailed:
+          "حدث خطأ أثناء إنشاء بطاقة الشركة.",
 
         duplicateCompany:
           "توجد شركة بنفس ICE أو المعرف الضريبي أو رقم التسجيل أو رقم CNSS.",
@@ -3271,6 +3688,7 @@ export const translations = {
 
       editUser: "تعديل المستخدم",
       editSubtitle: "تحديث معلومات حساب هذا المستخدم.",
+      inheritedFromEmployee: "يتم توريث القسم والدور في الموارد البشرية من الموظف المرتبط {name} ({department} — {jobTitle}). لتغييرهما، حدّث قسم الموظف أو مسماه الوظيفي بدلاً من ذلك.",
 
       updateTitle: "تعديل المستخدم",
       updateSureMessage: "هل أنت متأكد من أنك تريد حفظ هذه التغييرات؟",
@@ -3280,6 +3698,15 @@ export const translations = {
 
       updateFailTitle: "فشل التحديث",
       updateFailMessage: "تعذر تحديث المستخدم. يرجى المحاولة مرة أخرى.",
+
+      hrRole: {
+        label: "المنصب في الموارد البشرية",
+        notApplicable: "غير قابل للتطبيق (خارج الموارد البشرية)",
+        assistant: "مساعد(ة) موارد بشرية",
+        officer: "مكلف(ة) بالموارد البشرية",
+        manager: "مسؤول(ة) الموارد البشرية",
+        director: "مدير(ة) الموارد البشرية",
+      },
 
       department: "القسم",
       departments: {
@@ -3396,6 +3823,37 @@ export const translations = {
         identification: "الهوية",
         company: "الشركة",
         notes: "ملاحظات",
+      },
+
+      documents: {
+        menuButton: "المستندات",
+        attestationTravail: "شهادة عمل",
+        attestationSalaire: "شهادة عمل وراتب",
+        certificatTravail: "شهادة نهاية الخدمة",
+        contratTravail: "عقد العمل",
+        soldeToutCompte: "وصل تصفية الحساب النهائي",
+        generationFailed: "حدث خطأ أثناء إنشاء المستند.",
+      },
+
+      bulkImport: {
+        exportButton: "تصدير (CSV)",
+        exportFailed: "تعذر تصدير الموظفين.",
+        openButton: "استيراد (CSV)",
+        title: "استيراد الموظفين دفعة واحدة",
+        helpText: "قم برفع ملف CSV لإنشاء عدة موظفين دفعة واحدة. يتم التحقق من كل صف أولاً — لن يتم إنشاء أي شيء قبل التأكيد.",
+        downloadTemplate: "تنزيل نموذج CSV",
+        preview: "التحقق من الملف",
+        previewing: "جارٍ التحقق...",
+        previewFailed: "تعذرت قراءة هذا الملف.",
+        summaryValid: "{count} جاهز للاستيراد",
+        summaryErrors: "{count} به أخطاء",
+        summaryWarnings: "{count} به تنبيهات",
+        rowOk: "لا توجد مشاكل",
+        fixErrorsFirst: "قم بتصحيح الصفوف التي بها أخطاء وأعد رفع الملف قبل الاستيراد — الصفوف التي بها تنبيهات فقط سيتم استيرادها.",
+        importButton: "استيراد {count} موظف(ين)",
+        committing: "جارٍ الاستيراد...",
+        commitFailed: "تعذر إتمام الاستيراد.",
+        commitSuccess: "تم استيراد {count} موظف(ين) بنجاح.",
       },
 
       fields: {
@@ -3923,6 +4381,296 @@ export const translations = {
         regenerateFailed: "فشلت إعادة توليد الترجمة.",
       },
     },
+
+    departments: {
+      title: "الأقسام",
+      subtitle: "حدد أقسام مؤسستك والمناصب الوظيفية ضمن كل قسم.",
+      addDepartment: "إضافة قسم",
+      addDefaults: "إضافة أقسام افتراضية",
+      defaultsModal: {
+        title: "إضافة أقسام افتراضية",
+        helpText: "اختر الأقسام التي تريد إضافتها — يأتي كل قسم باسم ووصف قياسيين، وبالنسبة للموارد البشرية/الإنتاج، بصلاحية الوصول إلى الوحدة مُحددة مسبقًا. يمكنك دائمًا تعديلها أو إضافة المزيد لاحقًا.",
+        adding: "جارٍ الإضافة...",
+        addButton: "إضافة {count} قسم (أقسام)",
+      },
+      editDepartment: "تعديل القسم",
+      addPosition: "إضافة منصب",
+      editPosition: "تعديل المنصب",
+      deleteTitle: "حذف القسم",
+      deleteSureMessage: "هل أنت متأكد من حذف هذا القسم؟ يجب إعادة تعيين الموظفين والمناصب التي لا تزال تستخدمه أولاً.",
+      deletePositionTitle: "حذف المنصب",
+      deletePositionSureMessage: "هل أنت متأكد من حذف هذا المنصب؟ يجب أولاً إعادة تعيين الموظفين الذين يشغلونه، أو المناصب الأخرى التابعة له.",
+      emptyTitle: "لا توجد أقسام بعد",
+      emptyMessage: "أضف أول قسم لبدء بناء هيكلك التنظيمي.",
+      noPositions: "لا توجد مناصب محددة في هذا القسم بعد.",
+      fields: {
+        name: "الاسم", description: "الوصف", permissionKey: "الوصول إلى الوحدة",
+        permissionKeyHint: "اختياري — يُحدد فقط على قسم واحد إذا كان يجب أن يحصل الموظفون فيه (وحساباتهم التي تُنشأ تلقائيًا) على صلاحية الوصول إلى وحدة الموارد البشرية أو الإنتاج. يجب أن تبقى معظم الأقسام على \"بدون وصول خاص\".",
+        category: "الوظيفة",
+        noCategory: "لا توجد وظيفة محددة",
+        categoryHint: "اختياري — يتيح لنموذج الموظف اقتراح مسميات وظيفية قياسية لهذا القسم بدلاً من ترك الحقل حرًا. مجرد اقتراح، ولا علاقة له بالصلاحيات على عكس حقل الوصول إلى الوحدة أعلاه.",
+        noSpecialAccess: "بدون وصول خاص", hrAccess: "الوصول إلى وحدة الموارد البشرية", productionAccess: "الوصول إلى وحدة الإنتاج",
+        positionTitle: "مسمى المنصب", reportsTo: "يخضع لإشراف", noReportsTo: "لا شيء (منصب أعلى المستويات)",
+        salaryMin: "نطاق الراتب — الحد الأدنى", salaryMax: "نطاق الراتب — الحد الأقصى", salaryBand: "نطاق الراتب",
+        requiredSkills: "المهارات المطلوبة", requiredSkillsPlaceholder: "مفصولة بفواصل، مثال: Excel، القيادة",
+      },
+      errors: {
+        nameRequired: "اسم القسم مطلوب", titleRequired: "مسمى المنصب مطلوب",
+        saveFailed: "حدث خطأ أثناء الحفظ.", deleteFailed: "حدث خطأ أثناء الحذف.",
+      },
+    },
+
+    payroll: {
+      title: "الأجور",
+      subtitle: "أنشئ دورات الأجور الشهرية وأدر كشوف الرواتب.",
+      generateRun: "إنشاء دورة أجور",
+      createTitle: "إنشاء دورة أجور",
+      createSureMessage: "هل تريد إنشاء الأجور لهذه الفترة؟ سيتم إنشاء كشف راتب لكل موظف نشط لديه راتب مسجل.",
+      createSuccessTitle: "تم إنشاء دورة الأجور",
+      createSuccessMessage: "تم إنشاء دورة الأجور بنجاح.",
+      completeTitle: "إغلاق دورة الأجور",
+      completeSureMessage: "هل تريد إغلاق دورة الأجور هذه؟ بمجرد الإغلاق، يتم قفل كشوف الرواتب وإخطار الموظفين.",
+      deleteTitle: "حذف دورة الأجور",
+      deleteSureMessage: "هل تريد حذف مسودة دورة الأجور هذه وجميع كشوف رواتبها؟ لا يمكن التراجع عن هذا الإجراء.",
+      emptyTitle: "لا توجد دورات أجور بعد",
+      emptyMessage: "أنشئ أول دورة أجور لهذه الشركة.",
+      noPayslips: "لا توجد كشوف رواتب في هذه الدورة.",
+      fields: { month: "الشهر", year: "السنة", status: "الحالة" },
+      table: { period: "الفترة", employees: "الموظفون", gross: "الإجمالي", net: "الصافي", searchPlaceholder: "البحث عن الموظفين..." },
+      status: { draft: "مسودة", completed: "مكتملة", voided: "ملغاة" },
+      payslipStatus: { draft: "مسودة", validated: "مصادق عليه", paid: "مدفوع" },
+      actions: { view: "عرض", complete: "إغلاق", regenerate: "إعادة إنشاء", markPaid: "تحديد كمدفوع", downloadPdf: "تنزيل كشف الراتب" },
+      exports: {
+        cnss: "تصدير CNSS",
+        cnssHint: "ورقة التصريح — تحقق من التوافق مع صيغة Damancom الحالية قبل الرفع",
+        register: "سجل الأجور",
+        bankTransfer: "ملف التحويل البنكي",
+      },
+      buttons: { generate: "إنشاء", saving: "جارٍ الحفظ..." },
+      breadcrumbs: { hr: "الموارد البشرية", payroll: "الأجور" },
+      months: ["يناير","فبراير","مارس","أبريل","ماي","يونيو","يوليوز","غشت","شتنبر","أكتوبر","نونبر","دجنبر"],
+      errors: { fetchFailed: "فشل تحميل دورات الأجور", actionFailed: "حدث خطأ ما. يرجى المحاولة مرة أخرى." },
+    },
+
+    contracts: {
+      title: "العقود",
+      subtitle: "تتبع عقود العمل والتجديدات وتواريخ الانتهاء.",
+      addContract: "عقد جديد",
+      createTitle: "عقد جديد",
+      createSureMessage: "هل أنت متأكد من إنشاء هذا العقد؟",
+      createSuccessTitle: "تم إنشاء العقد",
+      createSuccessMessage: "تم إنشاء العقد بنجاح.",
+      renewTitle: "تجديد العقد",
+      renewSureMessage: "هل تريد تجديد هذا العقد؟ سيتم إغلاق العقد الحالي وبدء عقد جديد.",
+      deleteTitle: "حذف العقد",
+      deleteSureMessage: "هل أنت متأكد من حذف هذا العقد؟ لا يمكن التراجع عن هذا الإجراء.",
+      emptyTitle: "لا توجد عقود بعد",
+      emptyMessage: "لا تحتوي هذه الشركة على أي عقود مسجلة بعد.",
+      expiringBanner: "{count} عقد (عقود) تنتهي خلال 30 يومًا.",
+      fields: { employee: "الموظف", type: "نوع العقد", startDate: "تاريخ البدء", endDate: "تاريخ الانتهاء" },
+      status: { active: "ساري", expired: "منتهي", terminated: "مفسوخ", renewed: "مجدد" },
+      actions: { renew: "تجديد" },
+      buttons: { create: "حفظ العقد" },
+      breadcrumbs: { hr: "الموارد البشرية", contracts: "العقود" },
+      errors: { fetchFailed: "فشل تحميل العقود", actionFailed: "حدث خطأ ما. يرجى المحاولة مرة أخرى." },
+    },
+
+    documents: {
+      title: "المستندات",
+      subtitle: "احفظ مستندات الموظفين وتتبع تواريخ انتهاء صلاحيتها.",
+      uploadDocument: "رفع مستند",
+      editDocument: "تعديل المستند",
+      deleteTitle: "حذف المستند",
+      deleteSureMessage: "هل أنت متأكد من حذف هذا المستند؟ لا يمكن التراجع عن هذا الإجراء.",
+      emptyTitle: "لا توجد مستندات بعد",
+      emptyMessage: "لا تحتوي هذه الشركة على أي مستندات مسجلة بعد.",
+      expiringBanner: "{count} مستند (مستندات) تنتهي صلاحيتها خلال 30 يومًا.",
+      fields: { employee: "الموظف", type: "النوع", label: "التسمية", labelPlaceholder: "مثال: البطاقة الوطنية", expiryDate: "تاريخ الانتهاء", file: "الملف", replaceFile: "استبدال الملف (اختياري)" },
+      table: { file: "الملف" },
+      types: {
+        cin: "البطاقة الوطنية (CIN)", passport: "جواز السفر", work_permit: "رخصة العمل",
+        residence_permit: "بطاقة الإقامة", contract: "عقد", diploma: "شهادة",
+        cv: "السيرة الذاتية", medical_certificate: "شهادة طبية", other: "أخرى",
+      },
+      actions: { view: "عرض", loadMore: "تحميل المزيد", loadMoreCount: "عرض {loaded} من {total}" },
+      buttons: { upload: "رفع" },
+      breadcrumbs: { hr: "الموارد البشرية", documents: "المستندات" },
+      errors: {
+        fetchFailed: "فشل تحميل المستندات", actionFailed: "حدث خطأ ما. يرجى المحاولة مرة أخرى.",
+        missingFields: "يرجى اختيار موظف وملف.", uploadFailed: "فشل رفع المستند.",
+      },
+    },
+
+    attendance: {
+      title: "الحضور",
+      subtitle: "راجع سجلات تسجيل الدخول والخروج.",
+      emptyTitle: "لا توجد سجلات حضور",
+      emptyMessage: "لا توجد سجلات حضور مطابقة لعوامل التصفية المحددة.",
+      filterAllEmployees: "جميع الموظفين",
+      fields: { employee: "الموظف", date: "التاريخ", clockIn: "الدخول", clockOut: "الخروج", notes: "ملاحظات" },
+      status: { present: "حاضر", late: "متأخر", absent: "غائب", half_day: "نصف يوم", holiday: "عطلة" },
+      breadcrumbs: { hr: "الموارد البشرية", attendance: "الحضور" },
+      errors: { fetchFailed: "فشل تحميل سجلات الحضور" },
+    },
+
+    reports: {
+      title: "التقارير",
+      subtitle: "الاتجاهات المتعلقة بعدد الموظفين ودوران العمل والغياب وتكلفة الأجور.",
+      stats: { totalHeadcount: "إجمالي عدد الموظفين", activeEmployees: "الموظفون النشطون", currentGross: "الإجمالي الشهري الحالي (تقديري)", currentNet: "الصافي الشهري الحالي (تقديري)", missingSalaryNote: "{count} موظف (موظفين) نشطين ليس لديهم راتب مسجل بعد — غير مدرجين في هذا التقدير." },
+      expand: "توسيع",
+      charts: {
+        headcountByDepartment: "عدد الموظفين حسب القسم", turnover: "دوران العمل (آخر 12 شهرًا)",
+        hires: "التوظيفات", terminations: "المغادرات", absenteeism: "معدل الغياب (آخر 6 أشهر)",
+        absenteeismRate: "معدل الغياب", payrollCost: "تكلفة الأجور (آخر 12 شهرًا)",
+        estimatedFootnote: "* الشهر الحالي، المشار إليه بعلامة نجمية، هو تقدير مباشر بناءً على الرواتب الحالية — لم يتم تنفيذ الأجور له بعد.",
+      },
+      breadcrumbs: { hr: "الموارد البشرية", reports: "التقارير" },
+      loadError: "فشل تحميل بعض بيانات التقرير. يرجى المحاولة مرة أخرى، أو التحقق من وحدة التحكم لمزيد من التفاصيل.",
+      rankings: {
+        title: "تصنيف الموظفين",
+        last30Days: "آخر 30 يومًا",
+        last90Days: "آخر 90 يومًا",
+        last365Days: "آخر 12 شهرًا",
+        mostAbsenceDays: "الأكثر أيام غياب",
+        bestAttendanceRate: "أفضل معدل حضور",
+        mostOvertimeHours: "الأكثر ساعات إضافية",
+        mostLateDays: "الأكثر تأخرًا",
+        noData: "لا توجد بيانات لهذه الفترة.",
+        days: "أيام",
+      },
+    },  twoFactor: {
+    title: "المصادقة الثنائية",
+    disabledHint: "أضف طبقة إضافية من الأمان إلى حسابك — بعد كلمة المرور، ستحتاج أيضًا إلى رمز من تطبيق مصادقة لتسجيل الدخول.",
+    enabledHint: "المصادقة الثنائية مفعّلة على حسابك. سيُطلب منك رمز من تطبيق المصادقة في كل مرة تسجّل فيها الدخول.",
+    enableButton: "تفعيل المصادقة الثنائية",
+    disableButton: "إلغاء تفعيل المصادقة الثنائية",
+    disabling: "جارٍ الإلغاء...",
+    scanTitle: "امسح رمز الاستجابة السريعة",
+    scanHint: "امسحه باستخدام تطبيق مصادقة (Google Authenticator أو Authy وغيرها)، ثم أدخل الرمز المكوّن من 6 أرقام الذي يظهر للتأكيد.",
+    manualEntryLabel: "تعذّر المسح؟ أدخل هذا الرمز يدويًا:",
+    confirmAndEnable: "تأكيد وتفعيل",
+    verifying: "جارٍ التحقق...",
+    backupCodesTitle: "احفظ رموز النسخ الاحتياطي",
+    backupCodesHint: "يمكن استخدام كل رمز مرة واحدة لتسجيل الدخول إذا فقدت الوصول إلى تطبيق المصادقة. احفظها في مكان آمن — لن تُعرض مرة أخرى.",
+    copyBackupCodes: "نسخ الرموز",
+    copied: "تم النسخ",
+    iSavedThem: "لقد حفظت هذه الرموز",
+    confirmPasswordLabel: "أكّد كلمة المرور للمتابعة",
+    errors: {
+      statusFailed: "تعذّر التحقق من حالة المصادقة الثنائية.",
+      setupFailed: "تعذّر بدء إعداد المصادقة الثنائية.",
+      invalidCode: "هذا الرمز غير مطابق — تحقق من تطبيق المصادقة وحاول مرة أخرى.",
+      disableFailed: "تعذّر إلغاء تفعيل المصادقة الثنائية.",
+    },
+  },
+
+  disciplinaryActions: {
+    title: "الإجراءات التأديبية",
+    subtitle: "تتبع الإنذارات والإجراءات التصحيحية الصادرة للموظفين.",
+    addAction: "إضافة سجل",
+    editAction: "تعديل السجل",
+    emptyTitle: "لا توجد سجلات تأديبية بعد",
+    emptyMessage: "لا تحتوي هذه الشركة على أي إجراءات تأديبية مسجلة.",
+    deleteTitle: "حذف السجل",
+    deleteSureMessage: "هل أنت متأكد من حذف هذا السجل؟ لا يمكن التراجع عن هذا الإجراء.",
+    acknowledged: "تم الاطلاع",
+    notAcknowledged: "لم يتم الاطلاع بعد",
+    breadcrumbs: {
+      hr: "الموارد البشرية",
+      disciplinaryActions: "الإجراءات التأديبية",
+    },
+    fields: {
+      employee: "الموظف",
+      type: "النوع",
+      date: "التاريخ",
+      reason: "السبب",
+      description: "الوصف",
+      suspensionDays: "مدة الإيقاف (أيام)",
+      issuedBy: "صادر عن",
+      notes: "ملاحظات",
+    },
+    types: {
+      verbal_warning: "إنذار شفهي",
+      written_warning: "إنذار كتابي",
+      final_warning: "إنذار نهائي",
+      suspension: "إيقاف عن العمل",
+      termination_notice: "إشعار إنهاء الخدمة",
+    },
+    errors: {
+      fetchFailed: "فشل تحميل الإجراءات التأديبية",
+      saveFailed: "خطأ أثناء الحفظ",
+      deleteFailed: "خطأ أثناء الحذف",
+    },
+  },
+  performanceReviews: {
+    title: "تقييمات الأداء",
+    subtitle: "دورات التقييم والأهداف والتقييمات لموظفيك.",
+    addReview: "تقييم جديد",
+    editReview: "تعديل التقييم",
+    emptyTitle: "لا توجد تقييمات أداء بعد",
+    emptyMessage: "لا تحتوي هذه الشركة على أي تقييمات أداء مسجلة.",
+    deleteTitle: "حذف التقييم",
+    deleteSureMessage: "هل أنت متأكد من حذف هذا التقييم؟ لا يمكن التراجع عن هذا الإجراء.",
+    reviewedBy: "قيّمه",
+    submitButton: "إرسال إلى الموظف",
+    breadcrumbs: {
+      hr: "الموارد البشرية",
+      performanceReviews: "تقييمات الأداء",
+    },
+    fields: {
+      employee: "الموظف",
+      reviewer: "المقيّم",
+      periodLabel: "فترة التقييم",
+      periodLabelPlaceholder: "مثال: التقييم السنوي 2026",
+      reviewDate: "تاريخ التقييم",
+      goals: "الأهداف (هدف في كل سطر)",
+      goalsPlaceholder: "تحسين وقت الاستجابة لتذاكر الدعم\nإتمام شهادة التأهيل",
+      strengths: "نقاط القوة",
+      areasForImprovement: "مجالات التحسين",
+      comments: "ملاحظات",
+    },
+    criteria: {
+      jobKnowledge: "المعرفة الوظيفية",
+      qualityOfWork: "جودة العمل",
+      communication: "التواصل",
+      teamwork: "العمل الجماعي",
+      initiative: "المبادرة",
+      punctuality: "الالتزام بالمواعيد",
+    },
+    statuses: {
+      draft: "مسودة",
+      submitted: "مُرسلة",
+      acknowledged: "تم الاطلاع",
+    },
+    errors: {
+      fetchFailed: "فشل تحميل تقييمات الأداء",
+      saveFailed: "خطأ أثناء الحفظ",
+      submitFailed: "خطأ أثناء الإرسال",
+      deleteFailed: "خطأ أثناء الحذف",
+    },
+  },
+  leaveCalendar: {
+    title: "تقويم الإجازات",
+    subtitle: "اطّلع بسرعة على من هو في إجازة موافق عليها.",
+    previousMonth: "الشهر السابق",
+    nextMonth: "الشهر التالي",
+    breadcrumbs: {
+      hr: "الموارد البشرية",
+      leaveCalendar: "تقويم الإجازات",
+    },
+    weekdays: {
+      0: "إثن",
+      1: "ثلا",
+      2: "أرب",
+      3: "خمي",
+      4: "جمع",
+      5: "سبت",
+      6: "أحد",
+    },
+    errors: {
+      fetchFailed: "فشل تحميل تقويم الإجازات",
+    },
+  },
   },
 
   // ======================================================
@@ -3931,6 +4679,9 @@ export const translations = {
 
   es: {
     sidebar: {
+      leaveCalendar: "Calendario de ausencias",
+      performanceReviews: "Evaluaciones de desempeño",
+      disciplinaryActions: "Acciones disciplinarias",
       admin: "Administración",
       settings: "Configuración",
       help: "Ayuda y soporte",
@@ -4123,6 +4874,9 @@ export const translations = {
       loadFailMessage:
         "No se pudo cargar la información de la empresa.",
 
+      downloadFiche:
+        "Descargar ficha",
+
       deleteCompany:
         "Eliminar empresa",
 
@@ -4159,6 +4913,9 @@ export const translations = {
 
         viewNotAuthorized:
           "No tienes autorización para ver esta empresa.",
+
+        ficheDownloadFailed:
+          "Error al generar la ficha de la empresa.",
 
         duplicateCompany:
           "Ya existe una empresa con este ICE, identificación fiscal, número de registro o número CNSS.",
@@ -4304,6 +5061,7 @@ export const translations = {
 
       editUser: "Editar usuario",
       editSubtitle: "Actualiza la información de la cuenta de este usuario.",
+      inheritedFromEmployee: "El departamento y el rol de RR. HH. se heredan del empleado vinculado {name} ({department} — {jobTitle}). Para cambiarlos, actualiza el Departamento o el Puesto del empleado.",
 
       updateTitle: "Editar usuario",
       updateSureMessage: "¿Seguro que quieres guardar estos cambios?",
@@ -4313,6 +5071,15 @@ export const translations = {
 
       updateFailTitle: "Error al actualizar",
       updateFailMessage: "No se pudo actualizar el usuario. Inténtalo de nuevo.",
+
+      hrRole: {
+        label: "Puesto de RR. HH.",
+        notApplicable: "No aplicable (fuera de RR. HH.)",
+        assistant: "Asistente de RR. HH.",
+        officer: "Encargado/a de RR. HH.",
+        manager: "Responsable de RR. HH.",
+        director: "Director/a de RR. HH.",
+      },
 
       department: "Departamento",
       departments: {
@@ -4429,6 +5196,37 @@ export const translations = {
         identification: "Identificación",
         company: "Empresa",
         notes: "Notas",
+      },
+
+      documents: {
+        menuButton: "Documentos",
+        attestationTravail: "Certificado de empleo",
+        attestationSalaire: "Certificado de empleo y salario",
+        certificatTravail: "Certificado de trabajo",
+        contratTravail: "Contrato de trabajo",
+        soldeToutCompte: "Recibo de finiquito",
+        generationFailed: "Error al generar el documento.",
+      },
+
+      bulkImport: {
+        exportButton: "Exportar (CSV)",
+        exportFailed: "No se pudieron exportar los empleados.",
+        openButton: "Importar (CSV)",
+        title: "Importar empleados en masa",
+        helpText: "Sube un archivo CSV para crear varios empleados a la vez. Cada fila se comprueba primero — no se crea nada hasta que confirmes.",
+        downloadTemplate: "Descargar plantilla CSV",
+        preview: "Comprobar archivo",
+        previewing: "Comprobando...",
+        previewFailed: "No se pudo leer este archivo.",
+        summaryValid: "{count} listo(s) para importar",
+        summaryErrors: "{count} con errores",
+        summaryWarnings: "{count} con avisos",
+        rowOk: "Todo correcto",
+        fixErrorsFirst: "Corrige las filas con errores y vuelve a subir el archivo antes de importar — las filas con solo avisos se importarán igualmente.",
+        importButton: "Importar {count} empleado(s)",
+        committing: "Importando...",
+        commitFailed: "No se pudo completar la importación.",
+        commitSuccess: "{count} empleado(s) importado(s) correctamente.",
       },
 
       fields: {
@@ -4956,6 +5754,296 @@ export const translations = {
         regenerateFailed: "No se pudo regenerar la traducción.",
       },
     },
+
+    departments: {
+      title: "Departamentos",
+      subtitle: "Defina los departamentos de su organización y los puestos dentro de cada uno.",
+      addDepartment: "Añadir departamento",
+      addDefaults: "Añadir departamentos predeterminados",
+      defaultsModal: {
+        title: "Añadir departamentos predeterminados",
+        helpText: "Elige los departamentos que quieres añadir — cada uno incluye un nombre y descripción estándar y (para RR. HH./Producción) el acceso al módulo ya configurado. Podrás editarlos o añadir más después.",
+        adding: "Añadiendo...",
+        addButton: "Añadir {count} departamento(s)",
+      },
+      editDepartment: "Editar departamento",
+      addPosition: "Añadir puesto",
+      editPosition: "Editar puesto",
+      deleteTitle: "Eliminar departamento",
+      deleteSureMessage: "¿Seguro que desea eliminar este departamento? Los empleados y puestos que aún lo usan deben reasignarse primero.",
+      deletePositionTitle: "Eliminar puesto",
+      deletePositionSureMessage: "¿Seguro que desea eliminar este puesto? Los empleados que lo ocupan, u otros puestos que dependen de él, deben reasignarse primero.",
+      emptyTitle: "Aún no hay departamentos",
+      emptyMessage: "Añada su primer departamento para empezar a construir su estructura organizativa.",
+      noPositions: "Aún no hay puestos definidos en este departamento.",
+      fields: {
+        name: "Nombre", description: "Descripción", permissionKey: "Acceso al módulo",
+        permissionKeyHint: "Opcional — asígnelo solo a UN departamento si los empleados de ahí (y sus cuentas creadas automáticamente) deben tener acceso al módulo de RR. HH. o de Producción. La mayoría de los departamentos deben dejarlo en «Sin acceso especial».",
+        category: "Función",
+        noCategory: "Sin función específica",
+        categoryHint: "Opcional — permite que el formulario de empleado sugiera puestos estándar para este departamento en lugar de dejarlo como texto libre. Es solo una sugerencia, sin relación con los accesos, a diferencia del campo Acceso al módulo anterior.",
+        noSpecialAccess: "Sin acceso especial", hrAccess: "Acceso al módulo de RR. HH.", productionAccess: "Acceso al módulo de Producción",
+        positionTitle: "Nombre del puesto", reportsTo: "Depende de", noReportsTo: "Ninguno (puesto de nivel superior)",
+        salaryMin: "Banda salarial — mín.", salaryMax: "Banda salarial — máx.", salaryBand: "Banda salarial",
+        requiredSkills: "Habilidades requeridas", requiredSkillsPlaceholder: "Separadas por comas, ej. Excel, Liderazgo",
+      },
+      errors: {
+        nameRequired: "El nombre del departamento es obligatorio", titleRequired: "El nombre del puesto es obligatorio",
+        saveFailed: "Ocurrió un error al guardar.", deleteFailed: "Ocurrió un error al eliminar.",
+      },
+    },
+
+    payroll: {
+      title: "Nómina",
+      subtitle: "Genere ciclos de nómina mensuales y gestione los recibos de sueldo.",
+      generateRun: "Generar nómina",
+      createTitle: "Generar ciclo de nómina",
+      createSureMessage: "¿Generar la nómina de este período? Se creará un recibo de sueldo para cada empleado activo con un salario registrado.",
+      createSuccessTitle: "Ciclo de nómina creado",
+      createSuccessMessage: "El ciclo de nómina se generó correctamente.",
+      completeTitle: "Cerrar ciclo de nómina",
+      completeSureMessage: "¿Cerrar este ciclo de nómina? Una vez cerrado, los recibos quedan bloqueados y se notifica a los empleados.",
+      deleteTitle: "Eliminar ciclo de nómina",
+      deleteSureMessage: "¿Eliminar este ciclo de nómina en borrador y todos sus recibos? Esta acción no se puede deshacer.",
+      emptyTitle: "Aún no hay ciclos de nómina",
+      emptyMessage: "Genere el primer ciclo de nómina para esta empresa.",
+      noPayslips: "No hay recibos de sueldo en este ciclo.",
+      fields: { month: "Mes", year: "Año", status: "Estado" },
+      table: { period: "Período", employees: "Empleados", gross: "Bruto", net: "Neto", searchPlaceholder: "Buscar empleados..." },
+      status: { draft: "Borrador", completed: "Cerrado", voided: "Anulado" },
+      payslipStatus: { draft: "Borrador", validated: "Validado", paid: "Pagado" },
+      actions: { view: "Ver", complete: "Cerrar", regenerate: "Regenerar", markPaid: "Marcar como pagado", downloadPdf: "Descargar recibo" },
+      exports: {
+        cnss: "Exportación CNSS",
+        cnssHint: "Hoja de declaración — verifique con el formato Damancom actual antes de subirla",
+        register: "Registro de nómina",
+        bankTransfer: "Archivo de transferencia bancaria",
+      },
+      buttons: { generate: "Generar", saving: "Guardando..." },
+      breadcrumbs: { hr: "RR. HH.", payroll: "Nómina" },
+      months: ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"],
+      errors: { fetchFailed: "Error al cargar los ciclos de nómina", actionFailed: "Algo salió mal. Inténtalo de nuevo." },
+    },
+
+    contracts: {
+      title: "Contratos",
+      subtitle: "Realice el seguimiento de los contratos de trabajo, sus renovaciones y vencimientos.",
+      addContract: "Nuevo contrato",
+      createTitle: "Nuevo contrato",
+      createSureMessage: "¿Seguro que desea crear este contrato?",
+      createSuccessTitle: "Contrato creado",
+      createSuccessMessage: "El contrato se creó correctamente.",
+      renewTitle: "Renovar contrato",
+      renewSureMessage: "¿Renovar este contrato? El contrato actual se cerrará y comenzará uno nuevo.",
+      deleteTitle: "Eliminar contrato",
+      deleteSureMessage: "¿Seguro que desea eliminar este contrato? Esta acción no se puede deshacer.",
+      emptyTitle: "Aún no hay contratos",
+      emptyMessage: "Esta empresa aún no tiene contratos registrados.",
+      expiringBanner: "{count} contrato(s) vencen en los próximos 30 días.",
+      fields: { employee: "Empleado", type: "Tipo de contrato", startDate: "Fecha de inicio", endDate: "Fecha de fin" },
+      status: { active: "Activo", expired: "Vencido", terminated: "Rescindido", renewed: "Renovado" },
+      actions: { renew: "Renovar" },
+      buttons: { create: "Guardar contrato" },
+      breadcrumbs: { hr: "RR. HH.", contracts: "Contratos" },
+      errors: { fetchFailed: "Error al cargar los contratos", actionFailed: "Algo salió mal. Inténtalo de nuevo." },
+    },
+
+    documents: {
+      title: "Documentos",
+      subtitle: "Almacene los documentos de los empleados y controle sus fechas de vencimiento.",
+      uploadDocument: "Subir documento",
+      editDocument: "Editar documento",
+      deleteTitle: "Eliminar documento",
+      deleteSureMessage: "¿Seguro que desea eliminar este documento? Esta acción no se puede deshacer.",
+      emptyTitle: "Aún no hay documentos",
+      emptyMessage: "Esta empresa aún no tiene documentos registrados.",
+      expiringBanner: "{count} documento(s) vencen en los próximos 30 días.",
+      fields: { employee: "Empleado", type: "Tipo", label: "Etiqueta", labelPlaceholder: "ej. Documento de identidad", expiryDate: "Fecha de vencimiento", file: "Archivo", replaceFile: "Reemplazar archivo (opcional)" },
+      table: { file: "Archivo" },
+      types: {
+        cin: "DNI (CIN)", passport: "Pasaporte", work_permit: "Permiso de trabajo",
+        residence_permit: "Permiso de residencia", contract: "Contrato", diploma: "Diploma",
+        cv: "CV", medical_certificate: "Certificado médico", other: "Otro",
+      },
+      actions: { view: "Ver", loadMore: "Cargar más", loadMoreCount: "Mostrando {loaded} de {total}" },
+      buttons: { upload: "Subir" },
+      breadcrumbs: { hr: "RR. HH.", documents: "Documentos" },
+      errors: {
+        fetchFailed: "Error al cargar los documentos", actionFailed: "Algo salió mal. Inténtalo de nuevo.",
+        missingFields: "Seleccione un empleado y un archivo.", uploadFailed: "Error al subir el documento.",
+      },
+    },
+
+    attendance: {
+      title: "Asistencia",
+      subtitle: "Consulte los registros de entrada y salida.",
+      emptyTitle: "No hay registros de asistencia",
+      emptyMessage: "Ningún registro de asistencia coincide con sus filtros.",
+      filterAllEmployees: "Todos los empleados",
+      fields: { employee: "Empleado", date: "Fecha", clockIn: "Entrada", clockOut: "Salida", notes: "Notas" },
+      status: { present: "Presente", late: "Tarde", absent: "Ausente", half_day: "Media jornada", holiday: "Festivo" },
+      breadcrumbs: { hr: "RR. HH.", attendance: "Asistencia" },
+      errors: { fetchFailed: "Error al cargar la asistencia" },
+    },
+
+    reports: {
+      title: "Informes",
+      subtitle: "Plantilla, rotación, absentismo y evolución del coste de la nómina.",
+      stats: { totalHeadcount: "Plantilla total", activeEmployees: "Empleados activos", currentGross: "Bruto mensual actual (est.)", currentNet: "Neto mensual actual (est.)", missingSalaryNote: "{count} empleado(s) activo(s) aún no tienen un salario registrado — no incluidos en esta estimación." },
+      expand: "Ampliar",
+      charts: {
+        headcountByDepartment: "Plantilla por departamento", turnover: "Rotación (últimos 12 meses)",
+        hires: "Contrataciones", terminations: "Bajas", absenteeism: "Tasa de absentismo (últimos 6 meses)",
+        absenteeismRate: "Tasa de absentismo", payrollCost: "Coste de la nómina (últimos 12 meses)",
+        estimatedFootnote: "* El mes actual, marcado con un asterisco, es una estimación en tiempo real basada en los salarios actuales — la nómina aún no se ha ejecutado para este período.",
+      },
+      breadcrumbs: { hr: "RR. HH.", reports: "Informes" },
+      loadError: "No se pudieron cargar algunos datos del informe. Inténtalo de nuevo o consulta la consola para más detalles.",
+      rankings: {
+        title: "Clasificación de empleados",
+        last30Days: "Últimos 30 días",
+        last90Days: "Últimos 90 días",
+        last365Days: "Últimos 12 meses",
+        mostAbsenceDays: "Más días de ausencia",
+        bestAttendanceRate: "Mejor tasa de asistencia",
+        mostOvertimeHours: "Más horas extra",
+        mostLateDays: "Más llegadas tarde",
+        noData: "No hay datos para este período.",
+        days: "días",
+      },
+    },  twoFactor: {
+    title: "Autenticación de dos factores",
+    disabledHint: "Añade una capa extra de seguridad a tu cuenta — además de tu contraseña, necesitarás un código de una aplicación de autenticación para iniciar sesión.",
+    enabledHint: "La autenticación de dos factores está activada en tu cuenta. Se te pedirá un código de tu aplicación de autenticación cada vez que inicies sesión.",
+    enableButton: "Activar la autenticación de dos factores",
+    disableButton: "Desactivar la autenticación de dos factores",
+    disabling: "Desactivando...",
+    scanTitle: "Escanea el código QR",
+    scanHint: "Escanéalo con una aplicación de autenticación (Google Authenticator, Authy, etc.) y luego introduce el código de 6 dígitos que muestra para confirmar.",
+    manualEntryLabel: "¿No puedes escanearlo? Introduce este código manualmente:",
+    confirmAndEnable: "Confirmar y activar",
+    verifying: "Verificando...",
+    backupCodesTitle: "Guarda tus códigos de respaldo",
+    backupCodesHint: "Cada código se puede usar una vez para iniciar sesión si pierdes el acceso a tu aplicación de autenticación. Guárdalos en un lugar seguro — no se volverán a mostrar.",
+    copyBackupCodes: "Copiar códigos",
+    copied: "Copiado",
+    iSavedThem: "He guardado estos códigos",
+    confirmPasswordLabel: "Confirma tu contraseña para continuar",
+    errors: {
+      statusFailed: "No se pudo comprobar el estado de la autenticación de dos factores.",
+      setupFailed: "No se pudo iniciar la configuración de la autenticación de dos factores.",
+      invalidCode: "Ese código no coincide — revisa tu aplicación de autenticación e inténtalo de nuevo.",
+      disableFailed: "No se pudo desactivar la autenticación de dos factores.",
+    },
+  },
+
+  disciplinaryActions: {
+    title: "Acciones disciplinarias",
+    subtitle: "Registra advertencias y medidas correctivas emitidas a los empleados.",
+    addAction: "Añadir registro",
+    editAction: "Editar registro",
+    emptyTitle: "Aún no hay registros disciplinarios",
+    emptyMessage: "Esta empresa no tiene acciones disciplinarias registradas.",
+    deleteTitle: "Eliminar registro",
+    deleteSureMessage: "¿Seguro que deseas eliminar este registro? Esta acción no se puede deshacer.",
+    acknowledged: "Confirmado",
+    notAcknowledged: "Aún sin confirmar",
+    breadcrumbs: {
+      hr: "RR. HH.",
+      disciplinaryActions: "Acciones disciplinarias",
+    },
+    fields: {
+      employee: "Empleado",
+      type: "Tipo",
+      date: "Fecha",
+      reason: "Motivo",
+      description: "Descripción",
+      suspensionDays: "Suspensión (días)",
+      issuedBy: "Emitido por",
+      notes: "Notas",
+    },
+    types: {
+      verbal_warning: "Advertencia verbal",
+      written_warning: "Advertencia por escrito",
+      final_warning: "Última advertencia",
+      suspension: "Suspensión",
+      termination_notice: "Aviso de despido",
+    },
+    errors: {
+      fetchFailed: "Error al cargar las acciones disciplinarias",
+      saveFailed: "Error al guardar el registro",
+      deleteFailed: "Error al eliminar el registro",
+    },
+  },
+  performanceReviews: {
+    title: "Evaluaciones de desempeño",
+    subtitle: "Ciclos de evaluación, objetivos y calificaciones de tus empleados.",
+    addReview: "Nueva evaluación",
+    editReview: "Editar evaluación",
+    emptyTitle: "Aún no hay evaluaciones",
+    emptyMessage: "Esta empresa no tiene evaluaciones registradas.",
+    deleteTitle: "Eliminar evaluación",
+    deleteSureMessage: "¿Seguro que deseas eliminar esta evaluación? Esta acción no se puede deshacer.",
+    reviewedBy: "Evaluado por",
+    submitButton: "Enviar al empleado",
+    breadcrumbs: {
+      hr: "RR. HH.",
+      performanceReviews: "Evaluaciones",
+    },
+    fields: {
+      employee: "Empleado",
+      reviewer: "Evaluador",
+      periodLabel: "Período de evaluación",
+      periodLabelPlaceholder: "ej. Evaluación anual 2026",
+      reviewDate: "Fecha de evaluación",
+      goals: "Objetivos (uno por línea)",
+      goalsPlaceholder: "Mejorar el tiempo de respuesta en tickets de soporte\nCompletar la certificación de incorporación",
+      strengths: "Fortalezas",
+      areasForImprovement: "Áreas de mejora",
+      comments: "Comentarios",
+    },
+    criteria: {
+      jobKnowledge: "Conocimiento del puesto",
+      qualityOfWork: "Calidad del trabajo",
+      communication: "Comunicación",
+      teamwork: "Trabajo en equipo",
+      initiative: "Iniciativa",
+      punctuality: "Puntualidad",
+    },
+    statuses: {
+      draft: "Borrador",
+      submitted: "Enviada",
+      acknowledged: "Confirmada",
+    },
+    errors: {
+      fetchFailed: "Error al cargar las evaluaciones",
+      saveFailed: "Error al guardar la evaluación",
+      submitFailed: "Error al enviar la evaluación",
+      deleteFailed: "Error al eliminar la evaluación",
+    },
+  },
+  leaveCalendar: {
+    title: "Calendario de ausencias",
+    subtitle: "Consulta de un vistazo quién está de baja aprobada.",
+    previousMonth: "Mes anterior",
+    nextMonth: "Mes siguiente",
+    breadcrumbs: {
+      hr: "RR. HH.",
+      leaveCalendar: "Calendario de ausencias",
+    },
+    weekdays: {
+      0: "Lun",
+      1: "Mar",
+      2: "Mié",
+      3: "Jue",
+      4: "Vie",
+      5: "Sáb",
+      6: "Dom",
+    },
+    errors: {
+      fetchFailed: "Error al cargar el calendario de ausencias",
+    },
+  },
   },
 
   // ======================================================
@@ -4964,6 +6052,9 @@ export const translations = {
 
   pt: {
     sidebar: {
+      leaveCalendar: "Calendário de ausências",
+      performanceReviews: "Avaliações de desempenho",
+      disciplinaryActions: "Ações disciplinares",
       admin: "Admin",
       settings: "Configurações",
       help: "Ajuda e Suporte",
@@ -5157,6 +6248,9 @@ export const translations = {
       loadFailMessage:
         "Não foi possível carregar as informações da empresa.",
 
+      downloadFiche:
+        "Descarregar ficha",
+
       deleteCompany:
         "Eliminar empresa",
 
@@ -5193,6 +6287,9 @@ export const translations = {
 
         viewNotAuthorized:
           "Não tem autorização para visualizar esta empresa.",
+
+        ficheDownloadFailed:
+          "Erro ao gerar a ficha da empresa.",
 
         duplicateCompany:
           "Já existe uma empresa com este ICE, identificação fiscal, número de registro ou número CNSS.",
@@ -5338,6 +6435,7 @@ export const translations = {
 
       editUser: "Editar utilizador",
       editSubtitle: "Atualize as informações da conta deste utilizador.",
+      inheritedFromEmployee: "O departamento e a função de RH são herdados do funcionário associado {name} ({department} — {jobTitle}). Para os alterar, atualize o Departamento ou o Cargo do funcionário.",
 
       updateTitle: "Editar utilizador",
       updateSureMessage: "Tem a certeza de que deseja guardar estas alterações?",
@@ -5347,6 +6445,15 @@ export const translations = {
 
       updateFailTitle: "Falha ao atualizar",
       updateFailMessage: "Não foi possível atualizar o utilizador. Tente novamente.",
+
+      hrRole: {
+        label: "Cargo de RH",
+        notApplicable: "Não aplicável (fora de RH)",
+        assistant: "Assistente de RH",
+        officer: "Encarregado/a de RH",
+        manager: "Responsável de RH",
+        director: "Diretor/a de RH",
+      },
 
       department: "Departamento",
       departments: {
@@ -5463,6 +6570,37 @@ export const translations = {
         identification: "Identificação",
         company: "Empresa",
         notes: "Notas",
+      },
+
+      documents: {
+        menuButton: "Documentos",
+        attestationTravail: "Certificado de trabalho",
+        attestationSalaire: "Certificado de trabalho e salário",
+        certificatTravail: "Certificado de trabalho (fim de contrato)",
+        contratTravail: "Contrato de trabalho",
+        soldeToutCompte: "Recibo de saldo de contas",
+        generationFailed: "Erro ao gerar o documento.",
+      },
+
+      bulkImport: {
+        exportButton: "Exportar (CSV)",
+        exportFailed: "Não foi possível exportar os funcionários.",
+        openButton: "Importar (CSV)",
+        title: "Importar funcionários em massa",
+        helpText: "Carregue um ficheiro CSV para criar vários funcionários de uma vez. Cada linha é verificada primeiro — nada é criado até confirmar.",
+        downloadTemplate: "Transferir modelo CSV",
+        preview: "Verificar ficheiro",
+        previewing: "A verificar...",
+        previewFailed: "Não foi possível ler este ficheiro.",
+        summaryValid: "{count} pronto(s) a importar",
+        summaryErrors: "{count} com erros",
+        summaryWarnings: "{count} com avisos",
+        rowOk: "Tudo certo",
+        fixErrorsFirst: "Corrija as linhas com erros e volte a carregar o ficheiro antes de importar — as linhas apenas com avisos serão importadas na mesma.",
+        importButton: "Importar {count} funcionário(s)",
+        committing: "A importar...",
+        commitFailed: "Não foi possível concluir a importação.",
+        commitSuccess: "{count} funcionário(s) importado(s) com sucesso.",
       },
 
       fields: {
@@ -5990,6 +7128,296 @@ export const translations = {
         regenerateFailed: "Falha ao regenerar a tradução.",
       },
     },
+
+    departments: {
+      title: "Departamentos",
+      subtitle: "Defina os departamentos da sua organização e os cargos dentro de cada um.",
+      addDepartment: "Adicionar departamento",
+      addDefaults: "Adicionar departamentos predefinidos",
+      defaultsModal: {
+        title: "Adicionar departamentos predefinidos",
+        helpText: "Escolha os departamentos que pretende adicionar — cada um vem com um nome e descrição padrão e (para RH/Produção) o acesso ao módulo já configurado. Pode sempre editá-los ou adicionar mais depois.",
+        adding: "A adicionar...",
+        addButton: "Adicionar {count} departamento(s)",
+      },
+      editDepartment: "Editar departamento",
+      addPosition: "Adicionar cargo",
+      editPosition: "Editar cargo",
+      deleteTitle: "Eliminar departamento",
+      deleteSureMessage: "Tem a certeza de que pretende eliminar este departamento? Os funcionários e cargos que ainda o utilizam devem ser reatribuídos primeiro.",
+      deletePositionTitle: "Eliminar cargo",
+      deletePositionSureMessage: "Tem a certeza de que pretende eliminar este cargo? Os funcionários que o ocupam, ou outros cargos subordinados a ele, devem ser reatribuídos primeiro.",
+      emptyTitle: "Ainda não há departamentos",
+      emptyMessage: "Adicione o seu primeiro departamento para começar a construir a sua estrutura organizacional.",
+      noPositions: "Ainda não há cargos definidos neste departamento.",
+      fields: {
+        name: "Nome", description: "Descrição", permissionKey: "Acesso ao módulo",
+        permissionKeyHint: "Opcional — defina apenas num departamento se os funcionários aí (e as suas contas criadas automaticamente) devem ter acesso ao módulo de RH ou de Produção. A maioria dos departamentos deve manter «Sem acesso especial».",
+        category: "Função",
+        noCategory: "Sem função específica",
+        categoryHint: "Opcional — permite que o formulário de funcionário sugira cargos padrão para este departamento em vez de deixar texto livre. É apenas uma sugestão, sem relação com acessos, ao contrário do campo Acesso ao módulo acima.",
+        noSpecialAccess: "Sem acesso especial", hrAccess: "Acesso ao módulo de RH", productionAccess: "Acesso ao módulo de Produção",
+        positionTitle: "Nome do cargo", reportsTo: "Reporta a", noReportsTo: "Nenhum (cargo de topo)",
+        salaryMin: "Faixa salarial — mín.", salaryMax: "Faixa salarial — máx.", salaryBand: "Faixa salarial",
+        requiredSkills: "Competências necessárias", requiredSkillsPlaceholder: "Separadas por vírgulas, ex. Excel, Liderança",
+      },
+      errors: {
+        nameRequired: "O nome do departamento é obrigatório", titleRequired: "O nome do cargo é obrigatório",
+        saveFailed: "Ocorreu um erro ao guardar.", deleteFailed: "Ocorreu um erro ao eliminar.",
+      },
+    },
+
+    payroll: {
+      title: "Folha de pagamento",
+      subtitle: "Gere ciclos de folha de pagamento mensais e faça a gestão dos recibos de vencimento.",
+      generateRun: "Gerar folha de pagamento",
+      createTitle: "Gerar ciclo de folha de pagamento",
+      createSureMessage: "Gerar a folha de pagamento para este período? Será criado um recibo de vencimento para cada funcionário ativo com um salário registado.",
+      createSuccessTitle: "Ciclo de folha de pagamento criado",
+      createSuccessMessage: "O ciclo de folha de pagamento foi gerado com sucesso.",
+      completeTitle: "Concluir ciclo de folha de pagamento",
+      completeSureMessage: "Concluir este ciclo de folha de pagamento? Uma vez concluído, os recibos ficam bloqueados e os funcionários são notificados.",
+      deleteTitle: "Eliminar ciclo de folha de pagamento",
+      deleteSureMessage: "Eliminar este ciclo de folha de pagamento em rascunho e todos os seus recibos? Esta ação não pode ser desfeita.",
+      emptyTitle: "Ainda não há ciclos de folha de pagamento",
+      emptyMessage: "Gere o primeiro ciclo de folha de pagamento para esta empresa.",
+      noPayslips: "Não há recibos de vencimento neste ciclo.",
+      fields: { month: "Mês", year: "Ano", status: "Estado" },
+      table: { period: "Período", employees: "Funcionários", gross: "Bruto", net: "Líquido", searchPlaceholder: "Pesquisar funcionários..." },
+      status: { draft: "Rascunho", completed: "Concluído", voided: "Anulado" },
+      payslipStatus: { draft: "Rascunho", validated: "Validado", paid: "Pago" },
+      actions: { view: "Ver", complete: "Concluir", regenerate: "Regenerar", markPaid: "Marcar como pago", downloadPdf: "Transferir recibo" },
+      exports: {
+        cnss: "Exportação CNSS",
+        cnssHint: "Folha de declaração — verifique com o formato Damancom atual antes de carregar",
+        register: "Registo de folha de pagamento",
+        bankTransfer: "Ficheiro de transferência bancária",
+      },
+      buttons: { generate: "Gerar", saving: "A guardar..." },
+      breadcrumbs: { hr: "RH", payroll: "Folha de pagamento" },
+      months: ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"],
+      errors: { fetchFailed: "Falha ao carregar os ciclos de folha de pagamento", actionFailed: "Ocorreu um erro. Tente novamente." },
+    },
+
+    contracts: {
+      title: "Contratos",
+      subtitle: "Acompanhe os contratos de trabalho, renovações e datas de vencimento.",
+      addContract: "Novo contrato",
+      createTitle: "Novo contrato",
+      createSureMessage: "Tem a certeza de que pretende criar este contrato?",
+      createSuccessTitle: "Contrato criado",
+      createSuccessMessage: "O contrato foi criado com sucesso.",
+      renewTitle: "Renovar contrato",
+      renewSureMessage: "Renovar este contrato? O contrato atual será encerrado e um novo será iniciado.",
+      deleteTitle: "Eliminar contrato",
+      deleteSureMessage: "Tem a certeza de que pretende eliminar este contrato? Esta ação não pode ser desfeita.",
+      emptyTitle: "Ainda não há contratos",
+      emptyMessage: "Esta empresa ainda não tem contratos registados.",
+      expiringBanner: "{count} contrato(s) a vencer nos próximos 30 dias.",
+      fields: { employee: "Funcionário", type: "Tipo de contrato", startDate: "Data de início", endDate: "Data de fim" },
+      status: { active: "Ativo", expired: "Expirado", terminated: "Rescindido", renewed: "Renovado" },
+      actions: { renew: "Renovar" },
+      buttons: { create: "Guardar contrato" },
+      breadcrumbs: { hr: "RH", contracts: "Contratos" },
+      errors: { fetchFailed: "Falha ao carregar os contratos", actionFailed: "Ocorreu um erro. Tente novamente." },
+    },
+
+    documents: {
+      title: "Documentos",
+      subtitle: "Armazene os documentos dos funcionários e acompanhe as datas de validade.",
+      uploadDocument: "Carregar documento",
+      editDocument: "Editar documento",
+      deleteTitle: "Eliminar documento",
+      deleteSureMessage: "Tem a certeza de que pretende eliminar este documento? Esta ação não pode ser desfeita.",
+      emptyTitle: "Ainda não há documentos",
+      emptyMessage: "Esta empresa ainda não tem documentos registados.",
+      expiringBanner: "{count} documento(s) a expirar nos próximos 30 dias.",
+      fields: { employee: "Funcionário", type: "Tipo", label: "Etiqueta", labelPlaceholder: "ex. Cartão de cidadão", expiryDate: "Data de validade", file: "Ficheiro", replaceFile: "Substituir ficheiro (opcional)" },
+      table: { file: "Ficheiro" },
+      types: {
+        cin: "Cartão de identidade (CIN)", passport: "Passaporte", work_permit: "Autorização de trabalho",
+        residence_permit: "Autorização de residência", contract: "Contrato", diploma: "Diploma",
+        cv: "CV", medical_certificate: "Atestado médico", other: "Outro",
+      },
+      actions: { view: "Ver", loadMore: "Carregar mais", loadMoreCount: "A mostrar {loaded} de {total}" },
+      buttons: { upload: "Carregar" },
+      breadcrumbs: { hr: "RH", documents: "Documentos" },
+      errors: {
+        fetchFailed: "Falha ao carregar os documentos", actionFailed: "Ocorreu um erro. Tente novamente.",
+        missingFields: "Selecione um funcionário e um ficheiro.", uploadFailed: "Falha ao carregar o documento.",
+      },
+    },
+
+    attendance: {
+      title: "Assiduidade",
+      subtitle: "Consulte os registos de entrada e saída.",
+      emptyTitle: "Não há registos de assiduidade",
+      emptyMessage: "Nenhum registo de assiduidade corresponde aos seus filtros.",
+      filterAllEmployees: "Todos os funcionários",
+      fields: { employee: "Funcionário", date: "Data", clockIn: "Entrada", clockOut: "Saída", notes: "Notas" },
+      status: { present: "Presente", late: "Atrasado", absent: "Ausente", half_day: "Meio-dia", holiday: "Feriado" },
+      breadcrumbs: { hr: "RH", attendance: "Assiduidade" },
+      errors: { fetchFailed: "Falha ao carregar a assiduidade" },
+    },
+
+    reports: {
+      title: "Relatórios",
+      subtitle: "Efetivos, rotatividade, absentismo e evolução do custo da folha de pagamento.",
+      stats: { totalHeadcount: "Efetivo total", activeEmployees: "Funcionários ativos", currentGross: "Bruto mensal atual (est.)", currentNet: "Líquido mensal atual (est.)", missingSalaryNote: "{count} funcionário(s) ativo(s) ainda não têm salário registado — não incluído nesta estimativa." },
+      expand: "Expandir",
+      charts: {
+        headcountByDepartment: "Efetivo por departamento", turnover: "Rotatividade (últimos 12 meses)",
+        hires: "Contratações", terminations: "Saídas", absenteeism: "Taxa de absentismo (últimos 6 meses)",
+        absenteeismRate: "Taxa de absentismo", payrollCost: "Custo da folha de pagamento (últimos 12 meses)",
+        estimatedFootnote: "* O mês atual, assinalado com um asterisco, é uma estimativa em tempo real com base nos salários atuais — a folha de pagamento ainda não foi processada para este período.",
+      },
+      breadcrumbs: { hr: "RH", reports: "Relatórios" },
+      loadError: "Não foi possível carregar alguns dados do relatório. Tente novamente ou consulte a consola para mais detalhes.",
+      rankings: {
+        title: "Classificação de funcionários",
+        last30Days: "Últimos 30 dias",
+        last90Days: "Últimos 90 dias",
+        last365Days: "Últimos 12 meses",
+        mostAbsenceDays: "Mais dias de ausência",
+        bestAttendanceRate: "Melhor taxa de assiduidade",
+        mostOvertimeHours: "Mais horas extra",
+        mostLateDays: "Mais atrasos",
+        noData: "Sem dados para este período.",
+        days: "dias",
+      },
+    },  twoFactor: {
+    title: "Autenticação de dois fatores",
+    disabledHint: "Adicione uma camada extra de segurança à sua conta — além da palavra-passe, também vai precisar de um código de uma aplicação de autenticação para iniciar sessão.",
+    enabledHint: "A autenticação de dois fatores está ativada na sua conta. Ser-lhe-á pedido um código da sua aplicação de autenticação sempre que iniciar sessão.",
+    enableButton: "Ativar a autenticação de dois fatores",
+    disableButton: "Desativar a autenticação de dois fatores",
+    disabling: "A desativar...",
+    scanTitle: "Digitalize o código QR",
+    scanHint: "Digitalize-o com uma aplicação de autenticação (Google Authenticator, Authy, etc.) e depois introduza o código de 6 dígitos apresentado para confirmar.",
+    manualEntryLabel: "Não consegue digitalizar? Introduza este código manualmente:",
+    confirmAndEnable: "Confirmar e ativar",
+    verifying: "A verificar...",
+    backupCodesTitle: "Guarde os seus códigos de reserva",
+    backupCodesHint: "Cada código pode ser usado uma vez para iniciar sessão caso perca o acesso à sua aplicação de autenticação. Guarde-os num local seguro — não serão mostrados novamente.",
+    copyBackupCodes: "Copiar códigos",
+    copied: "Copiado",
+    iSavedThem: "Guardei estes códigos",
+    confirmPasswordLabel: "Confirme a sua palavra-passe para continuar",
+    errors: {
+      statusFailed: "Não foi possível verificar o estado da autenticação de dois fatores.",
+      setupFailed: "Não foi possível iniciar a configuração da autenticação de dois fatores.",
+      invalidCode: "Esse código não corresponde — verifique a sua aplicação de autenticação e tente novamente.",
+      disableFailed: "Não foi possível desativar a autenticação de dois fatores.",
+    },
+  },
+
+  disciplinaryActions: {
+    title: "Ações disciplinares",
+    subtitle: "Registe avisos e medidas corretivas emitidas aos funcionários.",
+    addAction: "Adicionar registo",
+    editAction: "Editar registo",
+    emptyTitle: "Ainda não há registos disciplinares",
+    emptyMessage: "Esta empresa não tem ações disciplinares registadas.",
+    deleteTitle: "Eliminar registo",
+    deleteSureMessage: "Tem a certeza de que pretende eliminar este registo? Esta ação não pode ser desfeita.",
+    acknowledged: "Confirmado",
+    notAcknowledged: "Ainda não confirmado",
+    breadcrumbs: {
+      hr: "RH",
+      disciplinaryActions: "Ações disciplinares",
+    },
+    fields: {
+      employee: "Funcionário",
+      type: "Tipo",
+      date: "Data",
+      reason: "Motivo",
+      description: "Descrição",
+      suspensionDays: "Suspensão (dias)",
+      issuedBy: "Emitido por",
+      notes: "Notas",
+    },
+    types: {
+      verbal_warning: "Advertência verbal",
+      written_warning: "Advertência escrita",
+      final_warning: "Última advertência",
+      suspension: "Suspensão",
+      termination_notice: "Aviso de rescisão",
+    },
+    errors: {
+      fetchFailed: "Falha ao carregar as ações disciplinares",
+      saveFailed: "Erro ao guardar o registo",
+      deleteFailed: "Erro ao eliminar o registo",
+    },
+  },
+  performanceReviews: {
+    title: "Avaliações de desempenho",
+    subtitle: "Ciclos de avaliação, objetivos e classificações dos seus funcionários.",
+    addReview: "Nova avaliação",
+    editReview: "Editar avaliação",
+    emptyTitle: "Ainda não há avaliações",
+    emptyMessage: "Esta empresa não tem avaliações registadas.",
+    deleteTitle: "Eliminar avaliação",
+    deleteSureMessage: "Tem a certeza de que pretende eliminar esta avaliação? Esta ação não pode ser desfeita.",
+    reviewedBy: "Avaliado por",
+    submitButton: "Enviar ao funcionário",
+    breadcrumbs: {
+      hr: "RH",
+      performanceReviews: "Avaliações",
+    },
+    fields: {
+      employee: "Funcionário",
+      reviewer: "Avaliador",
+      periodLabel: "Período de avaliação",
+      periodLabelPlaceholder: "ex. Avaliação anual 2026",
+      reviewDate: "Data de avaliação",
+      goals: "Objetivos (um por linha)",
+      goalsPlaceholder: "Melhorar o tempo de resposta nos tickets de suporte\nConcluir a certificação de integração",
+      strengths: "Pontos fortes",
+      areasForImprovement: "Áreas de melhoria",
+      comments: "Comentários",
+    },
+    criteria: {
+      jobKnowledge: "Conhecimento da função",
+      qualityOfWork: "Qualidade do trabalho",
+      communication: "Comunicação",
+      teamwork: "Trabalho em equipa",
+      initiative: "Iniciativa",
+      punctuality: "Pontualidade",
+    },
+    statuses: {
+      draft: "Rascunho",
+      submitted: "Enviada",
+      acknowledged: "Confirmada",
+    },
+    errors: {
+      fetchFailed: "Falha ao carregar as avaliações",
+      saveFailed: "Erro ao guardar a avaliação",
+      submitFailed: "Erro ao enviar a avaliação",
+      deleteFailed: "Erro ao eliminar a avaliação",
+    },
+  },
+  leaveCalendar: {
+    title: "Calendário de ausências",
+    subtitle: "Veja rapidamente quem está de licença aprovada.",
+    previousMonth: "Mês anterior",
+    nextMonth: "Mês seguinte",
+    breadcrumbs: {
+      hr: "RH",
+      leaveCalendar: "Calendário de ausências",
+    },
+    weekdays: {
+      0: "Seg",
+      1: "Ter",
+      2: "Qua",
+      3: "Qui",
+      4: "Sex",
+      5: "Sáb",
+      6: "Dom",
+    },
+    errors: {
+      fetchFailed: "Falha ao carregar o calendário de ausências",
+    },
+  },
   },
 
   // ======================================================
@@ -5998,6 +7426,9 @@ export const translations = {
 
   de: {
     sidebar: {
+      leaveCalendar: "Abwesenheitskalender",
+      performanceReviews: "Leistungsbeurteilungen",
+      disciplinaryActions: "Disziplinarmaßnahmen",
       admin: "Verwaltung",
       settings: "Einstellungen",
       help: "Hilfe und Support",
@@ -6192,6 +7623,9 @@ export const translations = {
       loadFailMessage:
         "Die Unternehmensinformationen konnten nicht geladen werden.",
 
+      downloadFiche:
+        "Datenblatt herunterladen",
+
       deleteCompany:
         "Unternehmen löschen",
 
@@ -6228,6 +7662,9 @@ export const translations = {
 
         viewNotAuthorized:
           "Sie sind nicht berechtigt, dieses Unternehmen anzuzeigen.",
+
+        ficheDownloadFailed:
+          "Fehler beim Erstellen des Unternehmensdatenblatts.",
 
         duplicateCompany:
           "Ein Unternehmen mit dieser ICE, Steuer-ID, Registrierungsnummer oder CNSS-Nummer existiert bereits.",
@@ -6390,6 +7827,7 @@ export const translations = {
 
       editUser: "Benutzer bearbeiten",
       editSubtitle: "Aktualisieren Sie die Kontoinformationen dieses Benutzers.",
+      inheritedFromEmployee: "Abteilung und HR-Rolle werden vom verknüpften Mitarbeiter {name} ({department} — {jobTitle}) übernommen. Ändern Sie stattdessen die Abteilung oder Stellenbezeichnung des Mitarbeiters.",
 
       updateTitle: "Benutzer bearbeiten",
       updateSureMessage: "Möchten Sie diese Änderungen wirklich speichern?",
@@ -6399,6 +7837,15 @@ export const translations = {
 
       updateFailTitle: "Aktualisierung fehlgeschlagen",
       updateFailMessage: "Der Benutzer konnte nicht aktualisiert werden. Bitte versuchen Sie es erneut.",
+
+      hrRole: {
+        label: "HR-Position",
+        notApplicable: "Nicht zutreffend (kein HR)",
+        assistant: "HR-Assistent(in)",
+        officer: "HR-Sachbearbeiter(in)",
+        manager: "HR-Verantwortliche(r)",
+        director: "HR-Direktor(in)",
+      },
 
       department: "Abteilung",
       departments: {
@@ -6515,6 +7962,37 @@ export const translations = {
         identification: "Identifikation",
         company: "Unternehmen",
         notes: "Notizen",
+      },
+
+      documents: {
+        menuButton: "Dokumente",
+        attestationTravail: "Arbeitsbescheinigung",
+        attestationSalaire: "Arbeits- und Gehaltsbescheinigung",
+        certificatTravail: "Arbeitszeugnis",
+        contratTravail: "Arbeitsvertrag",
+        soldeToutCompte: "Restschuldbescheinigung (Endabrechnung)",
+        generationFailed: "Fehler beim Erstellen des Dokuments.",
+      },
+
+      bulkImport: {
+        exportButton: "Exportieren (CSV)",
+        exportFailed: "Mitarbeiter konnten nicht exportiert werden.",
+        openButton: "Importieren (CSV)",
+        title: "Mitarbeiter im Massenimport anlegen",
+        helpText: "Laden Sie eine CSV-Datei hoch, um mehrere Mitarbeiter gleichzeitig anzulegen. Jede Zeile wird zuerst geprüft — es wird erst nach Ihrer Bestätigung etwas erstellt.",
+        downloadTemplate: "CSV-Vorlage herunterladen",
+        preview: "Datei prüfen",
+        previewing: "Wird geprüft...",
+        previewFailed: "Diese Datei konnte nicht gelesen werden.",
+        summaryValid: "{count} importbereit",
+        summaryErrors: "{count} mit Fehlern",
+        summaryWarnings: "{count} mit Warnungen",
+        rowOk: "Sieht gut aus",
+        fixErrorsFirst: "Beheben Sie die fehlerhaften Zeilen und laden Sie die Datei erneut hoch, bevor Sie importieren — Zeilen mit nur Warnungen werden trotzdem importiert.",
+        importButton: "{count} Mitarbeiter importieren",
+        committing: "Wird importiert...",
+        commitFailed: "Der Import konnte nicht abgeschlossen werden.",
+        commitSuccess: "{count} Mitarbeiter erfolgreich importiert.",
       },
 
       fields: {
@@ -7042,6 +8520,296 @@ export const translations = {
         regenerateFailed: "Übersetzung konnte nicht neu generiert werden.",
       },
     },
+
+    departments: {
+      title: "Abteilungen",
+      subtitle: "Definieren Sie die Abteilungen Ihres Unternehmens und die Stellen innerhalb jeder Abteilung.",
+      addDepartment: "Abteilung hinzufügen",
+      addDefaults: "Standardabteilungen hinzufügen",
+      defaultsModal: {
+        title: "Standardabteilungen hinzufügen",
+        helpText: "Wählen Sie die Abteilungen aus, die Sie hinzufügen möchten — jede erhält einen Standardnamen, eine Beschreibung und (für HR/Produktion) bereits festgelegten Modulzugriff. Sie können sie später weiterhin bearbeiten oder weitere hinzufügen.",
+        adding: "Wird hinzugefügt...",
+        addButton: "{count} Abteilung(en) hinzufügen",
+      },
+      editDepartment: "Abteilung bearbeiten",
+      addPosition: "Stelle hinzufügen",
+      editPosition: "Stelle bearbeiten",
+      deleteTitle: "Abteilung löschen",
+      deleteSureMessage: "Möchten Sie diese Abteilung wirklich löschen? Mitarbeiter und Stellen, die sie noch nutzen, müssen zuerst neu zugewiesen werden.",
+      deletePositionTitle: "Stelle löschen",
+      deletePositionSureMessage: "Möchten Sie diese Stelle wirklich löschen? Mitarbeiter, die sie noch innehaben, oder andere ihr unterstellte Stellen, müssen zuerst neu zugewiesen werden.",
+      emptyTitle: "Noch keine Abteilungen",
+      emptyMessage: "Fügen Sie Ihre erste Abteilung hinzu, um Ihre Organisationsstruktur aufzubauen.",
+      noPositions: "In dieser Abteilung sind noch keine Stellen definiert.",
+      fields: {
+        name: "Name", description: "Beschreibung", permissionKey: "Modulzugriff",
+        permissionKeyHint: "Optional — nur bei EINER Abteilung festlegen, wenn Mitarbeiter dort (und ihre automatisch erstellten Konten) Zugriff auf das HR- oder Produktionsmodul erhalten sollen. Die meisten Abteilungen sollten bei „Kein spezieller Zugriff“ bleiben.",
+        category: "Funktion",
+        noCategory: "Keine bestimmte Funktion",
+        categoryHint: "Optional — lässt das Mitarbeiterformular Standard-Stellenbezeichnungen für diese Abteilung vorschlagen, statt Freitext zu belassen. Nur ein Vorschlag, ohne Bezug zu Zugriffsrechten, im Gegensatz zum Feld Modulzugriff oben.",
+        noSpecialAccess: "Kein spezieller Zugriff", hrAccess: "Zugriff auf HR-Modul", productionAccess: "Zugriff auf Produktionsmodul",
+        positionTitle: "Stellenbezeichnung", reportsTo: "Berichtet an", noReportsTo: "Keine (oberste Stelle)",
+        salaryMin: "Gehaltsspanne — Min.", salaryMax: "Gehaltsspanne — Max.", salaryBand: "Gehaltsspanne",
+        requiredSkills: "Erforderliche Fähigkeiten", requiredSkillsPlaceholder: "Durch Kommas getrennt, z. B. Excel, Führung",
+      },
+      errors: {
+        nameRequired: "Der Abteilungsname ist erforderlich", titleRequired: "Die Stellenbezeichnung ist erforderlich",
+        saveFailed: "Beim Speichern ist ein Fehler aufgetreten.", deleteFailed: "Beim Löschen ist ein Fehler aufgetreten.",
+      },
+    },
+
+    payroll: {
+      title: "Gehaltsabrechnung",
+      subtitle: "Erstellen Sie monatliche Abrechnungsläufe und verwalten Sie Gehaltsabrechnungen.",
+      generateRun: "Abrechnung erstellen",
+      createTitle: "Abrechnungslauf erstellen",
+      createSureMessage: "Abrechnung für diesen Zeitraum erstellen? Für jeden aktiven Mitarbeiter mit hinterlegtem Gehalt wird eine Gehaltsabrechnung erstellt.",
+      createSuccessTitle: "Abrechnungslauf erstellt",
+      createSuccessMessage: "Der Abrechnungslauf wurde erfolgreich erstellt.",
+      completeTitle: "Abrechnungslauf abschließen",
+      completeSureMessage: "Diesen Abrechnungslauf abschließen? Nach dem Abschluss werden die Gehaltsabrechnungen gesperrt und die Mitarbeiter benachrichtigt.",
+      deleteTitle: "Abrechnungslauf löschen",
+      deleteSureMessage: "Diesen Entwurf des Abrechnungslaufs und alle zugehörigen Gehaltsabrechnungen löschen? Dies kann nicht rückgängig gemacht werden.",
+      emptyTitle: "Noch keine Abrechnungsläufe",
+      emptyMessage: "Erstellen Sie den ersten Abrechnungslauf für dieses Unternehmen.",
+      noPayslips: "Keine Gehaltsabrechnungen in diesem Lauf.",
+      fields: { month: "Monat", year: "Jahr", status: "Status" },
+      table: { period: "Zeitraum", employees: "Mitarbeiter", gross: "Brutto", net: "Netto", searchPlaceholder: "Mitarbeiter suchen..." },
+      status: { draft: "Entwurf", completed: "Abgeschlossen", voided: "Storniert" },
+      payslipStatus: { draft: "Entwurf", validated: "Bestätigt", paid: "Bezahlt" },
+      actions: { view: "Ansehen", complete: "Abschließen", regenerate: "Neu erstellen", markPaid: "Als bezahlt markieren", downloadPdf: "Abrechnung herunterladen" },
+      exports: {
+        cnss: "CNSS-Export",
+        cnssHint: "Meldeformular — vor dem Hochladen mit dem aktuellen Damancom-Format abgleichen",
+        register: "Lohnjournal",
+        bankTransfer: "Überweisungsdatei",
+      },
+      buttons: { generate: "Erstellen", saving: "Wird gespeichert..." },
+      breadcrumbs: { hr: "Personalwesen", payroll: "Gehaltsabrechnung" },
+      months: ["Januar","Februar","März","April","Mai","Juni","Juli","August","September","Oktober","November","Dezember"],
+      errors: { fetchFailed: "Abrechnungsläufe konnten nicht geladen werden", actionFailed: "Etwas ist schiefgelaufen. Bitte versuchen Sie es erneut." },
+    },
+
+    contracts: {
+      title: "Verträge",
+      subtitle: "Behalten Sie Arbeitsverträge, Verlängerungen und Ablaufdaten im Blick.",
+      addContract: "Neuer Vertrag",
+      createTitle: "Neuer Vertrag",
+      createSureMessage: "Möchten Sie diesen Vertrag wirklich erstellen?",
+      createSuccessTitle: "Vertrag erstellt",
+      createSuccessMessage: "Der Vertrag wurde erfolgreich erstellt.",
+      renewTitle: "Vertrag verlängern",
+      renewSureMessage: "Diesen Vertrag verlängern? Der aktuelle Vertrag wird geschlossen und ein neuer beginnt.",
+      deleteTitle: "Vertrag löschen",
+      deleteSureMessage: "Möchten Sie diesen Vertrag wirklich löschen? Dies kann nicht rückgängig gemacht werden.",
+      emptyTitle: "Noch keine Verträge",
+      emptyMessage: "Für dieses Unternehmen sind noch keine Verträge hinterlegt.",
+      expiringBanner: "{count} Vertrag/Verträge laufen innerhalb von 30 Tagen ab.",
+      fields: { employee: "Mitarbeiter", type: "Vertragsart", startDate: "Startdatum", endDate: "Enddatum" },
+      status: { active: "Aktiv", expired: "Abgelaufen", terminated: "Gekündigt", renewed: "Verlängert" },
+      actions: { renew: "Verlängern" },
+      buttons: { create: "Vertrag speichern" },
+      breadcrumbs: { hr: "Personalwesen", contracts: "Verträge" },
+      errors: { fetchFailed: "Verträge konnten nicht geladen werden", actionFailed: "Etwas ist schiefgelaufen. Bitte versuchen Sie es erneut." },
+    },
+
+    documents: {
+      title: "Dokumente",
+      subtitle: "Speichern Sie Mitarbeiterdokumente und behalten Sie Ablaufdaten im Blick.",
+      uploadDocument: "Dokument hochladen",
+      editDocument: "Dokument bearbeiten",
+      deleteTitle: "Dokument löschen",
+      deleteSureMessage: "Möchten Sie dieses Dokument wirklich löschen? Dies kann nicht rückgängig gemacht werden.",
+      emptyTitle: "Noch keine Dokumente",
+      emptyMessage: "Für dieses Unternehmen sind noch keine Dokumente hinterlegt.",
+      expiringBanner: "{count} Dokument(e) laufen innerhalb von 30 Tagen ab.",
+      fields: { employee: "Mitarbeiter", type: "Typ", label: "Bezeichnung", labelPlaceholder: "z. B. Personalausweis", expiryDate: "Ablaufdatum", file: "Datei", replaceFile: "Datei ersetzen (optional)" },
+      table: { file: "Datei" },
+      types: {
+        cin: "Personalausweis (CIN)", passport: "Reisepass", work_permit: "Arbeitserlaubnis",
+        residence_permit: "Aufenthaltserlaubnis", contract: "Vertrag", diploma: "Diplom",
+        cv: "Lebenslauf", medical_certificate: "Ärztliches Attest", other: "Sonstiges",
+      },
+      actions: { view: "Ansehen", loadMore: "Mehr laden", loadMoreCount: "{loaded} von {total} angezeigt" },
+      buttons: { upload: "Hochladen" },
+      breadcrumbs: { hr: "Personalwesen", documents: "Dokumente" },
+      errors: {
+        fetchFailed: "Dokumente konnten nicht geladen werden", actionFailed: "Etwas ist schiefgelaufen. Bitte versuchen Sie es erneut.",
+        missingFields: "Bitte wählen Sie einen Mitarbeiter und eine Datei aus.", uploadFailed: "Hochladen des Dokuments fehlgeschlagen.",
+      },
+    },
+
+    attendance: {
+      title: "Anwesenheit",
+      subtitle: "Kommen- und Gehen-Zeiten einsehen.",
+      emptyTitle: "Keine Anwesenheitsdaten",
+      emptyMessage: "Keine Anwesenheitsdaten entsprechen Ihren Filtern.",
+      filterAllEmployees: "Alle Mitarbeiter",
+      fields: { employee: "Mitarbeiter", date: "Datum", clockIn: "Kommen", clockOut: "Gehen", notes: "Notizen" },
+      status: { present: "Anwesend", late: "Verspätet", absent: "Abwesend", half_day: "Halber Tag", holiday: "Feiertag" },
+      breadcrumbs: { hr: "Personalwesen", attendance: "Anwesenheit" },
+      errors: { fetchFailed: "Anwesenheitsdaten konnten nicht geladen werden" },
+    },
+
+    reports: {
+      title: "Berichte",
+      subtitle: "Mitarbeiterzahl, Fluktuation, Abwesenheit und Entwicklung der Lohnkosten.",
+      stats: { totalHeadcount: "Gesamtbelegschaft", activeEmployees: "Aktive Mitarbeiter", currentGross: "Aktuelles monatliches Brutto (geschätzt)", currentNet: "Aktuelles monatliches Netto (geschätzt)", missingSalaryNote: "{count} aktive(r) Mitarbeiter haben noch kein hinterlegtes Gehalt — in dieser Schätzung nicht enthalten." },
+      expand: "Erweitern",
+      charts: {
+        headcountByDepartment: "Mitarbeiterzahl nach Abteilung", turnover: "Fluktuation (letzte 12 Monate)",
+        hires: "Neueinstellungen", terminations: "Austritte", absenteeism: "Abwesenheitsquote (letzte 6 Monate)",
+        absenteeismRate: "Abwesenheitsquote", payrollCost: "Lohnkosten (letzte 12 Monate)",
+        estimatedFootnote: "* Der aktuelle Monat, mit einem Sternchen markiert, ist eine Live-Schätzung auf Basis der aktuellen Gehälter — die Abrechnung wurde dafür noch nicht durchgeführt.",
+      },
+      breadcrumbs: { hr: "Personalwesen", reports: "Berichte" },
+      loadError: "Einige Berichtsdaten konnten nicht geladen werden. Bitte versuchen Sie es erneut oder prüfen Sie die Konsole für Details.",
+      rankings: {
+        title: "Mitarbeiter-Rangliste",
+        last30Days: "Letzte 30 Tage",
+        last90Days: "Letzte 90 Tage",
+        last365Days: "Letzte 12 Monate",
+        mostAbsenceDays: "Die meisten Abwesenheitstage",
+        bestAttendanceRate: "Beste Anwesenheitsquote",
+        mostOvertimeHours: "Die meisten Überstunden",
+        mostLateDays: "Die meisten Verspätungen",
+        noData: "Keine Daten für diesen Zeitraum.",
+        days: "Tage",
+      },
+    },  twoFactor: {
+    title: "Zwei-Faktor-Authentifizierung",
+    disabledHint: "Fügen Sie Ihrem Konto eine zusätzliche Sicherheitsebene hinzu — nach Ihrem Passwort benötigen Sie zum Anmelden auch einen Code aus einer Authentifizierungs-App.",
+    enabledHint: "Die Zwei-Faktor-Authentifizierung ist für Ihr Konto aktiviert. Sie werden bei jeder Anmeldung nach einem Code aus Ihrer Authentifizierungs-App gefragt.",
+    enableButton: "Zwei-Faktor-Authentifizierung aktivieren",
+    disableButton: "Zwei-Faktor-Authentifizierung deaktivieren",
+    disabling: "Wird deaktiviert...",
+    scanTitle: "QR-Code scannen",
+    scanHint: "Scannen Sie diesen mit einer Authentifizierungs-App (Google Authenticator, Authy usw.) und geben Sie dann den angezeigten 6-stelligen Code zur Bestätigung ein.",
+    manualEntryLabel: "Können Sie nicht scannen? Geben Sie diesen Code manuell ein:",
+    confirmAndEnable: "Bestätigen und aktivieren",
+    verifying: "Wird überprüft...",
+    backupCodesTitle: "Speichern Sie Ihre Backup-Codes",
+    backupCodesHint: "Jeder Code kann einmal zur Anmeldung verwendet werden, falls Sie den Zugriff auf Ihre Authentifizierungs-App verlieren. Bewahren Sie sie an einem sicheren Ort auf — sie werden nicht erneut angezeigt.",
+    copyBackupCodes: "Codes kopieren",
+    copied: "Kopiert",
+    iSavedThem: "Ich habe diese Codes gespeichert",
+    confirmPasswordLabel: "Bestätigen Sie Ihr Passwort, um fortzufahren",
+    errors: {
+      statusFailed: "Der Status der Zwei-Faktor-Authentifizierung konnte nicht geprüft werden.",
+      setupFailed: "Die Einrichtung der Zwei-Faktor-Authentifizierung konnte nicht gestartet werden.",
+      invalidCode: "Dieser Code stimmt nicht überein — prüfen Sie Ihre Authentifizierungs-App und versuchen Sie es erneut.",
+      disableFailed: "Die Zwei-Faktor-Authentifizierung konnte nicht deaktiviert werden.",
+    },
+  },
+
+  disciplinaryActions: {
+    title: "Disziplinarmaßnahmen",
+    subtitle: "Verwarnungen und Korrekturmaßnahmen gegenüber Mitarbeitern nachverfolgen.",
+    addAction: "Eintrag hinzufügen",
+    editAction: "Eintrag bearbeiten",
+    emptyTitle: "Noch keine Disziplinareinträge",
+    emptyMessage: "Für dieses Unternehmen sind keine Disziplinarmaßnahmen hinterlegt.",
+    deleteTitle: "Eintrag löschen",
+    deleteSureMessage: "Möchten Sie diesen Eintrag wirklich löschen? Dies kann nicht rückgängig gemacht werden.",
+    acknowledged: "Bestätigt",
+    notAcknowledged: "Noch nicht bestätigt",
+    breadcrumbs: {
+      hr: "Personalwesen",
+      disciplinaryActions: "Disziplinarmaßnahmen",
+    },
+    fields: {
+      employee: "Mitarbeiter",
+      type: "Art",
+      date: "Datum",
+      reason: "Grund",
+      description: "Beschreibung",
+      suspensionDays: "Suspendierung (Tage)",
+      issuedBy: "Ausgestellt von",
+      notes: "Notizen",
+    },
+    types: {
+      verbal_warning: "Mündliche Verwarnung",
+      written_warning: "Schriftliche Verwarnung",
+      final_warning: "Letzte Verwarnung",
+      suspension: "Suspendierung",
+      termination_notice: "Kündigungsschreiben",
+    },
+    errors: {
+      fetchFailed: "Disziplinarmaßnahmen konnten nicht geladen werden",
+      saveFailed: "Fehler beim Speichern des Eintrags",
+      deleteFailed: "Fehler beim Löschen des Eintrags",
+    },
+  },
+  performanceReviews: {
+    title: "Leistungsbeurteilungen",
+    subtitle: "Beurteilungszyklen, Ziele und Bewertungen für Ihre Mitarbeiter.",
+    addReview: "Neue Beurteilung",
+    editReview: "Beurteilung bearbeiten",
+    emptyTitle: "Noch keine Leistungsbeurteilungen",
+    emptyMessage: "Für dieses Unternehmen sind keine Beurteilungen hinterlegt.",
+    deleteTitle: "Beurteilung löschen",
+    deleteSureMessage: "Möchten Sie diese Beurteilung wirklich löschen? Dies kann nicht rückgängig gemacht werden.",
+    reviewedBy: "Beurteilt von",
+    submitButton: "An Mitarbeiter senden",
+    breadcrumbs: {
+      hr: "Personalwesen",
+      performanceReviews: "Beurteilungen",
+    },
+    fields: {
+      employee: "Mitarbeiter",
+      reviewer: "Beurteiler",
+      periodLabel: "Beurteilungszeitraum",
+      periodLabelPlaceholder: "z. B. Jahresbeurteilung 2026",
+      reviewDate: "Beurteilungsdatum",
+      goals: "Ziele (eines pro Zeile)",
+      goalsPlaceholder: "Reaktionszeit bei Support-Tickets verbessern\nOnboarding-Zertifizierung abschließen",
+      strengths: "Stärken",
+      areasForImprovement: "Verbesserungsbereiche",
+      comments: "Kommentare",
+    },
+    criteria: {
+      jobKnowledge: "Fachwissen",
+      qualityOfWork: "Arbeitsqualität",
+      communication: "Kommunikation",
+      teamwork: "Teamarbeit",
+      initiative: "Eigeninitiative",
+      punctuality: "Pünktlichkeit",
+    },
+    statuses: {
+      draft: "Entwurf",
+      submitted: "Gesendet",
+      acknowledged: "Bestätigt",
+    },
+    errors: {
+      fetchFailed: "Beurteilungen konnten nicht geladen werden",
+      saveFailed: "Fehler beim Speichern der Beurteilung",
+      submitFailed: "Fehler beim Senden der Beurteilung",
+      deleteFailed: "Fehler beim Löschen der Beurteilung",
+    },
+  },
+  leaveCalendar: {
+    title: "Abwesenheitskalender",
+    subtitle: "Sehen Sie auf einen Blick, wer genehmigten Urlaub hat.",
+    previousMonth: "Vorheriger Monat",
+    nextMonth: "Nächster Monat",
+    breadcrumbs: {
+      hr: "Personalwesen",
+      leaveCalendar: "Abwesenheitskalender",
+    },
+    weekdays: {
+      0: "Mo",
+      1: "Di",
+      2: "Mi",
+      3: "Do",
+      4: "Fr",
+      5: "Sa",
+      6: "So",
+    },
+    errors: {
+      fetchFailed: "Abwesenheitskalender konnte nicht geladen werden",
+    },
+  },
   },
 };
 

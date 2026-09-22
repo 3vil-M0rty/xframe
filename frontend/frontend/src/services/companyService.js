@@ -1,4 +1,5 @@
 import api from "./api";
+import { downloadBlob, normalizeBlobError } from "../utils/download";
 
 // ======================================================
 // GET ALL COMPANIES
@@ -85,4 +86,19 @@ export const deleteCompanyLogo = async (id) => {
   );
 
   return response.data;
+};
+
+// ======================================================
+// COMPANY FICHE (fact sheet) - PDF
+// ======================================================
+
+export const downloadCompanyFichePdf = async (id, filename = "fiche-entreprise.pdf") => {
+  try {
+    const response = await api.get(`/companies/${id}/fiche/pdf`, {
+      responseType: "blob",
+    });
+    downloadBlob(response.data, filename, true);
+  } catch (err) {
+    throw await normalizeBlobError(err);
+  }
 };

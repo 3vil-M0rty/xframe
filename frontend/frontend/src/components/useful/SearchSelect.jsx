@@ -19,6 +19,12 @@ import styles from "./SearchBar.module.css";
  * (defaults to `label` if omitted) — pass a combined string of
  * every field you want searchable (name + number + CNSS + phone...).
  *
+ * `icon`: the component shown next to each suggestion row (defaults
+ * to `User`, since this started out purely for picking people) — for
+ * example `icon={Ruler}` when searching something that isn't a
+ * person, like units of measure. Pass the component itself, not a
+ * rendered element (e.g. `Ruler`, not `<Ruler />`).
+ *
  * Controlled by `value` / `onSelect`, so it drops into
  * CollapsibleForm's field system exactly like the "select" type
  * does (see CollapsibleForm.jsx's "search-select" field type).
@@ -28,6 +34,7 @@ export default function SearchSelect({
   value,
   onSelect,
   options = [],
+  icon: Icon = User,
   placeholder = "Search...",
   noResultsLabel = "No results found",
 }) {
@@ -143,7 +150,7 @@ export default function SearchSelect({
                   handleSelect(option);
                 }}
               >
-                <User size={14} />
+                <Icon size={14} />
                 <span>{option.label}</span>
               </button>
             ))

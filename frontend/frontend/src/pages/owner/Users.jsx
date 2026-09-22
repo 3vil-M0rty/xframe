@@ -30,6 +30,7 @@ import {
     ArrowLeft,
     Trash2,
     Edit,
+    Link2,
 } from "lucide-react";
 
 // Cards per page. Keeping this modest (instead of loading every
@@ -228,6 +229,17 @@ export default function Users() {
     // FORM FIELDS
     // ========================================
 
+    // Department and hrRole come from the linked Employee's own
+    // department/job title once an account is linked (see
+    // routes/users.js — the backend re-derives and overrides these
+    // on every save regardless of what's submitted, so this isn't
+    // just a frontend nicety hiding a field that would silently do
+    // nothing: there is genuinely no way to independently set them
+    // here anymore for a linked account). Editing/creating an
+    // unlinked account (most admin/owner logins) still offers both
+    // as plain editable selects, unchanged from before.
+    const isLinkedToEmployee = mode === "edit" && !!selectedUser?.employee;
+
     const userFields = [
         {
             name: "firstName",
@@ -306,16 +318,18 @@ export default function Users() {
             ],
         },
 
-        {
-            name: "department",
-            label: t("users.department"),
-            type: "select",
-            required: true,
-            options: [
-                {
-                    value: "management",
-                    label: t("users.departments.management"),
-                },
+        ...(isLinkedToEmployee
+            ? []
+            : [{
+                name: "department",
+                label: t("users.department"),
+                type: "select",
+                required: true,
+                options: [
+                    {
+                        value: "management",
+                        label: t("users.departments.management"),
+                    },
                 {
                     value: "hr",
                     label: t("users.departments.hr"),
@@ -402,6 +416,19 @@ export default function Users() {
                 },
             ],
         },
+
+        {
+            name: "hrRole",
+            label: t("users.hrRole.label"),
+            type: "select",
+            options: [
+                { value: "", label: t("users.hrRole.notApplicable") },
+                { value: "hr_assistant", label: t("users.hrRole.assistant") },
+                { value: "hr_officer", label: t("users.hrRole.officer") },
+                { value: "hr_manager", label: t("users.hrRole.manager") },
+                { value: "hr_director", label: t("users.hrRole.director") },
+            ],
+        }]),
     ];
 
     // ========================================
@@ -1013,6 +1040,18 @@ export default function Users() {
                         </p>
                     </div>
                 </div>
+
+                {isLinkedToEmployee && (
+                    <div className={styles.inheritedBanner}>
+                        <Link2 size={15} />
+                        <span>
+                            {t("users.inheritedFromEmployee")
+                                .replace("{name}", `${selectedUser.employee.firstName} ${selectedUser.employee.lastName}`)
+                                .replace("{department}", selectedUser.employee.department?.name || t("users.hrRole.notApplicable"))
+                                .replace("{jobTitle}", selectedUser.employee.jobTitle || "—")}
+                        </span>
+                    </div>
+                )}
 
                 <div className="formShell">
                     <CollapsibleForm

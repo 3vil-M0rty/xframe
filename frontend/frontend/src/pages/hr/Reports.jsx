@@ -28,6 +28,7 @@ import {
   getAbsenteeismReport,
   getPayrollCostReport,
   getCurrentPayrollEstimate,
+  getEmployeeRankings,
 } from "../../services/reportService";
 import { getCompanies } from "../../services/companyService";
 
@@ -147,6 +148,34 @@ export default function Reports() {
   }));
 
   const hasEstimatedPoint = payrollCost.some((row) => row.estimated);
+
+  // ---------- Employee rankings (its own period, independent of the fixed-window reports above) ----------
+  const [rankingsPeriod, setRankingsPeriod] = useState(30);
+  const [rankings, setRankings] = useState(null);
+  const [rankingsLoading, setRankingsLoading] = useState(true);
+  const [rankingsError, setRankingsError] = useState("");
+
+  useEffect(() => {
+    if (!selectedCompanyId) { setRankingsLoading(false); return; }
+    let cancelled = false;
+    (async () => {
+      setRankingsLoading(true);
+      setRankingsError("");
+      try {
+        const data = await getEmployeeRankings(selectedCompanyId, rankingsPeriod);
+        if (!cancelled) setRankings(data);
+      } catch (error) {
+        if (cancelled) return;
+        console.error("Failed to load employee rankings:", error);
+        setRankingsError(error.response?.data?.message || t("reports.loadError"));
+      } finally {
+        if (!cancelled) setRankingsLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [selectedCompanyId, rankingsPeriod, t]);
+
+  const employeeName = (emp) => `${emp?.firstName || ""} ${emp?.lastName || ""}`.trim() || "—";
 
   // ---------- Full-screen modal state ----------
   const [openChart, setOpenChart] = useState(null); // "turnover" | "absenteeism" | "payrollCost" | null
@@ -291,6 +320,91 @@ export default function Reports() {
                 <p className={styles.chartFootnote}>{t("reports.charts.estimatedFootnote")}</p>
               )}
             </div>
+          </div>
+
+          <div className={styles.rankingsSection}>
+            <div className={styles.rankingsHeader}>
+              <h2>{t("reports.rankings.title")}</h2>
+              <CustomSelect
+                value={String(rankingsPeriod)}
+                onSelect={(v) => setRankingsPeriod(Number(v))}
+                options={[
+                  { value: "30", label: t("reports.rankings.last30Days") },
+                  { value: "90", label: t("reports.rankings.last90Days") },
+                  { value: "365", label: t("reports.rankings.last365Days") },
+                ]}
+              />
+            </div>
+
+            {rankingsError && <p className={styles.chartFootnote}>{rankingsError}</p>}
+
+            {!rankingsLoading && rankings && (
+              <div className={styles.rankingsGrid}>
+                <div className={styles.chartCard}>
+                  <h3>{t("reports.rankings.mostAbsenceDays")}</h3>
+                  {rankings.mostAbsenceDays.length === 0 ? (
+                    <p className={styles.chartFootnote}>{t("reports.rankings.noData")}</p>
+                  ) : (
+                    <ol className={styles.rankingList}>
+                      {rankings.mostAbsenceDays.map((row) => (
+                        <li key={row.employee._id}>
+                          <span>{employeeName(row.employee)}</span>
+                          <span className={styles.rankingValue}>{row.totalAbsenceDays} {t("reports.rankings.days")}</span>
+                        </li>
+                      ))}
+                    </ol>
+                  )}
+                </div>
+
+                <div className={styles.chartCard}>
+                  <h3>{t("reports.rankings.bestAttendanceRate")}</h3>
+                  {rankings.bestAttendanceRate.length === 0 ? (
+                    <p className={styles.chartFootnote}>{t("reports.rankings.noData")}</p>
+                  ) : (
+                    <ol className={styles.rankingList}>
+                      {rankings.bestAttendanceRate.map((row) => (
+                        <li key={row.employee._id}>
+                          <span>{employeeName(row.employee)}</span>
+                          <span className={styles.rankingValue}>{row.attendanceRate}%</span>
+                        </li>
+                      ))}
+                    </ol>
+                  )}
+                </div>
+
+                <div className={styles.chartCard}>
+                  <h3>{t("reports.rankings.mostOvertimeHours")}</h3>
+                  {rankings.mostOvertimeHours.length === 0 ? (
+                    <p className={styles.chartFootnote}>{t("reports.rankings.noData")}</p>
+                  ) : (
+                    <ol className={styles.rankingList}>
+                      {rankings.mostOvertimeHours.map((row) => (
+                        <li key={row.employee._id}>
+                          <span>{employeeName(row.employee)}</span>
+                          <span className={styles.rankingValue}>{row.totalOvertimeHours}h</span>
+                        </li>
+                      ))}
+                    </ol>
+                  )}
+                </div>
+
+                <div className={styles.chartCard}>
+                  <h3>{t("reports.rankings.mostLateDays")}</h3>
+                  {rankings.mostLateDays.length === 0 ? (
+                    <p className={styles.chartFootnote}>{t("reports.rankings.noData")}</p>
+                  ) : (
+                    <ol className={styles.rankingList}>
+                      {rankings.mostLateDays.map((row) => (
+                        <li key={row.employee._id}>
+                          <span>{employeeName(row.employee)}</span>
+                          <span className={styles.rankingValue}>{row.lateDays} {t("reports.rankings.days")}</span>
+                        </li>
+                      ))}
+                    </ol>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         </>
       )}

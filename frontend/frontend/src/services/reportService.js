@@ -32,3 +32,10 @@ export const getCurrentPayrollEstimate = async (companyId) => {
   );
   return response.data.data;
 };
+
+export const getEmployeeRankings = async (companyId, days = 30) => {
+  const response = await api.get(
+    `/reports/employee-rankings?companyId=${companyId}&days=${days}`
+  );
+  return response.data.data;
+};

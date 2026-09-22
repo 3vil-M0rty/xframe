@@ -19,3 +19,8 @@ export const deleteDepartment = async (id) => {
   const response = await api.delete(`/departments/${id}`);
   return response.data;
 };
+
+export const seedDefaultDepartments = async (companyId, categories) => {
+  const response = await api.post("/departments/seed-defaults", { company: companyId, categories });
+  return response.data;
+};

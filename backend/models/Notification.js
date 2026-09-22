@@ -31,6 +31,8 @@ const notificationSchema = new mongoose.Schema(
         "contract_expiring",
         "document_expiring",
         "payslip_available",
+        "purchase_request_pending",
+        "purchase_request_reviewed",
         "other",
       ],
       required: true,

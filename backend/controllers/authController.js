@@ -1,6 +1,8 @@
 const User = require('../models/User');
 const jwt = require('jsonwebtoken');
 
+const CHALLENGE_TOKEN_EXPIRY = '5m';
+
 exports.login = async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -11,7 +13,7 @@ exports.login = async (req, res) => {
     }
 
     // Find user
-    const user = await User.findOne({ email }).select('+password');
+    const user = await User.findOne({ email }).select('+password +twoFactor.secret');
     if (!user) {
       return res.status(401).json({ message: 'Invalid credentials' });
     }
@@ -20,6 +22,33 @@ exports.login = async (req, res) => {
     const isPasswordValid = await user.comparePassword(password);
     if (!isPasswordValid) {
       return res.status(401).json({ message: 'Invalid credentials' });
+    }
+
+    // --------------------------------------------------------
+    // Two-factor authentication: the password alone is only
+    // "half" the login for an account with 2FA enabled. Rather
+    // than issue the real session token here, hand back a
+    // short-lived challenge token that only proves "this person
+    // already got the password right" — routes/twoFactor.js's
+    // /verify-login exchanges it (plus a correct 6-digit code, or
+    // a backup code) for the real session token. Nothing about
+    // this challenge token grants any actual access on its own.
+    // --------------------------------------------------------
+
+    if (user.twoFactor?.enabled) {
+      const challengeToken = jwt.sign(
+        { id: user._id, purpose: '2fa_challenge' },
+        process.env.JWT_SECRET,
+        { expiresIn: CHALLENGE_TOKEN_EXPIRY }
+      );
+
+      return res.json({
+        message: 'Password verified — two-factor code required',
+        data: {
+          requires2FA: true,
+          challengeToken,
+        },
+      });
     }
 
     // Generate token

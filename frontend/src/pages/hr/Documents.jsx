@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 
 import { useI18n } from "../../hooks/useI18n";
+import { useDebouncedValue } from "../../hooks/useDebouncedValue";
 
 import CustomSelect from "../../components/useful/CustomSelect";
 import SearchSelect from "../../components/useful/SearchSelect";
@@ -125,10 +126,29 @@ export default function Documents() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
+  // Real pagination with a "Load more" button rather than fetching
+  // everything up front — documents are grouped by employee below
+  // (not a flat table), so numbered pages would be awkward; "load
+  // more" fits this shape naturally, matching what's actually being
+  // browsed. Search is server-side (reuses the same `?search=` the
+  // backend already supports) and always starts over from page 1,
+  // since a new search term should show fresh matching results, not
+  // filter whatever happened to already be loaded.
+  const DOCUMENTS_PAGE_SIZE = 40;
+  const [search, setSearch] = useState("");
+  const debouncedSearch = useDebouncedValue(search, 400);
+  const [page, setPage] = useState(1);
+  const [pagination, setPagination] = useState({ total: 0, page: 1, limit: DOCUMENTS_PAGE_SIZE, pages: 1 });
+  const [loadingMore, setLoadingMore] = useState(false);
+
   const reload = async () => {
     if (!selectedCompanyId) return;
-    const { documents: data } = await getDocuments({ companyId: selectedCompanyId, limit: 500 });
+    const { documents: data, pagination: p } = await getDocuments({
+      companyId: selectedCompanyId, search: debouncedSearch || undefined, page: 1, limit: DOCUMENTS_PAGE_SIZE,
+    });
     setDocuments(data);
+    setPage(1);
+    if (p) setPagination(p);
   };
 
   useEffect(() => {
@@ -138,9 +158,13 @@ export default function Documents() {
       try {
         setLoading(true);
         setError("");
-        const { documents: data } = await getDocuments({ companyId: selectedCompanyId, limit: 500 });
+        const { documents: data, pagination: p } = await getDocuments({
+          companyId: selectedCompanyId, search: debouncedSearch || undefined, page: 1, limit: DOCUMENTS_PAGE_SIZE,
+        });
         if (cancelled) return;
         setDocuments(data);
+        setPage(1);
+        if (p) setPagination(p);
       } catch (err) {
         if (cancelled) return;
         setError(err.response?.data?.message || t("documents.errors.fetchFailed"));
@@ -149,26 +173,30 @@ export default function Documents() {
       }
     })();
     return () => { cancelled = true; };
-  }, [selectedCompanyId, t]);
+  }, [selectedCompanyId, debouncedSearch, t]);
 
-  // Group documents by employee, sorted by employee name. Client-
-  // side search filter (documents are already fully loaded above,
-  // not server-paginated) matches employee name/number.
-  const [search, setSearch] = useState("");
+  const loadMoreDocuments = async () => {
+    if (!selectedCompanyId || loadingMore) return;
+    const nextPage = page + 1;
+    setLoadingMore(true);
+    try {
+      const { documents: data, pagination: p } = await getDocuments({
+        companyId: selectedCompanyId, search: debouncedSearch || undefined, page: nextPage, limit: DOCUMENTS_PAGE_SIZE,
+      });
+      setDocuments((prev) => [...prev, ...(data || [])]);
+      setPage(nextPage);
+      if (p) setPagination(p);
+    } catch (err) {
+      setError(err.response?.data?.message || t("documents.errors.fetchFailed"));
+    } finally {
+      setLoadingMore(false);
+    }
+  };
+
+  // Group the (already server-filtered) documents by employee, sorted by name.
   const groups = useMemo(() => {
-    const term = search.trim().toLowerCase();
-    const filtered = term
-      ? documents.filter((doc) => {
-          const emp = doc.employee;
-          return (
-            employeeName(emp).toLowerCase().includes(term) ||
-            (emp?.employeeNumber || "").toLowerCase().includes(term)
-          );
-        })
-      : documents;
-
     const byEmployee = new Map();
-    for (const doc of filtered) {
+    for (const doc of documents) {
       const empId = doc.employee?._id || "unknown";
       if (!byEmployee.has(empId)) {
         byEmployee.set(empId, { employee: doc.employee, docs: [] });
@@ -178,7 +206,7 @@ export default function Documents() {
     return [...byEmployee.values()].sort((a, b) =>
       employeeName(a.employee).localeCompare(employeeName(b.employee))
     );
-  }, [documents, search]);
+  }, [documents]);
 
   const [collapsedGroups, setCollapsedGroups] = useState({});
   const toggleGroup = (empId) =>
@@ -515,6 +543,19 @@ export default function Documents() {
               </div>
             );
           })}
+        </div>
+      )}
+
+      {selectedCompanyId && pagination.page < pagination.pages && (
+        <div className={styles.loadMoreWrapper}>
+          <button type="button" className="btnEdit" onClick={loadMoreDocuments} disabled={loadingMore}>
+            {loadingMore ? t("common.loading") : t("documents.actions.loadMore")}
+          </button>
+          <span className={styles.loadMoreCount}>
+            {t("documents.actions.loadMoreCount")
+              .replace("{loaded}", String(documents.length))
+              .replace("{total}", String(pagination.total))}
+          </span>
         </div>
       )}
 

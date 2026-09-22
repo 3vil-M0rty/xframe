@@ -2,6 +2,7 @@ const crypto = require("crypto");
 const User = require("../models/User");
 const Employee = require("../models/Employee");
 const Department = require("../models/Department");
+const { hrRoleForJobTitle } = require("../config/hrJobTitles");
 
 /**
  * Strips accents/diacritics (é → e, ç → c, ...) — common in
@@ -73,6 +74,40 @@ function generateTemporaryPassword() {
 }
 
 /**
+ * Given an Employee (needs `department` and `jobTitle`), computes
+ * what a User account for them should inherit:
+ *   - `department`: the app's fixed permission code (canAccessHR /
+ *     canAccessProduction check against this), taken from the
+ *     employee's Department.permissionKey — NOT the department
+ *     reference itself, since Department is a company-defined
+ *     record with no fixed meaning to the permission system.
+ *   - `hrRole`: only set when department resolves to "hr" AND the
+ *     employee's job title is one of the 4 canonical HR titles (see
+ *     config/hrJobTitles.js) — a custom/legacy title simply leaves
+ *     this unset rather than erroring, which correctly falls back
+ *     to full "Responsable RH"-equivalent access (see hrRoleLevel
+ *     in permissions/permissions.js).
+ *
+ * Used both when a login is first created for an employee, and by
+ * routes/users.js's update handler to keep an ALREADY-linked user's
+ * department/hrRole re-derived from their current employee record
+ * on every save, rather than a value someone could independently
+ * edit on the Users page and let drift out of sync.
+ */
+async function computeInheritedPermissions(employee) {
+  let permissionDepartment;
+  if (employee.department) {
+    const departmentId = employee.department._id || employee.department;
+    const department = await Department.findById(departmentId).select("permissionKey");
+    permissionDepartment = department?.permissionKey || undefined;
+  }
+
+  const hrRole = permissionDepartment === "hr" ? hrRoleForJobTitle(employee.jobTitle) : undefined;
+
+  return { department: permissionDepartment, hrRole };
+}
+
+/**
  * Creates a User account linked to `employee` and returns the
  * plaintext temporary password (the ONLY time it's ever available
  * in plaintext — the User model hashes it on save). Throws a
@@ -112,19 +147,7 @@ async function createLoginForEmployee(employee, actorId) {
 
   const temporaryPassword = generateTemporaryPassword();
 
-  // Employee.department is now a reference to a company-defined
-  // Department (see models/Department.js), not a fixed permission
-  // string — so this login's OWN department field (which the
-  // permission system checks — canAccessHR/canAccessProduction)
-  // comes from that department's `permissionKey`, not from copying
-  // the reference itself. Most departments have no permissionKey
-  // set, which correctly means "no special module access, just
-  // self-service" for employees there.
-  let permissionDepartment;
-  if (employee.department) {
-    const department = await Department.findById(employee.department).select("permissionKey");
-    permissionDepartment = department?.permissionKey || undefined;
-  }
+  const { department: permissionDepartment, hrRole } = await computeInheritedPermissions(employee);
 
   const user = await User.create({
     firstName: employee.firstName,
@@ -133,6 +156,7 @@ async function createLoginForEmployee(employee, actorId) {
     password: temporaryPassword, // hashed by User's pre('save') hook
     role: "user",
     department: permissionDepartment,
+    hrRole,
     employee: employee._id,
   });
 
@@ -163,6 +187,7 @@ async function resetPasswordForEmployee(employeeId) {
 module.exports = {
   createLoginForEmployee,
   resetPasswordForEmployee,
+  computeInheritedPermissions,
   generateTemporaryPassword,
   generateWorkEmail,
 };

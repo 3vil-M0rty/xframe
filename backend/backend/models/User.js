@@ -75,6 +75,56 @@ const userSchema = new mongoose.Schema(
     },
 
     // =========================================================
+    // HR JOB HIERARCHY (only meaningful when department === "hr")
+    // =========================================================
+    // The real, named hierarchy inside an HR department — not just
+    // "has HR access or doesn't". Ordered lowest to highest
+    // authority; see permissions/permissions.js (HR_ROLE_HIERARCHY,
+    // hasHRRoleAtLeast) for what each tier can actually do:
+    //   assistant -> officer -> manager -> director
+    // Left unset for any account that isn't in the "hr" department
+    // (admin, owner, and every other department's users). An "hr"
+    // department account with no hrRole set (e.g. one created
+    // before this field existed) is treated as "manager" by
+    // permissions.js's hrRoleLevel() — full operational HR
+    // authority — so introducing this tiering never silently locks
+    // an existing HR user out of something they could already do.
+    hrRole: {
+      type: String,
+      enum: ["hr_assistant", "hr_officer", "hr_manager", "hr_director"],
+      default: undefined,
+    },
+
+    // =========================================================
+    // TWO-FACTOR AUTHENTICATION (TOTP)
+    // =========================================================
+    // `secret` is the base32 TOTP seed — select: false so a normal
+    // User.find()/findById() never accidentally includes it in an
+    // API response; routes/twoFactor.js explicitly .select("+twoFactor.secret")
+    // only where it actually needs to verify a code. `enabled`
+    // stays false while `secret` is set but not yet confirmed (the
+    // setup flow generates a secret first, then only flips this to
+    // true once the user proves they can generate a matching code —
+    // see routes/twoFactor.js's /verify-setup). Backup codes are
+    // stored bcrypt-hashed, exactly like the password, and each is
+    // single-use (`used` flips true the moment it's redeemed).
+    twoFactor: {
+      enabled: { type: Boolean, default: false },
+      secret: { type: String, select: false },
+      backupCodes: {
+        type: [
+          {
+            codeHash: { type: String, required: true },
+            used: { type: Boolean, default: false },
+          },
+        ],
+        select: false,
+        default: undefined,
+      },
+      enabledAt: { type: Date },
+    },
+
+    // =========================================================
     // EMPLOYEE SELF-SERVICE LINK
     // =========================================================
     // When set, this login "belongs to" that Employee record —

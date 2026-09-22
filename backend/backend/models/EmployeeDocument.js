@@ -56,6 +56,14 @@ const employeeDocumentSchema = new mongoose.Schema(
     issueDate: { type: Date, default: null },
     expiryDate: { type: Date, default: null, index: true },
 
+    // Set once a "document_expiring" notification has been sent for
+    // this document's CURRENT expiryDate — see the matching field
+    // on Contract.js for why (avoids re-notifying HR every day of
+    // the warning window; cleared if expiryDate moves later so a
+    // replaced/renewed document can be notified again for its new
+    // date).
+    expiryNotifiedAt: { type: Date, default: null },
+
     notes: { type: String, trim: true, maxlength: 1000 },
 
     uploadedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
@@ -70,5 +78,16 @@ employeeDocumentSchema.index({ company: 1, type: 1 });
 // free-text field(s) below — every language in config/i18nContent.js's
 // CONTENT_LANGUAGES gets its own auto-translated + manually-editable slot.
 employeeDocumentSchema.plugin(translatable, { fields: ["label", "notes"] });
+
+// Same reasoning as Contract.js's matching hook: if expiryDate moves
+// later (a renewed passport/permit re-uploaded with a new date),
+// clear the notified flag so the expiry-check job can notify HR
+// again once the new date enters the warning window.
+employeeDocumentSchema.pre("save", function clearStaleExpiryFlag(next) {
+  if (this.isModified("expiryDate") && this.expiryNotifiedAt) {
+    this.expiryNotifiedAt = null;
+  }
+  next();
+});
 
 module.exports = mongoose.model("EmployeeDocument", employeeDocumentSchema);

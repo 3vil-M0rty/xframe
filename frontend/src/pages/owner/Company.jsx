@@ -4,6 +4,7 @@ import {
   updateCompany,
   deleteCompany,
   uploadCompanyLogo,
+  downloadCompanyFichePdf,
 } from "../../services/companyService";
 
 import { useState, useEffect } from "react";
@@ -25,6 +26,7 @@ import {
   Pencil,
   Plus,
   Trash2,
+  FileDown,
 } from "lucide-react";
 
 export default function Company() {
@@ -335,6 +337,36 @@ export default function Company() {
           ? t("company.createSureMessage")
           : t("company.updateSureMessage"),
     });
+  };
+
+  // ========================================
+  // DOWNLOAD FICHE (company fact sheet PDF)
+  // ========================================
+
+  const [ficheDownloading, setFicheDownloading] = useState(false);
+
+  const handleDownloadFiche = async () => {
+    if (!company) return;
+    setFicheDownloading(true);
+    try {
+      const companyName = company.shortName || company.name || "";
+      const safeName = ["Fiche entreprise", companyName]
+        .filter(Boolean)
+        .join(" - ")
+        .replace(/[/\\:*?"<>|]/g, "")
+        .replace(/\s+/g, " ")
+        .trim();
+      await downloadCompanyFichePdf(company._id, `${safeName}.pdf`);
+    } catch (err) {
+      setModal({
+        open: true,
+        type: "error",
+        title: t("common.error"),
+        message: translateApiMessage(err.response?.data?.message) || t("company.errors.ficheDownloadFailed"),
+      });
+    } finally {
+      setFicheDownloading(false);
+    }
   };
 
   // ========================================
@@ -710,6 +742,19 @@ export default function Company() {
 
         {company && !mode && canManageCompany(user, company) && (
           <div className="pageHeaderActions">
+
+            {/* DOWNLOAD FICHE */}
+
+            <button
+              type="button"
+              className="btnEdit"
+              onClick={handleDownloadFiche}
+              disabled={ficheDownloading}
+            >
+              <FileDown size={16} />
+
+              {ficheDownloading ? t("common.loading") : t("company.downloadFiche")}
+            </button>
 
             {/* EDIT */}
 
@@ -1159,7 +1204,7 @@ export default function Company() {
               </span>
 
               <strong>
-                {company.employeeCount ??
+                {company.activeEmployeeCount ??
                   0}
               </strong>
 

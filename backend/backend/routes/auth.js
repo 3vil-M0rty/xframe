@@ -1,9 +1,10 @@
 const express = require('express');
 const authController = require('../controllers/authController');
+const { loginRateLimiter } = require('../middleware/rateLimitMiddleware');
 
 const router = express.Router();
 
-router.post('/login', authController.login);
+router.post('/login', loginRateLimiter, authController.login);
 router.post('/logout', authController.logout);
 
 const auth = (req, res, next) => {

@@ -31,7 +31,11 @@ console.log(
   `TRANSLATION_PROVIDER=${JSON.stringify(process.env.TRANSLATION_PROVIDER || '')}`
 );
 
+const { runDailyHRChecks } = require('./services/scheduledNotificationsService');
+const { generalRateLimiter } = require('./middleware/rateLimitMiddleware');
+
 const authRoutes = require('./routes/auth');
+const { router: twoFactorRoutes } = require('./routes/twoFactor');
 const userRoutes = require('./routes/users');
 const companyRoutes = require("./routes/companies");  
 const employeeRoutes = require("./routes/employees");
@@ -52,16 +56,38 @@ const departmentRoutes = require("./routes/departments");
 const jobPositionRoutes = require("./routes/jobPositions");
 const productRoutes = require("./routes/products");
 const purchaseRequestRoutes = require("./routes/purchaseRequests");
+const performanceReviewRoutes = require("./routes/performanceReviews");
+const disciplinaryActionRoutes = require("./routes/disciplinaryActions");
 
 const app = express();
 
 // Middleware
 app.use(express.json());
 
+// ------------------------------------------------------------
+// SCHEDULED JOBS
+// ------------------------------------------------------------
+// Runs the daily HR expiry check (contracts, employee documents —
+// see scheduledNotificationsService.js) once at startup, then every
+// 24h after that. A plain setInterval is enough for "once a day" —
+// no need for a cron library or its extra dependency for a schedule
+// this simple. Started only after MongoDB actually connects (see
+// the mongoose.connect().then() below), so it can't run queries
+// against a database that isn't ready yet.
+const ONE_DAY_MS = 24 * 60 * 60 * 1000;
+
+function startScheduledJobs() {
+  runDailyHRChecks();
+  setInterval(runDailyHRChecks, ONE_DAY_MS);
+}
+
 // Connect to MongoDB
 mongoose
   .connect(process.env.MONGODB_URI)
-  .then(() => console.log('✓ Connected to MongoDB'))
+  .then(() => {
+    console.log('✓ Connected to MongoDB');
+    startScheduledJobs();
+  })
   .catch(err => console.error('MongoDB connection error:', err));
 
 const cookieParser = require('cookie-parser');
@@ -71,8 +97,16 @@ app.use(cors({
   credentials: true  // ← Important!
 }));
 
+// General, defense-in-depth rate limiting across the whole API —
+// see middleware/rateLimitMiddleware.js. The stricter, brute-force-
+// specific limiter for POST /api/auth/login is applied directly on
+// that route instead (routes/auth.js), since it needs a much lower
+// threshold than everything else in the app.
+app.use('/api', generalRateLimiter);
+
 // Routes
 app.use('/api/auth', authRoutes);
+app.use('/api/2fa', twoFactorRoutes);
 app.use('/api/companies', companyRoutes);
 app.use('/api/users', userRoutes);
 app.use("/api/employees", employeeRoutes);
@@ -93,6 +127,8 @@ app.use("/api/departments", departmentRoutes);
 app.use("/api/job-positions", jobPositionRoutes);
 app.use("/api/products", productRoutes);
 app.use("/api/purchase-requests", purchaseRequestRoutes);
+app.use("/api/performance-reviews", performanceReviewRoutes);
+app.use("/api/disciplinary-actions", disciplinaryActionRoutes);
 
 // Health check
 app.get('/health', (req, res) => {

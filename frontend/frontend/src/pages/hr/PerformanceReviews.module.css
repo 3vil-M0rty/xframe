@@ -1,0 +1,68 @@
+.toolbar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 18px;
+}
+
+.loadingText {
+    color: var(--color-text-secondary);
+    font-size: 0.85rem;
+}
+
+.list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.card {
+    padding: 14px 16px;
+    border: 1px solid var(--color-border);
+    border-radius: 12px;
+    background: var(--color-bg-primary);
+}
+
+.cardHeader {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 6px;
+}
+
+.cardHeaderRight {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.employeeName {
+    font-weight: 600;
+    color: var(--color-text-primary);
+}
+
+.periodLabel {
+    display: block;
+    margin-top: 2px;
+    color: var(--color-text-secondary);
+    font-size: 0.78rem;
+}
+
+.avgRating {
+    color: #e8b93f;
+    font-size: 0.8rem;
+    font-weight: 600;
+}
+
+.reviewer {
+    margin: 0 0 10px;
+    color: var(--color-text-secondary);
+    font-size: 0.82rem;
+}
+
+.cardFooter {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}

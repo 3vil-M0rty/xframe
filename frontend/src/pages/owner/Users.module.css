@@ -98,3 +98,25 @@
         width: 100%;
     }
 }
+
+.inheritedBanner {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+
+    margin-bottom: 14px;
+    padding: 0.7rem 0.9rem;
+
+    color: #93c5fd;
+    font-size: 0.82rem;
+    line-height: 1.5;
+
+    background: rgba(59, 130, 246, 0.08);
+    border: 1px solid rgba(59, 130, 246, 0.22);
+    border-radius: 10px;
+}
+
+.inheritedBanner svg {
+    flex-shrink: 0;
+    margin-top: 2px;
+}

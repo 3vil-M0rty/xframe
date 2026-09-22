@@ -142,6 +142,7 @@ export default function CollapsibleForm({
   onSubmit,
   defaultOpen = false,
   initialValues = {},
+  onFieldChange,
 }) {
   const [isOpen, setIsOpen] = useState(defaultOpen);
 
@@ -184,13 +185,19 @@ export default function CollapsibleForm({
 
   const handleChange = (e) => {
     const { name, value, type, checked, files } = e.target;
+    const nextValue = type === "file" ? files?.[0] || null : type === "checkbox" ? checked : value;
 
     setFormData((prev) => ({
       ...prev,
-      ...(type === "file"
-        ? { [name]: files?.[0] || null }
-        : { [name]: type === "checkbox" ? checked : value }),
+      [name]: nextValue,
     }));
+
+    // Optional: lets the parent react to a field changing WHILE the
+    // form is still open (e.g. an employee form narrowing its job
+    // title options once a department is picked) — CollapsibleForm
+    // has no opinion on what that reaction should be, it just
+    // reports the change.
+    onFieldChange?.(name, nextValue);
   };
 
   // ========================================
@@ -204,6 +211,7 @@ export default function CollapsibleForm({
       ...prev,
       [name]: value,
     }));
+    onFieldChange?.(name, value);
   };
 
   // ========================================

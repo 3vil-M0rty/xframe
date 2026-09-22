@@ -136,6 +136,18 @@ export default function Sidebar() {
           href: "/hr/org-chart",
         },
         {
+          label: t("sidebar.leaveCalendar"),
+          href: "/hr/leave-calendar",
+        },
+        {
+          label: t("sidebar.performanceReviews"),
+          href: "/hr/performance-reviews",
+        },
+        {
+          label: t("sidebar.disciplinaryActions"),
+          href: "/hr/disciplinary-actions",
+        },
+        {
           label: t("sidebar.reports"),
           href: "/hr/reports",
         },

@@ -89,3 +89,47 @@
   color: var(--color-text-secondary);
   margin-top: var(--spacing-lg);
 }
+.twoFactorHint {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+
+    margin-bottom: 4px;
+    padding: 0.6rem 0.75rem;
+
+    color: #93c5fd;
+    font-size: 0.8rem;
+    line-height: 1.4;
+    text-align: left;
+
+    background: rgba(59, 130, 246, 0.08);
+    border: 1px solid rgba(59, 130, 246, 0.2);
+    border-radius: 8px;
+}
+
+.twoFactorHint svg {
+    flex-shrink: 0;
+    margin-top: 1px;
+}
+
+.twoFactorLinks {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    margin-top: 4px;
+}
+
+.linkButton {
+    padding: 0;
+    color: #999;
+    font-size: 0.78rem;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    text-decoration: underline;
+}
+
+.linkButton:hover {
+    color: #ddd;
+}

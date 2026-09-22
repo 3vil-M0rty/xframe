@@ -158,6 +158,52 @@ router.get("/", requireHRAccess, async (req, res) => {
 });
 
 // ======================================================
+// LEAVE CALENDAR — who's on approved leave within a date range
+// GET /api/absences/calendar?companyId=&from=&to=
+// ======================================================
+// Read-only, company-wide view — deliberately sits behind
+// requireHRAccess (not the more permissive canReviewAbsence used by
+// the review endpoint below) since "everyone's leave at a glance"
+// is HR-module data, not something a random line manager should see
+// company-wide just because they can approve their own team.
+// Registered BEFORE GET /:id below — Express matches routes in
+// registration order, and /:id would otherwise swallow a request to
+// /calendar as if "calendar" were an absence id.
+
+router.get("/calendar", requireHRAccess, async (req, res) => {
+  try {
+    const { companyId, from, to } = req.query;
+    if (!companyId || !mongoose.Types.ObjectId.isValid(companyId)) {
+      return res.status(400).json({ success: false, message: "A valid companyId is required" });
+    }
+    if (!from || !to) {
+      return res.status(400).json({ success: false, message: "from and to dates are required" });
+    }
+
+    const company = await Company.findById(companyId);
+    if (!company) return res.status(404).json({ success: false, message: "Company not found" });
+    if (!canManage(req, company)) return res.status(403).json({ success: false, message: "Not authorized" });
+
+    const fromDate = new Date(from);
+    const toDate = new Date(to);
+
+    const absences = await Absence.find({
+      company: companyId,
+      status: "accepted",
+      startDate: { $lte: toDate },
+      endDate: { $gte: fromDate },
+    })
+      .populate("employee", "firstName lastName employeeNumber")
+      .sort({ startDate: 1 });
+
+    res.json({ success: true, data: absences });
+  } catch (error) {
+    console.error("GET absences calendar error:", error);
+    res.status(500).json({ success: false, message: "Error fetching leave calendar", error: error.message });
+  }
+});
+
+// ======================================================
 // GET SINGLE ABSENCE
 // GET /api/absences/:id
 // ======================================================

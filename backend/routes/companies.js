@@ -2,6 +2,7 @@ const express = require("express");
 const router = express.Router();
 
 const Company = require("../models/Company");
+const Employee = require("../models/Employee");
 const auth = require("../middleware/auth");
 const upload = require("../middleware/uploadMiddleware");
 const { requireAdminOrOwner } = require("../middleware/permissionMiddleware");
@@ -12,6 +13,8 @@ const {
   deleteImage,
 } = require("../services/cloudinaryService");
 const { attachTranslationRoutes } = require("../utils/translationRoutes");
+const { generateCompanyFiche } = require("../services/companyFichePdfService");
+const { fetchLogoBuffer } = require("../services/pdfHelpers");
 
 // ======================================================
 // HELPER
@@ -37,9 +40,27 @@ router.get("/", auth, async (req, res) => {
     const companies = await Company.find(filter)
       .sort({ createdAt: -1 });
 
+    // `Company.employeeCount` is a stale/manually-set field — see
+    // the comment on that schema path ("Do NOT use this as the
+    // source of truth for employees"). The real headcount is
+    // computed here from the Employee collection instead, one
+    // aggregate query for every company on this page rather than a
+    // separate count per company.
+    const counts = await Employee.aggregate([
+      { $match: { company: { $in: companies.map((c) => c._id) }, employmentStatus: { $ne: "terminated" } } },
+      { $group: { _id: "$company", count: { $sum: 1 } } },
+    ]);
+    const countByCompany = new Map(counts.map((c) => [String(c._id), c.count]));
+
+    const data = companies.map((c) => {
+      const obj = c.toObject();
+      obj.activeEmployeeCount = countByCompany.get(String(c._id)) || 0;
+      return obj;
+    });
+
     res.json({
       success: true,
-      data: companies,
+      data,
     });
   } catch (error) {
     res.status(500).json({
@@ -72,9 +93,16 @@ router.get("/:id", auth, async (req, res) => {
       });
     }
 
+    const activeEmployeeCount = await Employee.countDocuments({
+      company: company._id,
+      employmentStatus: { $ne: "terminated" },
+    });
+    const data = company.toObject();
+    data.activeEmployeeCount = activeEmployeeCount;
+
     res.json({
       success: true,
-      data: company,
+      data,
     });
   } catch (error) {
     res.status(500).json({
@@ -105,7 +133,7 @@ router.post("/", auth, requireAdminOrOwner, async (req, res) => {
 
     res.status(201).json({
       success: true,
-      data: company,
+      data: { ...company.toObject(), activeEmployeeCount: 0 },
       message: "Company created successfully",
     });
   } catch (error) {
@@ -173,9 +201,14 @@ router.put("/:id", auth, requireAdminOrOwner, async (req, res) => {
       }
     );
 
+    const activeEmployeeCount = await Employee.countDocuments({
+      company: updated._id,
+      employmentStatus: { $ne: "terminated" },
+    });
+
     res.json({
       success: true,
-      data: updated,
+      data: { ...updated.toObject(), activeEmployeeCount },
       message: "Company updated successfully",
     });
   } catch (error) {
@@ -264,9 +297,14 @@ router.post(
 
       await company.save();
 
+      const activeEmployeeCount = await Employee.countDocuments({
+        company: company._id,
+        employmentStatus: { $ne: "terminated" },
+      });
+
       res.json({
         success: true,
-        data: company,
+        data: { ...company.toObject(), activeEmployeeCount },
         message: "Company logo uploaded successfully",
       });
     } catch (error) {
@@ -323,9 +361,14 @@ router.delete(
 
       await company.save();
 
+      const activeEmployeeCount = await Employee.countDocuments({
+        company: company._id,
+        employmentStatus: { $ne: "terminated" },
+      });
+
       res.json({
         success: true,
-        data: company,
+        data: { ...company.toObject(), activeEmployeeCount },
         message: "Company logo deleted successfully",
       });
     } catch (error) {
@@ -379,6 +422,44 @@ router.delete("/:id", auth, requireAdminOrOwner, async (req, res) => {
       message: "Error deleting company",
       error: error.message,
     });
+  }
+});
+
+// ======================================================
+// COMPANY FICHE (fact sheet) — PDF
+// GET /api/companies/:id/fiche/pdf
+// ======================================================
+
+router.get("/:id/fiche/pdf", auth, async (req, res) => {
+  try {
+    const company = await Company.findById(req.params.id).populate("owner", "firstName lastName");
+
+    if (!company) {
+      return res.status(404).json({ success: false, message: "Company not found" });
+    }
+    if (!canManage(req, company)) {
+      return res.status(403).json({ success: false, message: "Not authorized to view this company" });
+    }
+
+    const activeEmployeeCount = await Employee.countDocuments({
+      company: company._id,
+      employmentStatus: { $ne: "terminated" },
+    });
+
+    const logoBuffer = await fetchLogoBuffer(company);
+
+    const doc = generateCompanyFiche({ company, activeEmployeeCount, logoBuffer });
+
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader(
+      "Content-Disposition",
+      `inline; filename="fiche-entreprise-${(company.shortName || company.name || company._id).toString().replace(/[^a-z0-9]+/gi, "-")}.pdf"`
+    );
+    doc.pipe(res);
+    doc.end();
+  } catch (error) {
+    console.error("GET company fiche PDF error:", error);
+    res.status(500).json({ success: false, message: "Error generating company fiche", error: error.message });
   }
 });
 

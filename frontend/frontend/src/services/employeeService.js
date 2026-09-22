@@ -1,4 +1,5 @@
 import api from "./api";
+import { downloadBlob, normalizeBlobError } from "../utils/download";
 
 // ======================================================
 // GET ALL EMPLOYEES
@@ -166,4 +167,55 @@ export const unlinkEmployeeUser = async (employeeId) => {
     `/employees/${employeeId}/unlink-user`
   );
   return response.data;
+};
+// ======================================================
+// EMPLOYEE DOCUMENTS (attestations & certificat de travail) - PDF
+// ======================================================
+
+export const downloadEmployeeDocumentPdf = async (employeeId, type, filename = "document.pdf") => {
+  try {
+    const response = await api.get(`/employees/${employeeId}/documents/${type}/pdf`, {
+      responseType: "blob",
+    });
+    downloadBlob(response.data, filename, true);
+  } catch (err) {
+    throw await normalizeBlobError(err);
+  }
+};
+
+// ======================================================
+// BULK IMPORT (CSV)
+// ======================================================
+
+export const previewEmployeeBulkImport = async (companyId, file) => {
+  const formData = new FormData();
+  formData.append("companyId", companyId);
+  formData.append("file", file);
+  const response = await api.post(
+    "/employees/bulk-import/preview",
+    formData,
+    { headers: { "Content-Type": "multipart/form-data" } }
+  );
+  return response.data.data;
+};
+
+export const commitEmployeeBulkImport = async (companyId, rows) => {
+  const response = await api.post("/employees/bulk-import/commit", { companyId, rows });
+  return response.data.data;
+};
+
+// ======================================================
+// EXPORT (CSV)
+// ======================================================
+
+export const exportEmployeesCsv = async (companyId, filename = "employees.csv") => {
+  try {
+    const response = await api.get(
+      `/employees/export?companyId=${companyId}`,
+      { responseType: "blob" }
+    );
+    downloadBlob(response.data, filename, true);
+  } catch (err) {
+    throw await normalizeBlobError(err);
+  }
 };

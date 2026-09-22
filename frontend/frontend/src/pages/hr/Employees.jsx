@@ -20,6 +20,9 @@ import {
   Users,
   X,
   Languages,
+  FileDown,
+  ChevronDown,
+  Upload,
 } from "lucide-react";
 
 import { useI18n } from "../../hooks/useI18n";
@@ -37,6 +40,7 @@ import LinkedUserAccess from "../../components/employee/LinkedUserAccess";
 import EmployeeRelatedRecords from "../../components/employee/EmployeeRelatedRecords";
 import ActionModal from "../../components/useful/ActionModal";
 import TranslationEditorModal from "../../components/useful/TranslationEditorModal";
+import BulkImportModal from "../../components/useful/BulkImportModal";
 
 import {
   getEmployees,
@@ -45,9 +49,13 @@ import {
   deleteEmployee,
   uploadEmployeePhoto,
   deleteEmployeePhoto,
+  downloadEmployeeDocumentPdf,
+  exportEmployeesCsv,
 } from "../../services/employeeService";
 import { getCompanies } from "../../services/companyService";
 import { getDepartments } from "../../services/departmentService";
+import { buildEmployeeSearchOptions } from "../../utils/employeeSearch";
+import { getJobPositions } from "../../services/jobPositionService";
 
 import styles from "./Employees.module.css";
 
@@ -255,6 +263,33 @@ export default function Employees() {
   const translatedWorkLocation = useTranslatedField(selectedEmployee, "workLocation");
   const translatedNotes = useTranslatedField(selectedEmployee, "notes");
 
+  // ---------- Bulk import (CSV) ----------
+  const [showBulkImport, setShowBulkImport] = useState(false);
+  const handleBulkImported = () => {
+    setPage(1);
+    setRefreshCounter((c) => c + 1);
+  };
+
+  // ---------- Export (CSV) ----------
+  const [exporting, setExporting] = useState(false);
+  const handleExport = async () => {
+    if (!selectedCompanyId || exporting) return;
+    setExporting(true);
+    try {
+      const safeName = (companies.find((c) => c._id === selectedCompanyId)?.name || "employees").replace(/[^a-z0-9]+/gi, "-");
+      await exportEmployeesCsv(selectedCompanyId, `employees-${safeName}.csv`);
+    } catch (err) {
+      setModal({
+        open: true,
+        type: "error",
+        title: t("common.error"),
+        message: err.response?.data?.message || t("employees.bulkImport.exportFailed"),
+      });
+    } finally {
+      setExporting(false);
+    }
+  };
+
   // ---------- Translations editor (jobTitle, service, position, workLocation, notes) ----------
   const [translatingEmployee, setTranslatingEmployee] = useState(null);
   const handleTranslationSaved = (field, bucket) => {
@@ -264,6 +299,48 @@ export default function Employees() {
         : emp;
     setEmployees((prev) => prev.map(patch));
     setSelectedEmployee((prev) => (prev ? patch(prev) : prev));
+  };
+
+  // ---------- Employee documents (attestations, certificat de travail) ----------
+  const [showDocsMenu, setShowDocsMenu] = useState(false);
+  const [generatingDoc, setGeneratingDoc] = useState(null); // the doc type currently downloading, or null
+  const DOCUMENT_TYPES = [
+    { type: "attestation-travail", labelKey: "employees.documents.attestationTravail", filePrefix: "attestation-travail" },
+    { type: "attestation-salaire", labelKey: "employees.documents.attestationSalaire", filePrefix: "attestation-salaire" },
+    { type: "certificat-travail", labelKey: "employees.documents.certificatTravail", filePrefix: "certificat-travail" },
+    { type: "contrat-travail", labelKey: "employees.documents.contratTravail", filePrefix: "contrat-travail" },
+    { type: "solde-tout-compte", labelKey: "employees.documents.soldeToutCompte", filePrefix: "solde-tout-compte" },
+  ];
+
+  const handleGenerateDocument = async (docType, filePrefix) => {
+    if (!selectedEmployee) return;
+    setShowDocsMenu(false);
+    setGeneratingDoc(docType);
+    try {
+      const docConfig = DOCUMENT_TYPES.find((d) => d.type === docType);
+      const docLabel = docConfig ? t(docConfig.labelKey) : filePrefix;
+      const employeeName = `${selectedEmployee.firstName || ""} ${selectedEmployee.lastName || ""}`.trim();
+      // Keep spaces and accented letters (French/Arabic-transliterated
+      // names are the common case here) — only strip characters that
+      // are genuinely invalid across filesystems (/ \ : * ? " < > |),
+      // then collapse the inevitable double spaces/dashes that leaves.
+      const safeName = [docLabel, employeeName, selectedEmployee.employeeNumber]
+        .filter(Boolean)
+        .join(" - ")
+        .replace(/[/\\:*?"<>|]/g, "")
+        .replace(/\s+/g, " ")
+        .trim();
+      await downloadEmployeeDocumentPdf(selectedEmployee._id, docType, `${safeName}.pdf`);
+    } catch (err) {
+      setModal({
+        open: true,
+        type: "error",
+        title: t("common.error"),
+        message: err.response?.data?.message || t("employees.documents.generationFailed"),
+      });
+    } finally {
+      setGeneratingDoc(null);
+    }
   };
 
   const [selectedCompanyId, setSelectedCompanyId] =
@@ -304,6 +381,91 @@ export default function Employees() {
     value: d._id,
     label: d.name,
   }));
+
+  // Full (non-paginated) roster of the form's company, for the
+  // "Manager" search-select — the main `employees` list above is
+  // capped to one page, which would silently hide most of the
+  // company from this dropdown once there's more than a page of
+  // staff. Fetched the same way Contracts/Advances/Documents fetch
+  // their employee-picker options.
+  const [managerCandidates, setManagerCandidates] = useState([]);
+
+  useEffect(() => {
+    if (!formCompanyId) { setManagerCandidates([]); return; }
+    let cancelled = false;
+    (async () => {
+      try {
+        const { employees: data } = await getEmployees({ companyId: formCompanyId, page: 1, limit: 500 });
+        if (!cancelled) setManagerCandidates(data || []);
+      } catch (error) {
+        console.error("Failed to load manager candidates:", error);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [formCompanyId]);
+
+  // Declared here (rather than further down with the rest of the
+  // create/edit form state) specifically because managerOptions and
+  // jobTitleOptionsForSelectedDepartment right below both need it —
+  // referencing a const before its declaration line has actually
+  // run, even later in the same component function, is a real
+  // ReferenceError at render time, not just a lint nitpick.
+  const [editingEmployee, setEditingEmployee] = useState(null);
+
+  // An employee can never be their own manager — excluded here so
+  // it's simply not offered, rather than validated after the fact.
+  const managerOptions = buildEmployeeSearchOptions(
+    managerCandidates.filter((e) => e._id !== editingEmployee?._id)
+  );
+
+  // ---------- Job title, filtered by the form's live department selection ----------
+  // Tracks whatever department is CURRENTLY picked in the open
+  // create/edit form (not necessarily what's saved yet) — updated
+  // via CollapsibleForm's onFieldChange, since department can
+  // change after the form is already open. Initialized whenever the
+  // form opens (see openCreateForm/openEditForm below).
+  const [formSelectedDepartmentId, setFormSelectedDepartmentId] = useState("");
+  const handleEmployeeFormFieldChange = (name, value) => {
+    if (name === "department") setFormSelectedDepartmentId(value);
+  };
+
+  // The REAL, HR-managed job positions for whichever department is
+  // currently selected (see Organization > Departments — "Add
+  // position") — not a hardcoded/invented list. Refetched every
+  // time the selected department changes; empty until then, which
+  // correctly falls back Job Title to free text (see
+  // jobTitleOptionsForSelectedDepartment below) rather than showing
+  // an empty, unusable dropdown.
+  const [departmentPositions, setDepartmentPositions] = useState([]);
+  useEffect(() => {
+    if (!formCompanyId || !formSelectedDepartmentId) { setDepartmentPositions([]); return; }
+    let cancelled = false;
+    (async () => {
+      try {
+        const positions = await getJobPositions(formCompanyId, formSelectedDepartmentId);
+        if (!cancelled) setDepartmentPositions(positions || []);
+      } catch (error) {
+        console.error("Failed to load job positions for this department:", error);
+        if (!cancelled) setDepartmentPositions([]);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [formCompanyId, formSelectedDepartmentId]);
+
+  const jobTitleOptionsForSelectedDepartment = (() => {
+    if (departmentPositions.length === 0) return null; // no positions defined yet -> free text fallback
+    const options = departmentPositions.map((p) => ({ value: p.title, label: p.title }));
+    // Preserve a legacy/custom title that isn't one of this
+    // department's defined positions (typed before positions
+    // existed for it, or before this employee was moved here) —
+    // same defensive pattern as the product unit picker, so editing
+    // that employee doesn't make their existing title vanish.
+    const currentValue = editingEmployee?.jobTitle;
+    if (currentValue && !departmentPositions.some((p) => p.title === currentValue)) {
+      options.push({ value: currentValue, label: currentValue });
+    }
+    return options;
+  })();
 
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebouncedValue(search, 400);
@@ -357,9 +519,6 @@ export default function Employees() {
 
   const [showCreateForm, setShowCreateForm] =
     useState(false);
-
-  const [editingEmployee, setEditingEmployee] =
-    useState(null);
 
   const [photoRemoved, setPhotoRemoved] = useState(false);
 
@@ -631,6 +790,10 @@ export default function Employees() {
      FETCH EMPLOYEES
      ========================================================== */
 
+  // Bumped after a successful bulk import to force a refetch even
+  // when the company/search/page haven't otherwise changed.
+  const [refreshCounter, setRefreshCounter] = useState(0);
+
   useEffect(() => {
     if (!selectedCompanyId) {
       setEmployees([]);
@@ -698,6 +861,7 @@ export default function Employees() {
     selectedCompanyId,
     debouncedSearch,
     page,
+    refreshCounter,
     t,
   ]);
 
@@ -805,6 +969,7 @@ export default function Employees() {
         service: "",
         position: "",
         workLocation: "",
+        manager: "",
 
         cnssNumber: "",
         cnssRegistrationDate: "",
@@ -944,6 +1109,10 @@ export default function Employees() {
         employee.position || "",
       workLocation:
         employee.workLocation || "",
+      manager:
+        // Same shape concern as department above: manager may come
+        // back as a populated Employee object or a plain ID.
+        employee.manager?._id || employee.manager || "",
 
       cnssNumber:
         employee.cnssNumber || "",
@@ -1437,15 +1606,6 @@ export default function Employees() {
         ],
       },
       {
-        name: "jobTitle",
-        label: t(
-          "employees.fields.jobTitle"
-        ),
-        placeholder: t(
-          "employees.fields.jobTitlePlaceholder"
-        ),
-      },
-      {
         name: "department",
         label: t(
           "employees.fields.department"
@@ -1453,6 +1613,22 @@ export default function Employees() {
         type: "select",
         options: departmentOptions,
         placeholder: departments.length === 0 ? t("employees.fields.noDepartments") : t("inventory.fields.selectCategory"),
+      },
+      {
+        name: "jobTitle",
+        label: t(
+          "employees.fields.jobTitle"
+        ),
+        ...(jobTitleOptionsForSelectedDepartment
+          ? {
+              type: "select",
+              options: jobTitleOptionsForSelectedDepartment,
+            }
+          : {
+              placeholder: t(
+                "employees.fields.jobTitlePlaceholder"
+              ),
+            }),
       },
       {
         name: "service",
@@ -1480,6 +1656,16 @@ export default function Employees() {
         placeholder: t(
           "employees.fields.workLocationPlaceholder"
         ),
+      },
+      {
+        name: "manager",
+        label: t("employees.fields.manager"),
+        type: "search-select",
+        options: managerOptions,
+        placeholder: managerCandidates.length === 0
+          ? t("employees.fields.noManagerCandidates")
+          : t("salaries.fields.employeeSearchPlaceholder"),
+        noResultsLabel: t("common.noResults"),
       },
       {
         name: "cnssNumber",
@@ -1659,7 +1845,7 @@ export default function Employees() {
           ]
         : []),
     ],
-    [t, editingEmployee, departments]
+    [t, editingEmployee, departments, departmentPositions]
   );
 
   /* ==========================================================
@@ -1840,6 +2026,7 @@ export default function Employees() {
   const openCreateForm = () => {
     setSelectedEmployee(null);
     setEditingEmployee(null);
+    setFormSelectedDepartmentId("");
 
     setFormCompanyId(
       selectedCompanyId ||
@@ -1957,6 +2144,7 @@ export default function Employees() {
   ) => {
     setSelectedEmployee(null);
     setEditingEmployee(employee);
+    setFormSelectedDepartmentId(employee.department?._id || employee.department || "");
 
     setFormCompanyId(
       employee.company?._id ||
@@ -2232,6 +2420,45 @@ export default function Employees() {
             >
               <Languages size={16} />
             </button>
+
+            <div
+              className={styles.docsMenuWrapper}
+              tabIndex={-1}
+              onBlur={(e) => {
+                if (!e.currentTarget.contains(e.relatedTarget)) {
+                  setTimeout(() => setShowDocsMenu(false), 150);
+                }
+              }}
+            >
+              <button
+                type="button"
+                className="btnEdit"
+                onClick={() => setShowDocsMenu((prev) => !prev)}
+                disabled={!!generatingDoc}
+              >
+                <FileDown size={16} />
+                {generatingDoc ? t("common.loading") : t("employees.documents.menuButton")}
+                <ChevronDown size={14} />
+              </button>
+
+              {showDocsMenu && (
+                <div className={styles.docsMenu}>
+                  {DOCUMENT_TYPES.map(({ type, labelKey, filePrefix }) => (
+                    <button
+                      key={type}
+                      type="button"
+                      className={styles.docsMenuItem}
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        handleGenerateDocument(type, filePrefix);
+                      }}
+                    >
+                      {t(labelKey)}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
 
             <button
               type="button"
@@ -2901,20 +3128,41 @@ export default function Employees() {
         </div>
 
         {!showCreateForm && (
-          <button
-            type="button"
-            className={
-              "btnPrimary"
-            }
-            onClick={
-              openCreateForm
-            }
-          >
-            <Plus size={18} />
-            {t(
-              "employees.addEmployee"
-            )}
-          </button>
+          <div className={styles.pageHeaderActions}>
+            <button
+              type="button"
+              className="btnEdit"
+              onClick={handleExport}
+              disabled={!selectedCompanyId || exporting}
+            >
+              <FileDown size={16} />
+              {exporting ? t("common.loading") : t("employees.bulkImport.exportButton")}
+            </button>
+
+            <button
+              type="button"
+              className="btnEdit"
+              onClick={() => setShowBulkImport(true)}
+            >
+              <Upload size={16} />
+              {t("employees.bulkImport.openButton")}
+            </button>
+
+            <button
+              type="button"
+              className={
+                "btnPrimary"
+              }
+              onClick={
+                openCreateForm
+              }
+            >
+              <Plus size={18} />
+              {t(
+                "employees.addEmployee"
+              )}
+            </button>
+          </div>
         )}
       </div>
 
@@ -3018,6 +3266,7 @@ export default function Employees() {
             fields={
               employeeFields
             }
+            onFieldChange={handleEmployeeFormFieldChange}
             initialValues={getInitialValues(
               editingEmployee
             )}
@@ -3346,6 +3595,13 @@ export default function Employees() {
           { key: "notes", label: t("employees.fields.notes") },
         ]}
         onSaved={handleTranslationSaved}
+      />
+
+      <BulkImportModal
+        isOpen={showBulkImport}
+        onClose={() => setShowBulkImport(false)}
+        companyId={selectedCompanyId}
+        onImported={handleBulkImported}
       />
     </div>
   );

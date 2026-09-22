@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import {
   Building2, Plus, Edit, Trash2, ChevronDown, ChevronRight,
-  BriefcaseBusiness, ShieldCheck, Languages,
+  BriefcaseBusiness, ShieldCheck, Languages, Sparkles, X, Loader2,
 } from "lucide-react";
 
 import { useI18n } from "../../hooks/useI18n";
@@ -13,7 +13,7 @@ import TranslatedText from "../../components/useful/TranslatedText";
 import TranslationEditorModal from "../../components/useful/TranslationEditorModal";
 
 import {
-  getDepartments, createDepartment, updateDepartment, deleteDepartment,
+  getDepartments, createDepartment, updateDepartment, deleteDepartment, seedDefaultDepartments,
 } from "../../services/departmentService";
 import {
   getJobPositions, createJobPosition, updateJobPosition, deleteJobPosition,
@@ -101,19 +101,62 @@ export default function Departments() {
   const [deptName, setDeptName] = useState("");
   const [deptDescription, setDeptDescription] = useState("");
   const [deptPermissionKey, setDeptPermissionKey] = useState("");
+  const [deptCategory, setDeptCategory] = useState("");
   const [deptSaving, setDeptSaving] = useState(false);
   const [deptError, setDeptError] = useState("");
 
   const openCreateDept = () => {
     setEditingDept(null);
-    setDeptName(""); setDeptDescription(""); setDeptPermissionKey("");
+    setDeptName(""); setDeptDescription(""); setDeptPermissionKey(""); setDeptCategory("");
     setDeptError("");
     setShowDeptForm(true);
   };
 
+  // ---------- Default departments (seed) ----------
+  const ALL_CATEGORIES = [
+    "management", "administration", "hr", "finance", "accounting", "sales", "purchasing",
+    "marketing", "production", "production_planning", "quality_control", "maintenance",
+    "warehouse", "logistics", "procurement", "engineering", "design", "research_development",
+    "it", "customer_service", "health_safety_environment", "security",
+  ];
+  const [showDefaultsModal, setShowDefaultsModal] = useState(false);
+  const [selectedDefaults, setSelectedDefaults] = useState(() => new Set());
+  const [seedingDefaults, setSeedingDefaults] = useState(false);
+  const [seedError, setSeedError] = useState("");
+
+  const openDefaultsModal = () => {
+    setSelectedDefaults(new Set());
+    setSeedError("");
+    setShowDefaultsModal(true);
+  };
+
+  const toggleDefaultCategory = (category) => {
+    setSelectedDefaults((prev) => {
+      const next = new Set(prev);
+      if (next.has(category)) next.delete(category);
+      else next.add(category);
+      return next;
+    });
+  };
+
+  const handleSeedDefaults = async () => {
+    if (selectedDefaults.size === 0) return;
+    setSeedingDefaults(true);
+    setSeedError("");
+    try {
+      await seedDefaultDepartments(selectedCompanyId, [...selectedDefaults]);
+      setShowDefaultsModal(false);
+      await reloadDepartments();
+    } catch (error) {
+      setSeedError(error.response?.data?.message || t("departments.errors.saveFailed"));
+    } finally {
+      setSeedingDefaults(false);
+    }
+  };
+
   const openEditDept = (dept) => {
     setEditingDept(dept);
-    setDeptName(dept.name); setDeptDescription(dept.description || ""); setDeptPermissionKey(dept.permissionKey || "");
+    setDeptName(dept.name); setDeptDescription(dept.description || ""); setDeptPermissionKey(dept.permissionKey || ""); setDeptCategory(dept.category || "");
     setDeptError("");
     setShowDeptForm(true);
   };
@@ -128,9 +171,9 @@ export default function Departments() {
     setDeptError("");
     try {
       if (editingDept) {
-        await updateDepartment(editingDept._id, { name: deptName, description: deptDescription, permissionKey: deptPermissionKey || null });
+        await updateDepartment(editingDept._id, { name: deptName, description: deptDescription, permissionKey: deptPermissionKey || null, category: deptCategory || null });
       } else {
-        await createDepartment({ company: selectedCompanyId, name: deptName, description: deptDescription, permissionKey: deptPermissionKey || null });
+        await createDepartment({ company: selectedCompanyId, name: deptName, description: deptDescription, permissionKey: deptPermissionKey || null, category: deptCategory || null });
       }
       setShowDeptForm(false);
       await reloadDepartments();
@@ -283,6 +326,10 @@ export default function Departments() {
         </div>
         {selectedCompanyId && (
           <div className="pageHeaderActions">
+            <button type="button" className="btnEdit" onClick={openDefaultsModal}>
+              <Sparkles size={16} />
+              {t("departments.addDefaults")}
+            </button>
             <button type="button" className="btnPrimary" onClick={openCreateDept}>
               <Plus size={16} />
               {t("departments.addDepartment")}
@@ -317,12 +364,24 @@ export default function Departments() {
                 { value: "production", label: t("departments.fields.productionAccess") },
               ]} />
             </div>
+            <div className={styles.formField}>
+              <label>{t("departments.fields.category")}</label>
+              <CustomSelect value={deptCategory} onSelect={setDeptCategory} options={[
+                { value: "", label: t("departments.fields.noCategory") },
+                ...["management", "administration", "hr", "finance", "accounting", "sales", "purchasing",
+                    "marketing", "production", "production_planning", "quality_control", "maintenance",
+                    "warehouse", "logistics", "procurement", "engineering", "design", "research_development",
+                    "it", "customer_service", "health_safety_environment", "security"]
+                  .map((key) => ({ value: key, label: t(`users.departments.${key}`) })),
+              ]} />
+            </div>
             <div className={styles.formField} style={{ gridColumn: "1 / -1" }}>
               <label>{t("departments.fields.description")}</label>
               <input type="text" className={styles.textInput} value={deptDescription} onChange={(e) => setDeptDescription(e.target.value)} />
             </div>
           </div>
           <p className={styles.formHint}>{t("departments.fields.permissionKeyHint")}</p>
+          <p className={styles.formHint}>{t("departments.fields.categoryHint")}</p>
           <div className={styles.formActions}>
             <button type="button" className="btnCancel" onClick={() => setShowDeptForm(false)}>{t("common.cancel")}</button>
             <button type="submit" className="btnPrimary" disabled={deptSaving}>{deptSaving ? t("payroll.buttons.saving") : t("common.update")}</button>
@@ -467,6 +526,56 @@ export default function Departments() {
               </div>
             );
           })}
+        </div>
+      )}
+
+      {showDefaultsModal && (
+        <div className={styles.modalOverlay} onClick={() => setShowDefaultsModal(false)}>
+          <div className={styles.defaultsModal} onClick={(e) => e.stopPropagation()}>
+            <div className={styles.defaultsModalHeader}>
+              <div className={styles.defaultsModalTitle}>
+                <Sparkles size={16} />
+                <h3>{t("departments.defaultsModal.title")}</h3>
+              </div>
+              <button type="button" className={styles.defaultsModalClose} onClick={() => setShowDefaultsModal(false)}>
+                <X size={16} />
+              </button>
+            </div>
+
+            <p className={styles.formHint}>{t("departments.defaultsModal.helpText")}</p>
+
+            {seedError && <div className={styles.errorMessage}>{seedError}</div>}
+
+            <div className={styles.defaultsList}>
+              {ALL_CATEGORIES.map((category) => (
+                <label key={category} className={styles.defaultsItem}>
+                  <input
+                    type="checkbox"
+                    checked={selectedDefaults.has(category)}
+                    onChange={() => toggleDefaultCategory(category)}
+                  />
+                  <span>{t(`users.departments.${category}`)}</span>
+                </label>
+              ))}
+            </div>
+
+            <div className={styles.formActions}>
+              <button type="button" className="btnCancel" onClick={() => setShowDefaultsModal(false)}>
+                {t("common.cancel")}
+              </button>
+              <button
+                type="button"
+                className="btnPrimary"
+                onClick={handleSeedDefaults}
+                disabled={selectedDefaults.size === 0 || seedingDefaults}
+              >
+                {seedingDefaults ? <Loader2 size={14} className={styles.spinner} /> : null}
+                {seedingDefaults
+                  ? t("departments.defaultsModal.adding")
+                  : t("departments.defaultsModal.addButton").replace("{count}", String(selectedDefaults.size))}
+              </button>
+            </div>
+          </div>
         </div>
       )}
 

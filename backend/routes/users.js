@@ -2,6 +2,8 @@ const express = require("express");
 const router = express.Router();
 
 const User = require("../models/User");
+const Employee = require("../models/Employee");
+const { computeInheritedPermissions } = require("../services/employeeAccountService");
 const auth = require("../middleware/auth");
 const {
   ROLES,
@@ -96,6 +98,11 @@ router.get("/", auth, async (req, res) => {
     const [users, total] = await Promise.all([
       User.find(filter)
         .select("-password")
+        .populate({
+          path: "employee",
+          select: "firstName lastName jobTitle department",
+          populate: { path: "department", select: "name category" },
+        })
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(currentLimit),
@@ -141,6 +148,7 @@ router.post("/", auth, async (req, res) => {
       role,
       status,
       department,
+      hrRole,
     } = req.body;
 
     role = role || ROLES.USER;
@@ -202,6 +210,7 @@ router.post("/", auth, async (req, res) => {
       role,
       status: status || "active",
       department,
+      hrRole: department === "hr" ? hrRole || undefined : undefined,
     });
 
     // --------------------------------------------------------
@@ -238,7 +247,13 @@ router.post("/", auth, async (req, res) => {
 
 router.get("/:id", auth, async (req, res) => {
   try {
-    const user = await User.findById(req.params.id).select("-password");
+    const user = await User.findById(req.params.id)
+      .select("-password")
+      .populate({
+        path: "employee",
+        select: "firstName lastName jobTitle department",
+        populate: { path: "department", select: "name category" },
+      });
 
     if (!user) {
       return res.status(404).json({
@@ -294,10 +309,10 @@ router.put("/:id", auth, async (req, res) => {
       email,
     } = req.body;
 
-    let { role, status, department } = req.body;
+    let { role, status, department, hrRole } = req.body;
 
     // --------------------------------------------------------
-    // Only admin/owner may change role/department/status.
+    // Only admin/owner may change role/department/status/hrRole.
     // Everyone else (including someone editing their own
     // profile) keeps their existing values — this prevents a
     // self-service privilege escalation to "admin".
@@ -307,6 +322,30 @@ router.put("/:id", auth, async (req, res) => {
       role = target.role;
       status = target.status;
       department = target.department;
+      hrRole = target.hrRole;
+    }
+
+    // --------------------------------------------------------
+    // If this account is linked to an Employee, department and
+    // hrRole are INHERITED from that employee's own department/job
+    // title (see Employees.jsx — that's the only place they're
+    // meant to be set for a linked account) and re-derived fresh
+    // here on every save, overriding anything sent in the request —
+    // even from an admin. This is what actually enforces "inherited,
+    // not independently editable" as a real constraint rather than
+    // just a frontend nicety: without it, a direct API call could
+    // still set a linked user's department/hrRole out of sync with
+    // their employee record. An account with no linked employee is
+    // unaffected — department/hrRole stay freely settable above.
+    // --------------------------------------------------------
+
+    if (target.employee) {
+      const employee = await Employee.findById(target.employee).select("department jobTitle");
+      if (employee) {
+        const inherited = await computeInheritedPermissions(employee);
+        department = inherited.department;
+        hrRole = inherited.hrRole;
+      }
     }
 
     // --------------------------------------------------------
@@ -333,6 +372,7 @@ router.put("/:id", auth, async (req, res) => {
         role,
         status,
         department,
+        hrRole: department === "hr" ? hrRole || undefined : undefined,
         updatedAt: Date.now(),
       },
       {

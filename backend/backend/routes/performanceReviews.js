@@ -15,9 +15,52 @@ const { logAudit } = require("../services/auditLogger");
 const { attachTranslationRoutes } = require("../utils/translationRoutes");
 const { notify } = require("../services/notificationService");
 
-router.use(auth, requireHRAccess);
+// Only login is required at the router level — requireHRAccess is
+// applied per-route below instead of globally. The /mine and
+// /:id/acknowledge routes are self-service: any logged-in employee
+// needs to reach THOSE without HR access, while every other route
+// here stays HR-only. A blanket router.use(auth, requireHRAccess)
+// blocked self-service entirely, including /:id/acknowledge, before
+// its own internal "is this actually your own review" check ever
+// ran — the acknowledge feature was unreachable for the exact
+// people it was built for.
+router.use(auth);
 
 const canManage = (req, company) => canAccessHRForCompany(req.user, company);
+
+// ======================================================
+// MY REVIEWS (self-service)
+// GET /api/performance-reviews/mine
+// ======================================================
+// Registered before GET /:id below — Express matches routes in
+// registration order, and /:id would otherwise swallow a request to
+// /mine as if "mine" were a review id (see the exact same class of
+// bug fixed earlier in routes/absences.js and routes/employees.js).
+//
+// No requireHRAccess here — any logged-in user whose account is
+// linked to an employee can see their OWN reviews. Drafts are
+// filtered out: a draft is the reviewer still writing it, not yet
+// meant for the employee to see at all.
+
+router.get("/mine", async (req, res) => {
+  try {
+    if (!req.user.employee) {
+      return res.json({ success: true, data: [] }); // not linked to an employee -> nothing of their own to show
+    }
+
+    const reviews = await PerformanceReview.find({
+      employee: req.user.employee,
+      status: { $ne: "draft" },
+    })
+      .populate("reviewer", "firstName lastName")
+      .sort({ reviewDate: -1 });
+
+    res.json({ success: true, data: reviews });
+  } catch (error) {
+    console.error("GET my performance reviews error:", error);
+    res.status(500).json({ success: false, message: "Error fetching your reviews", error: error.message });
+  }
+});
 
 // ======================================================
 // GET ALL REVIEWS
@@ -26,10 +69,9 @@ const canManage = (req, company) => canAccessHRForCompany(req.user, company);
 // Draft reviews are only ever returned to HR-tier requests — this
 // endpoint sits behind requireHRAccess entirely, so that's already
 // guaranteed; self-service employees see their own reviews through
-// a separate, narrower endpoint (not built here) that would filter
-// to status != "draft".
+// GET /mine above instead, which filters out drafts.
 
-router.get("/", async (req, res) => {
+router.get("/", requireHRAccess, async (req, res) => {
   try {
     const { companyId, employeeId, page = 1, limit = 20 } = req.query;
     if (!companyId || !mongoose.Types.ObjectId.isValid(companyId)) {
@@ -72,7 +114,7 @@ router.get("/", async (req, res) => {
 // GET /api/performance-reviews/:id
 // ======================================================
 
-router.get("/:id", async (req, res) => {
+router.get("/:id", requireHRAccess, async (req, res) => {
   try {
     if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
       return res.status(400).json({ success: false, message: "Invalid review ID" });
@@ -98,7 +140,7 @@ router.get("/:id", async (req, res) => {
 // POST /api/performance-reviews
 // ======================================================
 
-router.post("/", async (req, res) => {
+router.post("/", requireHRAccess, async (req, res) => {
   try {
     const { company, employee, reviewer, periodLabel, reviewDate, ratings, goals, strengths, areasForImprovement, comments } = req.body;
 
@@ -156,7 +198,7 @@ router.post("/", async (req, res) => {
 // PUT /api/performance-reviews/:id
 // ======================================================
 
-router.put("/:id", async (req, res) => {
+router.put("/:id", requireHRAccess, async (req, res) => {
   try {
     if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
       return res.status(400).json({ success: false, message: "Invalid review ID" });
@@ -192,7 +234,7 @@ router.put("/:id", async (req, res) => {
 // PATCH /api/performance-reviews/:id/submit
 // ======================================================
 
-router.patch("/:id/submit", async (req, res) => {
+router.patch("/:id/submit", requireHRAccess, async (req, res) => {
   try {
     if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
       return res.status(400).json({ success: false, message: "Invalid review ID" });
@@ -215,7 +257,7 @@ router.patch("/:id/submit", async (req, res) => {
         type: "other",
         title: "New performance review",
         message: `Your performance review for "${review.periodLabel}" is ready to view.`,
-        link: "/me",
+        link: "/me/records",
       });
     }
 
@@ -264,7 +306,7 @@ router.patch("/:id/acknowledge", async (req, res) => {
 // DELETE /api/performance-reviews/:id
 // ======================================================
 
-router.delete("/:id", async (req, res) => {
+router.delete("/:id", requireHRAccess, async (req, res) => {
   try {
     if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
       return res.status(400).json({ success: false, message: "Invalid review ID" });

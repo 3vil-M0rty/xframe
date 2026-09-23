@@ -2,6 +2,8 @@ const VARIANT_CLASS = {
   pending: "statusPillPending",
   accepted: "statusPillAccepted",
   rejected: "statusPillRejected",
+  // Sequential approval: the manager has signed off, HR hasn't yet.
+  manager_approved: "statusPillManagerApproved",
 };
 
 /**

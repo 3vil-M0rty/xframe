@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   Settings2,
@@ -18,7 +18,7 @@ import { useI18n } from "../hooks/useI18n";
 import { useAuth } from "../hooks/useAuth";
 import styles from "./Sidebar.module.css";
 import LanguageSwitcher from "./useful/LanguageSwitcher";
-import { canAccessHR, canSelfService, canAccessProduction } from "../utils/permissions";
+import { canAccessHR, canSelfService, canAccessProduction, canManageCompanySettings, isDepartmentManager } from "../utils/permissions";
 
 export default function Sidebar() {
   const [isOpen, setIsOpen] = useState(true);
@@ -46,6 +46,10 @@ export default function Sidebar() {
     {
       id: "organization",
       label: t("sidebar.organization"),
+      // Company setup (company profile, user accounts, departments,
+      // schedules) is for admins and company owners only — it had no
+      // permission at all before, so every logged-in employee saw it.
+      permission: canManageCompanySettings,
       icon: Settings2,
       subsections: [
         {
@@ -63,6 +67,10 @@ export default function Sidebar() {
         {
           label: t("sidebar.departments"),
           href: "/organization/departments",
+        },
+        {
+          label: t("sidebar.departmentAccess"),
+          href: "/organization/department-access",
         },
         {
           label: t("sidebar.rolesPermissions"),
@@ -140,6 +148,10 @@ export default function Sidebar() {
           href: "/hr/leave-calendar",
         },
         {
+          label: t("sidebar.holidays"),
+          href: "/hr/holidays",
+        },
+        {
           label: t("sidebar.performanceReviews"),
           href: "/hr/performance-reviews",
         },
@@ -187,6 +199,15 @@ export default function Sidebar() {
         {
           label: t("sidebar.myAttendance"),
           href: "/me/attendance",
+        },
+        {
+          label: t("sidebar.myRecords"),
+          href: "/me/records",
+        },
+        {
+          label: t("sidebar.myDepartment"),
+          href: "/me/department",
+          permission: isDepartmentManager,
         },
       ],
     },
@@ -238,12 +259,26 @@ export default function Sidebar() {
   // section matches the CURRENT route — silently undoing any
   // attempt to manually expand a different section. That's what
   // made the sidebar look "stuck"/unable to open another section.
-  const permissionKey = `${user?.role || ""}:${user?.department || ""}:${user?.employee || ""}`;
-  const visibleMenuItems = useMemo(
-    () => menuItems.filter((item) => !item.permission || item.permission(user)),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [permissionKey]
-  );
+  // Not memoized: this used to be wrapped in useMemo with only
+  // [permissionKey] as its dependency. menuItems itself is rebuilt
+  // fresh on every render (translated labels included), but the
+  // memoized FILTER of it stayed frozen on whatever language was
+  // active the last time permissionKey changed — switching the
+  // language from the sidebar's own switcher never touched
+  // permissionKey, so the menu silently kept showing the old
+  // language until a full page refresh forced a remount. Filtering
+  // this array is computationally trivial, so there's no real
+  // performance reason to memoize it in the first place — removing
+  // it removes the staleness risk entirely instead of just patching
+  // this one dependency array.
+  // Sections AND individual links inside them can carry a
+  // `permission` check (e.g. "My department" is only for department
+  // managers, inside the otherwise-everyone My Space section).
+  const visibleMenuItems = menuItems
+    .filter((item) => !item.permission || item.permission(user))
+    .map((item) => (Array.isArray(item.subsections)
+      ? { ...item, subsections: item.subsections.filter((sub) => !sub.permission || sub.permission(user)) }
+      : item));
 
   // ============================================================
   // AUTO EXPAND ACTIVE SECTION

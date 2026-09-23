@@ -140,6 +140,7 @@ function calculatePayslip({
   cimrEmployeeRate,
   cimrEmployerRate,
   overtimeAmount = 0,
+  holidayAmount = 0,
   unpaidDeduction = 0,
 }) {
   const allowanceTotal = sumLineItems(allowances);
@@ -148,8 +149,10 @@ function calculatePayslip({
   // Gross salary = base + allowances + overtime, minus any unpaid
   // days already known at this point (unpaid absence reduces the
   // salary base itself, before statutory contributions).
+  // (holidayAmount: premium for public holidays worked — taxable and
+  // subject to contributions, like overtime.)
   const grossSalary = round2(
-    baseSalary + allowanceTotal + overtimeAmount - unpaidDeduction
+    baseSalary + allowanceTotal + overtimeAmount + holidayAmount - unpaidDeduction
   );
 
   const cnssEmployee = computeCNSSEmployee(grossSalary);
@@ -203,6 +206,7 @@ function calculatePayslip({
     allowances,
     allowanceTotal: round2(allowanceTotal),
     overtimeAmount: round2(overtimeAmount),
+    holidayAmount: round2(holidayAmount),
     unpaidDeduction: round2(unpaidDeduction),
     grossSalary,
 

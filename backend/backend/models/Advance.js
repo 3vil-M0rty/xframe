@@ -56,10 +56,15 @@ const advanceSchema = new mongoose.Schema(
         // =========================================================
         // WORKFLOW
         // =========================================================
+        // "manager_approved" is an intermediate state used only when
+        // Company.settings.requireSequentialApproval is on — see the
+        // identical field on models/Absence.js for the full
+        // explanation and routes/advances.js's /:id/review for the
+        // state machine.
 
         status: {
             type: String,
-            enum: ["pending", "accepted", "rejected"],
+            enum: ["pending", "manager_approved", "accepted", "rejected"],
             default: "pending",
             index: true,
         },

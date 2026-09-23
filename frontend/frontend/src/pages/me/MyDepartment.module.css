@@ -1,0 +1,102 @@
+.muted {
+    margin: 0 0 10px;
+    font-size: 0.8rem;
+    line-height: 1.5;
+    color: var(--color-text-secondary);
+}
+
+.notice {
+    margin-bottom: 14px;
+    padding: 10px 14px;
+    font-size: 0.82rem;
+    color: #4cc38a;
+    background: rgba(76, 195, 138, 0.08);
+    border: 1px solid rgba(76, 195, 138, 0.25);
+    border-radius: 8px;
+}
+
+.department {
+    margin-bottom: 22px;
+    padding: 18px;
+    border: 1px solid var(--color-border);
+    border-radius: 12px;
+    background: var(--color-bg-primary);
+}
+
+.departmentHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 14px;
+}
+
+.companyName {
+    font-weight: 400;
+    color: var(--color-text-secondary);
+}
+
+.managerChip {
+    padding: 2px 10px;
+    font-size: 0.74rem;
+    color: var(--color-text-secondary);
+    border: 1px solid var(--color-border);
+    border-radius: 999px;
+}
+
+.departmentName {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--color-text-primary);
+}
+
+.block + .block {
+    margin-top: 18px;
+}
+
+.blockTitle {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0 0 6px;
+    font-size: 0.86rem;
+    font-weight: 600;
+    color: var(--color-text-primary);
+}
+
+.positionList {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.positionRow {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 12px;
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    cursor: pointer;
+}
+
+.positionText {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.positionText strong {
+    font-size: 0.84rem;
+    font-weight: 500;
+    color: var(--color-text-primary);
+}
+
+.positionText small {
+    font-size: 0.72rem;
+    color: var(--color-text-tertiary);
+}
+

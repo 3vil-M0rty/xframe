@@ -26,12 +26,27 @@ const dayConfigSchema = new mongoose.Schema(
     startMinute: { type: Number, default: 0, min: 0, max: 59 },
     workHours: { type: Number, default: 8, min: 0, max: 24 },
     graceMinutes: { type: Number, default: 10, min: 0, max: 180 },
+
+    // Final clock-out time. null on schedules saved before this
+    // existed — those resolve to start + workHours (see
+    // services/attendanceCalc.js), so nothing changes for them.
+    endHour: { type: Number, default: null, min: 0, max: 24 },
+    endMinute: { type: Number, default: 0, min: 0, max: 59 },
+
+    // Split shift ("coupure"): morning in → midday out, midday in →
+    // final out, e.g. 08:00-12:00 / 14:00-18:00. Four punches a day
+    // instead of two. Off = one continuous shift, e.g. 09:00-16:00.
+    splitShift: { type: Boolean, default: false },
+    breakStartHour: { type: Number, default: 12, min: 0, max: 23 },
+    breakStartMinute: { type: Number, default: 0, min: 0, max: 59 },
+    breakEndHour: { type: Number, default: 14, min: 0, max: 23 },
+    breakEndMinute: { type: Number, default: 0, min: 0, max: 59 },
   },
   { _id: false }
 );
 
 function defaultWorkday() {
-  return { isWorkingDay: true, startHour: 9, startMinute: 0, workHours: 8, graceMinutes: 10 };
+  return { isWorkingDay: true, startHour: 9, startMinute: 0, endHour: 17, endMinute: 0, workHours: 8, graceMinutes: 10 };
 }
 
 function defaultWeekend() {
@@ -108,5 +123,29 @@ workScheduleSchema.methods.getDayConfig = function getDayConfig(date) {
 };
 
 workScheduleSchema.statics.DAY_KEYS = DAY_KEYS;
+
+// workHours is derived from the times on every save, so everything
+// that still reads it (payroll, reports) gets the real scheduled
+// hours — including a split day's unpaid midday break. Invalid time
+// orders are rejected here too.
+const { resolveDaySchedule, validateDayConfig } = require("../services/attendanceCalc");
+const DAYS = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"];
+
+workScheduleSchema.pre("validate", function deriveWorkHours(next) {
+  for (const day of DAYS) {
+    const cfg = this[day];
+    if (!cfg) continue;
+    const plain = typeof cfg.toObject === "function" ? cfg.toObject() : cfg;
+    const error = validateDayConfig(plain);
+    if (error) {
+      this.invalidate(day, `${day}: ${error}`);
+      continue;
+    }
+    if (plain.isWorkingDay !== false && plain.endHour !== null && plain.endHour !== undefined) {
+      cfg.workHours = Math.round((resolveDaySchedule(plain).expectedMinutes / 60) * 100) / 100;
+    }
+  }
+  next();
+});
 
 module.exports = mongoose.model("WorkSchedule", workScheduleSchema);

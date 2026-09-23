@@ -150,6 +150,14 @@
     margin-bottom: 16px;
 }
 
+.formTopBar :global(.btnBack) {
+    /* the global .btnBack adds margin-bottom for standalone use —
+       inside this bar it lifted the button above the title */
+    margin-bottom: 0;
+    padding: 0;
+    min-height: 0;
+}
+
 .formTopBar span {
     color: var(--color-text-secondary);
 

@@ -3,23 +3,29 @@
  * SEED SCRIPT
  * ============================================================
  * Populates the database with a realistic, interconnected set of
- * test data covering every module: users (with different roles/
- * departments, some linked to employees for self-service testing),
- * a company, employees (including a manager → report relationship
- * for testing manager-approval routing), salaries, contracts,
- * absences, advances, documents, attendance, and a completed
- * payroll run.
+ * test data covering every module: users at every access tier
+ * (admin, owner, full HR, hr_assistant-tier HR, manager, employee —
+ * see the printed account list at the end), a company, departments
+ * with real job positions, employees (including a manager -> report
+ * relationship for testing manager-approval routing), salaries,
+ * contracts, absences, advances, documents, attendance, a completed
+ * payroll run, inventory (categories, products, purchase requests),
+ * performance reviews, a disciplinary action, and notifications.
  *
- * Run with:  npm run seed   (from backend/)
+ * Run with:  npm run seed      (from backend/)
  * or:        node scripts/seed.js
  *
- * This WIPES the collections it touches before reseeding, so
- * don't run it against a database you care about.
+ * This WIPES the collections it touches before reseeding, so don't
+ * run it against a database you care about. When you're done
+ * testing, `npm run unseed` removes everything this script created
+ * WITHOUT touching any other data — see scripts/unseed.js for how
+ * it identifies what's safe to delete.
  * ============================================================
  */
 
 const mongoose = require("mongoose");
 require("dotenv").config();
+const { syncEmployeeIndexes } = require("../utils/syncEmployeeIndexes");
 
 const User = require("../models/User");
 const Company = require("../models/Company");
@@ -36,6 +42,13 @@ const PayrollRun = require("../models/PayrollRun");
 const Payslip = require("../models/Payslip");
 const Notification = require("../models/Notification");
 const AuditLog = require("../models/AuditLog");
+const InventoryCategory = require("../models/InventoryCategory");
+const Product = require("../models/Product");
+const PurchaseRequest = require("../models/PurchaseRequest");
+const PerformanceReview = require("../models/PerformanceReview");
+const DisciplinaryAction = require("../models/DisciplinaryAction");
+const PublicHoliday = require("../models/PublicHoliday");
+const { MOROCCO_FIXED_HOLIDAYS } = require("../config/moroccoFixedHolidays");
 
 const { calculatePayslip } = require("../services/payrollCalculationService");
 
@@ -80,7 +93,17 @@ async function run() {
     Payslip.deleteMany({}),
     Notification.deleteMany({}),
     AuditLog.deleteMany({}),
+    InventoryCategory.deleteMany({}),
+    Product.deleteMany({}),
+    PurchaseRequest.deleteMany({}),
+    PerformanceReview.deleteMany({}),
+    DisciplinaryAction.deleteMany({}),
+    PublicHoliday.deleteMany({}),
   ]);
+
+  // Rebuild the CIN/CNSS uniqueness indexes if this database still has
+  // the old (broken) sparse versions — see utils/syncEmployeeIndexes.js.
+  await syncEmployeeIndexes();
 
   // ==========================================================
   // USERS
@@ -133,7 +156,40 @@ async function run() {
     email: "employee@frame.test",
     password: "Employee@123",
     role: "user",
-    department: "production",
+    // No department: she's an Opérateur de Production, a position
+    // that doesn't grant module access — so she gets My Space only,
+    // exactly what computeInheritedPermissions would derive.
+  });
+
+  // A SECOND HR login, deliberately at the lowest tier (hr_assistant)
+  // — hrUser above has no hrRole set at all, which defaults to full
+  // manager-tier access (see permissions/permissions.js's
+  // backward-compat guarantee), so it doesn't actually exercise the
+  // tier restrictions. This one does: hrAssistantUser can view
+  // records but canManageEmployeeRecords/canApproveHRRequests/etc.
+  // should all come back false for it — useful for testing that the
+  // tier gates are actually being enforced, not just present.
+  // HR department manager: Directeur RH. Linked to EMP-007 below and
+  // set as the HR department's manager — top HR tier, sees
+  // My Space > My department for HR.
+  const hrManagerUser = await User.create({
+    firstName: "Karima",
+    lastName: "Alaoui",
+    email: "hr-manager@frame.test",
+    password: "HrManager@123",
+    role: "user",
+    department: "hr",
+    hrRole: "hr_director",
+  });
+
+  const hrAssistantUser = await User.create({
+    firstName: "Salma",
+    lastName: "Idrissi",
+    email: "hr-assistant@frame.test",
+    password: "HrAssist@123",
+    role: "user",
+    department: "hr",
+    hrRole: "hr_assistant",
   });
 
   console.log("✓ Users created");
@@ -199,11 +255,15 @@ async function run() {
   const hrDept = departmentsByName["Ressources Humaines"];
   const financeDept = departmentsByName["Finance"];
   const salesDept = departmentsByName["Ventes"];
+  const directionDept = departmentsByName["Direction"];
 
   const productionManagerPosition = await JobPosition.create({
     company: company._id,
     department: productionDept._id,
     title: "Responsable de Production",
+    // Management unlocks the Production (inventory) module for the
+    // holder's login; the operator position below does not.
+    grantsModuleAccess: true,
     salaryBandMin: 12000,
     salaryBandMax: 18000,
     currency: "MAD",
@@ -247,7 +307,7 @@ async function run() {
     hireDate: daysAgo(1200), // ~3+ years ago, for a real leave balance
     employmentStatus: "active",
     employmentType: "permanent",
-    jobTitle: "Production Manager",
+    jobTitle: "Responsable de Production", // must match the JobPosition title exactly
     department: productionDept._id,
     jobPosition: productionManagerPosition._id,
     workLocation: "Casablanca Plant",
@@ -272,7 +332,7 @@ async function run() {
     hireDate: daysAgo(400),
     employmentStatus: "active",
     employmentType: "permanent",
-    jobTitle: "Production Line Operator",
+    jobTitle: "Opérateur de Production", // must match the JobPosition title exactly
     department: productionDept._id,
     workLocation: "Casablanca Plant",
     manager: managerEmployee._id,
@@ -309,7 +369,7 @@ async function run() {
       firstName: "Salma",
       lastName: "Idrissi",
       gender: "female",
-      jobTitle: "HR Assistant",
+      jobTitle: "Assistant RH", // exact canonical title — see config match in services/employeeAccountService.js
       department: hrDept._id,
       employmentType: "permanent",
       manager: null,
@@ -320,12 +380,34 @@ async function run() {
       firstName: "Omar",
       lastName: "Tahiri",
       gender: "male",
-      jobTitle: "Machine Operator",
+      jobTitle: "Opérateur de Production",
       department: productionDept._id,
       employmentType: "temporary",
       manager: managerEmployee._id,
       hireDate: daysAgo(60),
       jobPosition: productionOperatorPosition._id,
+    },
+    {
+      employeeNumber: "EMP-007",
+      firstName: "Karima",
+      lastName: "Alaoui",
+      gender: "female",
+      jobTitle: "Directeur RH", // exact canonical HR title
+      department: hrDept._id,
+      employmentType: "permanent",
+      manager: null,
+      hireDate: daysAgo(1500),
+    },
+    {
+      employeeNumber: "EMP-008",
+      firstName: "Hassan",
+      lastName: "Benjelloun",
+      gender: "male",
+      jobTitle: "Directeur Général",
+      department: directionDept._id,
+      employmentType: "permanent",
+      manager: null,
+      hireDate: daysAgo(3000),
     },
   ];
 
@@ -354,13 +436,38 @@ async function run() {
 
   console.log(`✓ ${allEmployees.length} employees created`);
 
+  // Every department has a manager. Each one gets department-wide
+  // approvals, full module access where the department unlocks one,
+  // and the "My department" page to decide which job titles get
+  // module access. (Admins oversee all departments on top of this.)
+  const byNumber = Object.fromEntries(allEmployees.map((e) => [e.employeeNumber, e]));
+  const departmentManagers = [
+    [productionDept, byNumber["EMP-001"]], // Nabil — Responsable de Production
+    [hrDept, byNumber["EMP-007"]],         // Karima — Directeur RH
+    [financeDept, byNumber["EMP-003"]],
+    [salesDept, byNumber["EMP-004"]],
+    [directionDept, byNumber["EMP-008"]],  // Hassan — Directeur Général
+  ];
+  for (const [department, employee] of departmentManagers) {
+    await Department.findByIdAndUpdate(department._id, { manager: employee._id });
+  }
+  console.log(`✓ A manager assigned to each of the ${departmentManagers.length} departments`);
+
   // Link the manager/employee test accounts to their Employee
   // records — this is exactly what Employees > (row) > "Link user
   // account" does in the UI.
   await User.findByIdAndUpdate(managerUser._id, { employee: managerEmployee._id });
   await User.findByIdAndUpdate(employeeUser._id, { employee: reportEmployee._id });
+  // extraEmployees[2] is EMP-005 (Salma Idrissi) — see extraEmployeesData
+  // above. hrRole/department were already set directly on
+  // hrAssistantUser at creation, matching exactly what the real
+  // inheritance route (PUT /users/:id) would derive from this
+  // employee's department + "Assistant RH" job title — see
+  // services/employeeAccountService.js's computeInheritedPermissions.
+  await User.findByIdAndUpdate(hrAssistantUser._id, { employee: extraEmployees[2]._id });
+  await User.findByIdAndUpdate(hrManagerUser._id, { employee: byNumber["EMP-007"]._id });
 
-  console.log("✓ Linked manager@frame.test and employee@frame.test to their employee records");
+  console.log("✓ Linked manager@frame.test, employee@frame.test, and hr-assistant@frame.test to their employee records");
 
   // ==========================================================
   // SALARIES (current, for every employee)
@@ -373,6 +480,8 @@ async function run() {
     "EMP-004": 7500,
     "EMP-005": 6000,
     "EMP-006": 4200,
+    "EMP-007": 18000,
+    "EMP-008": 30000,
   };
 
   const salaryByEmployee = {};
@@ -680,6 +789,157 @@ async function run() {
   console.log(`✓ Payroll run completed for ${lastMonth}/${lastMonthYear} with ${allEmployees.length} payslips`);
 
   // ==========================================================
+  // INVENTORY (categories + products + a purchase request in each status)
+  // ==========================================================
+
+  const rawMaterialCategory = await InventoryCategory.create({
+    company: company._id,
+    name: "Matière première",
+    icon: "Package",
+    color: "#3b82f6",
+    createdBy: hrUser._id,
+    updatedBy: hrUser._id,
+  });
+
+  const finishedGoodsCategory = await InventoryCategory.create({
+    company: company._id,
+    name: "Produits finis",
+    icon: "Boxes",
+    color: "#22c55e",
+    createdBy: hrUser._id,
+    updatedBy: hrUser._id,
+  });
+
+  const steelSheet = await Product.create({
+    company: company._id,
+    category: rawMaterialCategory._id,
+    name: "Tôle acier 2mm",
+    internalReference: "RM-STEEL-2MM",
+    quantity: 40, // below its own threshold, on purpose -> exercises the low-stock flag
+    unit: "kg",
+    threshold: 100,
+    prices: [{ supplierName: "AcierPlus", price: 12.5, supplierReference: "AP-2MM" }],
+    sellingPrice: null,
+    createdBy: hrUser._id,
+    updatedBy: hrUser._id,
+  });
+
+  const finishedPart = await Product.create({
+    company: company._id,
+    category: finishedGoodsCategory._id,
+    name: "Support métallique XL",
+    internalReference: "FG-SUPPORT-XL",
+    quantity: 320,
+    unit: "unit",
+    threshold: 50,
+    prices: [],
+    sellingPrice: 145,
+    createdBy: hrUser._id,
+    updatedBy: hrUser._id,
+  });
+
+  console.log("✓ 2 inventory categories and 2 products created (one already below its low-stock threshold)");
+
+  await PurchaseRequest.create([
+    {
+      company: company._id,
+      product: steelSheet._id,
+      requestedQuantity: 200,
+      status: "pending",
+      notes: "Stock is below threshold — needed for the next production run.",
+      requestedBy: managerUser._id,
+    },
+    {
+      company: company._id,
+      product: finishedPart._id,
+      requestedQuantity: 50,
+      status: "approved",
+      notes: "Restocking for an upcoming large order.",
+      requestedBy: managerUser._id,
+      reviewedBy: owner._id,
+      reviewedAt: daysAgo(2),
+    },
+  ]);
+
+  console.log("✓ Purchase requests created (pending + approved)");
+
+  // ==========================================================
+  // PERFORMANCE REVIEWS (one per workflow state)
+  // ==========================================================
+
+  await PerformanceReview.create([
+    {
+      company: company._id,
+      employee: reportEmployee._id,
+      reviewer: managerEmployee._id,
+      periodLabel: "H1 2026",
+      reviewDate: daysAgo(10),
+      ratings: { jobKnowledge: 4, qualityOfWork: 4, communication: 3, teamwork: 5, initiative: 3, punctuality: 4 },
+      goals: [
+        { description: "Reduce line changeover time by 10%", status: "in_progress" },
+        { description: "Complete the forklift safety certification", status: "completed" },
+      ],
+      strengths: "Reliable, strong team player, picks up new procedures quickly.",
+      areasForImprovement: "Could take more initiative flagging quality issues early.",
+      status: "submitted",
+      createdBy: hrUser._id,
+      updatedBy: hrUser._id,
+    },
+    {
+      company: company._id,
+      employee: extraEmployees[3]._id, // Omar Tahiri
+      reviewer: managerEmployee._id,
+      periodLabel: "Probation review — 60 days",
+      reviewDate: daysAgo(1),
+      ratings: { jobKnowledge: 3, qualityOfWork: 3, communication: 3, teamwork: 3, initiative: 2, punctuality: 3 },
+      goals: [{ description: "Reach full independent competency on the packaging line", status: "in_progress" }],
+      strengths: "Punctual, willing to learn.",
+      areasForImprovement: "Still needs supervision on quality checks.",
+      status: "draft", // deliberately left as a draft, to test the "Submit to employee" action
+      createdBy: managerUser._id,
+      updatedBy: managerUser._id,
+    },
+  ]);
+
+  console.log("✓ Performance reviews created (one submitted, one still a draft)");
+
+  // ==========================================================
+  // DISCIPLINARY ACTIONS
+  // ==========================================================
+
+  await DisciplinaryAction.create({
+    company: company._id,
+    employee: extraEmployees[3]._id, // Omar Tahiri
+    type: "verbal_warning",
+    date: daysAgo(5),
+    reason: "Repeated lateness",
+    description: "Clocked in more than 15 minutes late on 3 occasions this month without prior notice.",
+    issuedBy: managerEmployee._id,
+    acknowledgedByEmployee: false, // deliberately unacknowledged, to test that flow
+    createdBy: hrUser._id,
+    updatedBy: hrUser._id,
+  });
+
+  console.log("✓ Disciplinary action created (unacknowledged, to test the employee acknowledgment flow)");
+
+  // ==========================================================
+  // PUBLIC HOLIDAYS — this year's fixed-date ones (closed, paid
+  // double if worked). Religious holidays are left for HR to add via
+  // HR > Public holidays > Import, exactly like in real use.
+  // ==========================================================
+  const holidayYear = new Date().getFullYear();
+  await PublicHoliday.insertMany(MOROCCO_FIXED_HOLIDAYS.map((h) => ({
+    company: company._id,
+    day: `${holidayYear}-${String(h.month).padStart(2, "0")}-${String(h.day).padStart(2, "0")}`,
+    year: holidayYear,
+    name: h.name,
+    isWorkingDay: false,
+    payRate: 2,
+    createdBy: hrUser._id,
+  })));
+  console.log(`✓ ${MOROCCO_FIXED_HOLIDAYS.length} fixed-date public holidays for ${holidayYear}`);
+
+  // ==========================================================
   // NOTIFICATIONS
   // ==========================================================
 
@@ -719,11 +979,22 @@ async function run() {
   console.log("\n============================================================");
   console.log("SEED COMPLETE — test accounts (all passwords shown are real):");
   console.log("============================================================");
-  console.log("  Admin          admin@frame.test    / Admin@123");
-  console.log("  Owner          owner@frame.test    / Owner@123");
-  console.log("  HR             hr@frame.test       / Hr@12345");
-  console.log("  Manager        manager@frame.test  / Manager@123   (linked employee, has 1 direct report)");
-  console.log("  Employee       employee@frame.test / Employee@123  (linked employee, reports to Manager)");
+  console.log("  Admin          admin@frame.test        / Admin@123");
+  console.log("  Owner          owner@frame.test        / Owner@123");
+  console.log("  HR (full)      hr@frame.test           / Hr@12345       (no hrRole set -> full HR access)");
+  console.log("  HR manager     hr-manager@frame.test   / HrManager@123  (Directeur RH — HR department manager)");
+  console.log("  HR (assistant) hr-assistant@frame.test / HrAssist@123   (hr_assistant tier -> view-only, most actions blocked)");
+  console.log("  Manager        manager@frame.test      / Manager@123    (Production department manager — see My Space > My department)");
+  console.log("  Employee       employee@frame.test     / Employee@123   (Opérateur de Production — My Space only)");
+  console.log("============================================================");
+  console.log("Also seeded: 6 employees, departments + job positions, salaries,");
+  console.log("contracts, absences, advances, documents, attendance, a completed");
+  console.log("payroll run, inventory (2 categories, 2 products, one below its");
+  console.log("low-stock threshold), 2 purchase requests, 2 performance reviews");
+  console.log("(one draft, one submitted), 1 unacknowledged disciplinary action,");
+  console.log("and a few notifications.");
+  console.log("============================================================");
+  console.log("To remove all of this later: npm run unseed");
   console.log("============================================================\n");
 
   await mongoose.disconnect();

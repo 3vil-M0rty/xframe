@@ -1,5 +1,10 @@
 import api from "./api";
 
+export const getMyPerformanceReviews = async () => {
+  const response = await api.get("/performance-reviews/mine");
+  return response.data.data;
+};
+
 export const getPerformanceReviews = async ({ companyId, employeeId, page = 1, limit = 20 } = {}) => {
   const params = new URLSearchParams();
   if (companyId) params.append("companyId", companyId);

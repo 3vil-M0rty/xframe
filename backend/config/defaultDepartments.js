@@ -11,6 +11,10 @@
  * other department — see models/Department.js), and permissionKey
  * is only set on the two categories that actually unlock a module.
  *
+ * `positions` entries are either a plain title string, or
+ * { title, grantsModuleAccess } for a position that should unlock
+ * its department's module (see models/JobPosition.js).
+ *
  * `positions` seeds a starter set of real JobPosition records for
  * that department (see models/JobPosition.js) — this is what the
  * Employee form's Job Title field actually offers once a
@@ -34,7 +38,12 @@ const DEFAULT_DEPARTMENTS = [
   { category: "administration", name: "Administration", description: "Gestion administrative et support aux autres départements.", permissionKey: null,
     positions: ["Responsable Administratif", "Assistant(e) Administratif(ve)", "Secrétaire"] },
   { category: "hr", name: "Ressources Humaines", description: "Gestion du personnel, recrutement, paie et administration RH.", permissionKey: "hr",
-    positions: ["Assistant RH", "Chargé RH", "Responsable RH", "Directeur RH"] },
+    positions: [
+      { title: "Assistant RH", grantsModuleAccess: true },
+      { title: "Chargé RH", grantsModuleAccess: true },
+      { title: "Responsable RH", grantsModuleAccess: true },
+      { title: "Directeur RH", grantsModuleAccess: true },
+    ] },
   { category: "finance", name: "Finance", description: "Gestion financière, trésorerie et planification budgétaire.", permissionKey: null,
     positions: ["Directeur Financier", "Responsable Financier", "Analyste Financier", "Contrôleur de Gestion"] },
   { category: "accounting", name: "Comptabilité", description: "Tenue des comptes, facturation et déclarations fiscales.", permissionKey: null,
@@ -46,7 +55,15 @@ const DEFAULT_DEPARTMENTS = [
   { category: "marketing", name: "Marketing", description: "Stratégie de marque, communication et promotion des produits.", permissionKey: null,
     positions: ["Directeur Marketing", "Responsable Marketing", "Chargé(e) de Marketing", "Community Manager"] },
   { category: "production", name: "Production", description: "Fabrication et transformation des produits.", permissionKey: "production",
-    positions: ["Directeur de Production", "Responsable de Production", "Chef d'Équipe", "Technicien de Production", "Opérateur de Production"] },
+    // Only management unlocks the Production (inventory) module —
+    // team leads, technicians and operators get My Space only.
+    positions: [
+      { title: "Directeur de Production", grantsModuleAccess: true },
+      { title: "Responsable de Production", grantsModuleAccess: true },
+      "Chef d'Équipe",
+      "Technicien de Production",
+      "Opérateur de Production",
+    ] },
   { category: "production_planning", name: "Planification de la Production", description: "Planification des cycles de fabrication et des ressources.", permissionKey: null,
     positions: ["Responsable Planification", "Planificateur(trice) de Production"] },
   { category: "quality_control", name: "Contrôle Qualité", description: "Contrôle et assurance de la qualité des produits.", permissionKey: null,

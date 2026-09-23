@@ -78,16 +78,30 @@ async function computeAdvanceDeductions({ employeeId }) {
  * deductions, or vice versa.
  */
 async function computeHoursAdjustments({ employeeId, periodStart, periodEnd, baseSalary, hoursManagement }) {
-  const result = { overtimeAmount: 0, deductionItems: [] };
-
-  if (!hoursManagement) return result;
+  const result = { overtimeAmount: 0, holidayAmount: 0, holidayHours: 0, deductionItems: [] };
 
   const records = await Attendance.find({
     employee: employeeId,
     date: { $gte: periodStart, $lte: periodEnd },
-  }).select("overtimeMinutes lateMinutes earlyLeaveMinutes");
+  }).select("overtimeMinutes lateMinutes earlyLeaveMinutes holidayMinutes holidayPayRate");
 
-  const hourlyRate = baseSalary / (hoursManagement.monthlyStandardHours || 191);
+  const hourlyRate = baseSalary / (hoursManagement?.monthlyStandardHours || 191);
+
+  // Public holidays (jours fériés) worked. The monthly salary already
+  // pays the holiday itself (jour férié payé), so "double" adds ONE
+  // extra hourly rate per hour worked on it, and "normal" adds
+  // nothing. Applied whatever the overtime settings are: the rate is
+  // chosen per holiday by HR (models/PublicHoliday.js).
+  let premiumHours = 0;
+  for (const r of records) {
+    if (!r.holidayMinutes) continue;
+    result.holidayHours += r.holidayMinutes / 60;
+    premiumHours += (r.holidayMinutes / 60) * Math.max((r.holidayPayRate || 1) - 1, 0);
+  }
+  result.holidayHours = round2(result.holidayHours);
+  result.holidayAmount = round2(hourlyRate * premiumHours);
+
+  if (!hoursManagement) return result;
 
   if (hoursManagement.payOvertime) {
     const totalOvertimeMinutes = records.reduce((sum, r) => sum + (r.overtimeMinutes || 0), 0);
@@ -142,6 +156,8 @@ async function computePayrollAdjustments({
     unpaidDeduction: unpaid.unpaidDeduction,
     unpaidDays: unpaid.unpaidDays,
     overtimeAmount: hours.overtimeAmount,
+    holidayAmount: hours.holidayAmount,
+    holidayHours: hours.holidayHours,
     otherDeductions: [...advances.deductionItems, ...hours.deductionItems],
     advancesToMarkRepaid: advances.toMarkRepaid,
   };

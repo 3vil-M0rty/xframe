@@ -7,6 +7,7 @@ const Advance = require("../models/Advance");
 const Employee = require("../models/Employee");
 const Company = require("../models/Company");
 const User = require("../models/User");
+const Department = require("../models/Department");
 
 const auth = require("../middleware/auth");
 const { requireHRAccess } = require("../middleware/permissionMiddleware");
@@ -15,9 +16,10 @@ const { findMatchingEmployeeIds } = require("../utils/employeeSearch");
 const {
   canAccessHRForCompany,
   canReviewAdvance,
+  reviewerRole,
 } = require("../permissions/permissions");
 const { logAudit } = require("../services/auditLogger");
-const { notify } = require("../services/notificationService");
+const { notify, notifyMany, getHRRecipientIds } = require("../services/notificationService");
 
 // Only auth at the router level — see routes/absences.js for why
 // (the review endpoint needs to also allow a requester's manager
@@ -357,9 +359,9 @@ router.patch("/:id/review", async (req, res) => {
       });
     }
 
-    const { status, reviewComment } = req.body;
+    const { status: requestedStatus, reviewComment } = req.body;
 
-    if (!["accepted", "rejected"].includes(status)) {
+    if (!["accepted", "rejected"].includes(requestedStatus)) {
       return res.status(400).json({
         success: false,
         message: 'status must be "accepted" or "rejected"',
@@ -368,7 +370,7 @@ router.patch("/:id/review", async (req, res) => {
 
     const advance = await Advance.findById(req.params.id)
       .populate("company")
-      .populate("employee", "firstName lastName manager");
+      .populate("employee", "firstName lastName manager department");
 
     if (!advance) {
       return res.status(404).json({
@@ -384,9 +386,52 @@ router.patch("/:id/review", async (req, res) => {
       });
     }
 
+    if (!["pending", "manager_approved"].includes(advance.status)) {
+      return res.status(400).json({
+        success: false,
+        message: "This request has already been reviewed",
+      });
+    }
+
+    // Same sequential-approval state machine as routes/absences.js's
+    // /:id/review — see that file's comment for the full explanation.
+    // The manager step can be performed by the employee's line manager
+    // OR their department's manager (as long as that isn't the
+    // employee themself) — with neither, fall back to single-step.
+    const advanceDepartment = advance.employee.department
+      ? await Department.findById(advance.employee.department).select("manager").lean()
+      : null;
+    const hasManagerStep =
+      !!advance.employee.manager ||
+      (!!advanceDepartment?.manager && String(advanceDepartment.manager) !== String(advance.employee._id));
+    const sequential = !!advance.company.settings?.requireSequentialApproval && hasManagerStep;
+    const capacity = reviewerRole(req.user, advance.company, advance.employee);
+
+    let newStatus = requestedStatus;
+
+    if (sequential && requestedStatus === "accepted") {
+      if (advance.status === "pending") {
+        if (capacity !== "manager") {
+          return res.status(400).json({
+            success: false,
+            message: "This request needs the employee's manager to approve it first",
+          });
+        }
+        newStatus = "manager_approved";
+      } else {
+        if (capacity !== "hr") {
+          return res.status(400).json({
+            success: false,
+            message: "The manager has already approved this request — it's now awaiting HR's final approval",
+          });
+        }
+        newStatus = "accepted";
+      }
+    }
+
     const before = advance.toObject();
 
-    advance.status = status;
+    advance.status = newStatus;
     advance.reviewComment = reviewComment;
     advance.reviewedBy = req.user.id;
     advance.reviewedAt = new Date();
@@ -408,20 +453,30 @@ router.patch("/:id/review", async (req, res) => {
       after: advance.toObject(),
     });
 
-    const requesterUser = await User.findOne({ employee: advance.employee._id }).select("_id");
-    if (requesterUser) {
-      await notify(requesterUser._id, {
-        type: "advance_reviewed",
-        title: status === "accepted" ? "Advance request accepted" : "Advance request rejected",
-        message: reviewComment || undefined,
-        link: "/me/advances",
+    if (newStatus === "manager_approved") {
+      const hrRecipientIds = await getHRRecipientIds(advance.company);
+      await notifyMany(hrRecipientIds, {
+        type: "advance_pending",
+        title: "Advance request awaiting your approval",
+        message: `${advance.employee.firstName} ${advance.employee.lastName}'s manager has approved — final HR approval needed.`,
+        link: "/hr/advances",
       });
+    } else {
+      const requesterUser = await User.findOne({ employee: advance.employee._id }).select("_id");
+      if (requesterUser) {
+        await notify(requesterUser._id, {
+          type: "advance_reviewed",
+          title: newStatus === "accepted" ? "Advance request accepted" : "Advance request rejected",
+          message: reviewComment || undefined,
+          link: "/me/advances",
+        });
+      }
     }
 
     res.json({
       success: true,
       data: populated,
-      message: `Advance ${status} successfully`,
+      message: `Advance ${newStatus} successfully`,
     });
   } catch (error) {
     console.error("PATCH advance review error:", error);

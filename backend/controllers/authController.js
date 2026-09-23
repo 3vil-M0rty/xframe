@@ -24,6 +24,14 @@ exports.login = async (req, res) => {
       return res.status(401).json({ message: 'Invalid credentials' });
     }
 
+    // Checked only AFTER the password is confirmed, so this can't be
+    // used to probe which emails exist. middleware/auth.js enforces
+    // the same rule on every request, so deactivating someone also
+    // cuts off a session they already had open.
+    if (user.status === 'inactive' || user.status === 'suspended') {
+      return res.status(403).json({ message: 'This account has been deactivated' });
+    }
+
     // --------------------------------------------------------
     // Two-factor authentication: the password alone is only
     // "half" the login for an account with 2FA enabled. Rather

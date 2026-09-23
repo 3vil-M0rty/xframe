@@ -5,12 +5,14 @@ import {
 } from "lucide-react";
 
 import { useI18n } from "../../hooks/useI18n";
+import { useDebouncedValue } from "../../hooks/useDebouncedValue";
 
 import CustomSelect from "../../components/useful/CustomSelect";
 import Breadcrumbs from "../../components/useful/Breadcrumbs";
 import ActionModal from "../../components/useful/ActionModal";
 import TranslatedText from "../../components/useful/TranslatedText";
 import TranslationEditorModal from "../../components/useful/TranslationEditorModal";
+import SearchBar from "../../components/useful/SearchBar";
 
 import {
   getDepartments, createDepartment, updateDepartment, deleteDepartment, seedDefaultDepartments,
@@ -19,6 +21,7 @@ import {
   getJobPositions, createJobPosition, updateJobPosition, deleteJobPosition,
 } from "../../services/jobPositionService";
 import { getCompanies } from "../../services/companyService";
+import { getEmployees } from "../../services/employeeService";
 
 import styles from "./Departments.module.css";
 
@@ -61,6 +64,15 @@ export default function Departments() {
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState({});
 
+  // Client-side search — department lists are typically small (a
+  // handful to a few dozen records for even a large company), so a
+  // server round-trip per keystroke would be pure overhead here.
+  const [search, setSearch] = useState("");
+  const debouncedSearch = useDebouncedValue(search, 300);
+  const filteredDepartments = departments.filter((dept) =>
+    dept.name.toLowerCase().includes(debouncedSearch.trim().toLowerCase())
+  );
+
   const reloadDepartments = async () => {
     if (!selectedCompanyId) return;
     const data = await getDepartments(selectedCompanyId);
@@ -102,12 +114,31 @@ export default function Departments() {
   const [deptDescription, setDeptDescription] = useState("");
   const [deptPermissionKey, setDeptPermissionKey] = useState("");
   const [deptCategory, setDeptCategory] = useState("");
+  const [deptManager, setDeptManager] = useState("");
+
+  // Employees of the selected company — only used to offer a manager
+  // for the department being edited (the backend requires the manager
+  // to be an employee OF that department).
+  const [companyEmployees, setCompanyEmployees] = useState([]);
+  useEffect(() => {
+    if (!selectedCompanyId) { setCompanyEmployees([]); return; }
+    let cancelled = false;
+    (async () => {
+      try {
+        const { employees } = await getEmployees({ companyId: selectedCompanyId, page: 1, limit: 500 });
+        if (!cancelled) setCompanyEmployees(employees || []);
+      } catch (error) {
+        console.error("Failed to load employees for manager picker:", error);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [selectedCompanyId]);
   const [deptSaving, setDeptSaving] = useState(false);
   const [deptError, setDeptError] = useState("");
 
   const openCreateDept = () => {
     setEditingDept(null);
-    setDeptName(""); setDeptDescription(""); setDeptPermissionKey(""); setDeptCategory("");
+    setDeptName(""); setDeptDescription(""); setDeptPermissionKey(""); setDeptCategory(""); setDeptManager("");
     setDeptError("");
     setShowDeptForm(true);
   };
@@ -156,7 +187,7 @@ export default function Departments() {
 
   const openEditDept = (dept) => {
     setEditingDept(dept);
-    setDeptName(dept.name); setDeptDescription(dept.description || ""); setDeptPermissionKey(dept.permissionKey || ""); setDeptCategory(dept.category || "");
+    setDeptName(dept.name); setDeptDescription(dept.description || ""); setDeptPermissionKey(dept.permissionKey || ""); setDeptCategory(dept.category || ""); setDeptManager(dept.manager?._id || dept.manager || "");
     setDeptError("");
     setShowDeptForm(true);
   };
@@ -171,7 +202,7 @@ export default function Departments() {
     setDeptError("");
     try {
       if (editingDept) {
-        await updateDepartment(editingDept._id, { name: deptName, description: deptDescription, permissionKey: deptPermissionKey || null, category: deptCategory || null });
+        await updateDepartment(editingDept._id, { name: deptName, description: deptDescription, permissionKey: deptPermissionKey || null, category: deptCategory || null, manager: deptManager || null });
       } else {
         await createDepartment({ company: selectedCompanyId, name: deptName, description: deptDescription, permissionKey: deptPermissionKey || null, category: deptCategory || null });
       }
@@ -231,13 +262,14 @@ export default function Departments() {
   const [posSalaryMax, setPosSalaryMax] = useState("");
   const [posSkills, setPosSkills] = useState("");
   const [posReportsTo, setPosReportsTo] = useState("");
+  const [posGrantsAccess, setPosGrantsAccess] = useState(false);
   const [posSaving, setPosSaving] = useState(false);
   const [posError, setPosError] = useState("");
 
   const openCreatePosition = (dept) => {
     setPositionFormDept(dept);
     setEditingPosition(null);
-    setPosTitle(""); setPosDescription(""); setPosSalaryMin(""); setPosSalaryMax(""); setPosSkills(""); setPosReportsTo("");
+    setPosTitle(""); setPosDescription(""); setPosSalaryMin(""); setPosSalaryMax(""); setPosSkills(""); setPosReportsTo(""); setPosGrantsAccess(false);
     setPosError("");
   };
 
@@ -250,6 +282,7 @@ export default function Departments() {
     setPosSalaryMax(position.salaryBandMax ?? "");
     setPosSkills((position.requiredSkills || []).join(", "));
     setPosReportsTo(position.reportsTo?._id || "");
+    setPosGrantsAccess(!!position.grantsModuleAccess);
     setPosError("");
   };
 
@@ -293,14 +326,14 @@ export default function Departments() {
         await updateJobPosition(editingPosition._id, {
           title: posTitle, description: posDescription,
           salaryBandMin: posSalaryMin, salaryBandMax: posSalaryMax,
-          requiredSkills: skills, reportsTo: posReportsTo || null,
+          requiredSkills: skills, reportsTo: posReportsTo || null, grantsModuleAccess: posGrantsAccess,
         });
       } else {
         await createJobPosition({
           company: selectedCompanyId, department: positionFormDept._id,
           title: posTitle, description: posDescription,
           salaryBandMin: posSalaryMin, salaryBandMax: posSalaryMax,
-          requiredSkills: skills, reportsTo: posReportsTo || null,
+          requiredSkills: skills, reportsTo: posReportsTo || null, grantsModuleAccess: posGrantsAccess,
         });
       }
       closePositionForm();
@@ -345,6 +378,16 @@ export default function Departments() {
             placeholder={companiesLoading ? t("employees.toolbar.loadingCompanies") : t("employees.toolbar.selectCompany")}
             disabled={companiesLoading} />
         </div>
+        {selectedCompanyId && (
+          <div className="filterGroup">
+            <SearchBar
+              placeholder={t("departments.searchPlaceholder")}
+              onSearch={setSearch}
+              onClear={() => setSearch("")}
+              isLoading={loading}
+            />
+          </div>
+        )}
       </div>
 
       {showDeptForm && selectedCompanyId && (
@@ -375,6 +418,18 @@ export default function Departments() {
                   .map((key) => ({ value: key, label: t(`users.departments.${key}`) })),
               ]} />
             </div>
+            {editingDept && (
+              <div className={styles.formField}>
+                <label>{t("departments.fields.manager")}</label>
+                <CustomSelect value={deptManager} onSelect={setDeptManager} options={[
+                  { value: "", label: t("departments.fields.noManager") },
+                  ...companyEmployees
+                    .filter((e) => String(e.department?._id || e.department) === String(editingDept._id))
+                    .map((e) => ({ value: e._id, label: `${e.firstName} ${e.lastName}${e.jobTitle ? ` — ${e.jobTitle}` : ""}` })),
+                ]} />
+                <small className={styles.fieldHint}>{t("departments.fields.managerHint")}</small>
+              </div>
+            )}
             <div className={styles.formField} style={{ gridColumn: "1 / -1" }}>
               <label>{t("departments.fields.description")}</label>
               <input type="text" className={styles.textInput} value={deptDescription} onChange={(e) => setDeptDescription(e.target.value)} />
@@ -405,9 +460,16 @@ export default function Departments() {
         </div>
       )}
 
-      {selectedCompanyId && departments.length > 0 && (
+      {selectedCompanyId && !loading && departments.length > 0 && filteredDepartments.length === 0 && (
+        <div className="emptyStateBlock">
+          <div className="emptyStateIcon"><Building2 size={28} /></div>
+          <h2>{t("departments.noSearchResults")}</h2>
+        </div>
+      )}
+
+      {selectedCompanyId && filteredDepartments.length > 0 && (
         <div className={styles.deptList}>
-          {departments.map((dept) => {
+          {filteredDepartments.map((dept) => {
             const positions = allPositions.filter((p) => p.department?._id === dept._id);
             const isExpanded = !!expanded[dept._id];
             return (
@@ -415,6 +477,15 @@ export default function Departments() {
                 <button type="button" className={styles.deptHeader} onClick={() => toggleExpanded(dept._id)}>
                   {isExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
                   <span className={styles.deptName}><TranslatedText doc={dept} field="name" /></span>
+                  {dept.manager?.firstName ? (
+                    <span className={styles.deptManager}>
+                      {t("departments.managerLabel")}: {dept.manager.firstName} {dept.manager.lastName}
+                    </span>
+                  ) : (
+                    // Every department should have a manager — flag the
+                    // ones still missing one (assign it via Edit).
+                    <span className="statusPill statusPillPending">{t("departments.noManagerBadge")}</span>
+                  )}
                   {dept.permissionKey && (
                     <span className={styles.permissionBadge} title={t("departments.fields.permissionKeyHint")}>
                       <ShieldCheck size={12} />
@@ -477,6 +548,18 @@ export default function Departments() {
                             <label>{t("departments.fields.description")}</label>
                             <input type="text" className={styles.textInput} value={posDescription} onChange={(e) => setPosDescription(e.target.value)} />
                           </div>
+                          {/* Only meaningful for a department that unlocks a
+                              module (HR / Production) — see
+                              JobPosition.grantsModuleAccess on the backend. */}
+                          {dept.permissionKey && (
+                            <label className={styles.accessToggle} style={{ gridColumn: "1 / -1" }}>
+                              <input type="checkbox" className="switchToggle" checked={posGrantsAccess} onChange={(e) => setPosGrantsAccess(e.target.checked)} />
+                              <span>
+                                <strong>{t("departments.fields.grantsModuleAccess")}</strong>
+                                <small>{t("departments.fields.grantsModuleAccessHint")}</small>
+                              </span>
+                            </label>
+                          )}
                         </div>
                         <div className={styles.formActions}>
                           <button type="button" className="btnCancel" onClick={closePositionForm}>{t("common.cancel")}</button>
@@ -498,7 +581,12 @@ export default function Departments() {
                         </div>
                         {positions.map((position) => (
                           <div key={position._id} className="dataTableRow" style={{ gridTemplateColumns: "1.3fr 1fr 1fr 1.2fr 110px" }}>
-                            <span><TranslatedText doc={position} field="title" /></span>
+                            <span className={styles.positionTitleCell}>
+                              <TranslatedText doc={position} field="title" />
+                              {dept.permissionKey && position.grantsModuleAccess && (
+                                <span className="statusPill statusPillAccepted">{t("departments.moduleAccessBadge")}</span>
+                              )}
+                            </span>
                             <span className="dataTableCellMuted">
                               {position.salaryBandMin != null || position.salaryBandMax != null
                                 ? `${formatAmount(position.salaryBandMin, position.currency)} – ${formatAmount(position.salaryBandMax, position.currency)}`

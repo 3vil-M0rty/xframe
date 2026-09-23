@@ -102,3 +102,10 @@ export const downloadCompanyFichePdf = async (id, filename = "fiche-entreprise.p
     throw await normalizeBlobError(err);
   }
 };
+
+// Merge-safe: only the keys sent are changed (see the backend's
+// PATCH /companies/:id/settings for why this isn't part of updateCompany).
+export const updateCompanySettings = async (id, settings) => {
+  const response = await api.patch(`/companies/${id}/settings`, settings);
+  return response.data.data;
+};

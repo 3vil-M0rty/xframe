@@ -969,6 +969,12 @@ input[type="file"]:disabled::file-selector-button {
   border-color: rgba(255, 80, 80, 0.25);
 }
 
+.statusPillManagerApproved {
+  color: #6ea8fe;
+  background: rgba(59, 130, 246, 0.1);
+  border-color: rgba(59, 130, 246, 0.3);
+}
+
 .statusPillNeutral {
   color: var(--color-text-tertiary);
 }
@@ -1024,3 +1030,73 @@ input[type="file"]:disabled::file-selector-button {
   }
 }
 
+
+/* ============================================================
+   SWITCH TOGGLE — a native checkbox styled as an on/off switch
+   (keeps keyboard + screen-reader behavior for free).
+   The global `input` rule above gives every input padding and a
+   border; left in place, that made the switch taller/wider than
+   its knob expects and pinned the knob to the top corner. Every
+   box property is reset explicitly here, and the knob is centered
+   with top: 50% + translateY instead of a fixed offset.
+   ============================================================ */
+.switchToggle {
+  -webkit-appearance: none;
+  appearance: none;
+  box-sizing: border-box;
+  position: relative;
+  display: inline-block;
+  flex: 0 0 auto;
+  width: 42px;
+  min-width: 42px;
+  height: 24px;
+  min-height: 24px;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  background: var(--color-bg-secondary, #2a2a2a);
+  cursor: pointer;
+  vertical-align: middle;
+  transition: background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.switchToggle::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 3px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #cfcfcf;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.45);
+  transform: translateY(-50%);
+  transition: transform 0.2s ease, background-color 0.2s ease;
+}
+
+.switchToggle:hover {
+  border-color: var(--color-text-secondary);
+}
+
+.switchToggle:checked {
+  background: #3b82f6;
+  border-color: #3b82f6;
+}
+
+.switchToggle:checked::after {
+  background: #fff;
+  /* 42 wide - 2px border - 3px inset each side - 16px knob = 18px of travel */
+  transform: translate(18px, -50%);
+}
+
+.switchToggle:focus,
+.switchToggle:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.35);
+}
+
+.switchToggle:disabled {
+  opacity: 0.55;
+  cursor: wait;
+}

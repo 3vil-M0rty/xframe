@@ -4,6 +4,7 @@ const mongoose = require("mongoose");
 const router = express.Router();
 
 const JobPosition = require("../models/JobPosition");
+const { resyncUsersForPosition } = require("../services/employeeAccountService");
 const Department = require("../models/Department");
 const Employee = require("../models/Employee");
 const Company = require("../models/Company");
@@ -63,6 +64,7 @@ router.post("/", async (req, res) => {
     const {
       company, department, title, description,
       salaryBandMin, salaryBandMax, currency, requiredSkills, reportsTo,
+      grantsModuleAccess,
     } = req.body;
 
     if (!company || !mongoose.Types.ObjectId.isValid(company)) {
@@ -113,6 +115,7 @@ router.post("/", async (req, res) => {
       currency: currency || "MAD",
       requiredSkills: requiredSkills || [],
       reportsTo: reportsTo || null,
+      grantsModuleAccess: !!grantsModuleAccess,
       createdBy: req.user.id,
       updatedBy: req.user.id,
     });
@@ -143,6 +146,52 @@ router.post("/", async (req, res) => {
 // PUT /api/job-positions/:id
 // ======================================================
 
+// ======================================================
+// SET A POSITION'S MODULE ACCESS
+// PATCH /api/job-positions/:id/access   body: { grantsModuleAccess }
+// ======================================================
+// The one thing a department manager may change here: which of their
+// department's positions unlock the module. Admin/owner can too.
+// Everyone currently holding the position is re-synced immediately.
+
+router.patch("/:id/access", async (req, res) => {
+  try {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ success: false, message: "Invalid position ID" });
+    }
+    if (typeof req.body.grantsModuleAccess !== "boolean") {
+      return res.status(400).json({ success: false, message: "grantsModuleAccess must be true or false" });
+    }
+
+    const position = await JobPosition.findById(req.params.id).populate("company");
+    if (!position) return res.status(404).json({ success: false, message: "Position not found" });
+
+    const managesDepartment = (req.user.managedDepartments || []).some((id) => String(id) === String(position.department));
+    if (!canManage(req, position.company) && !managesDepartment) {
+      return res.status(403).json({ success: false, message: "Only the department's manager (or an admin/owner) can change this" });
+    }
+
+    const changed = position.grantsModuleAccess !== req.body.grantsModuleAccess;
+    position.grantsModuleAccess = req.body.grantsModuleAccess;
+    position.updatedBy = req.user.id;
+    await position.save();
+
+    let usersUpdated = 0;
+    if (changed) {
+      try {
+        usersUpdated = await resyncUsersForPosition(position.department, [position.title]);
+      } catch (syncError) {
+        console.error("Failed to re-sync users for position:", syncError);
+      }
+    }
+
+    res.json({ success: true, data: { _id: position._id, grantsModuleAccess: position.grantsModuleAccess }, usersUpdated });
+  } catch (error) {
+    console.error("PATCH position access error:", error);
+    res.status(500).json({ success: false, message: "Error updating position access", error: error.message });
+  }
+});
+
 router.put("/:id", async (req, res) => {
   try {
     if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
@@ -168,6 +217,7 @@ router.put("/:id", async (req, res) => {
     const {
       department, title, description,
       salaryBandMin, salaryBandMax, currency, requiredSkills, isActive,
+      grantsModuleAccess,
     } = req.body;
 
     if (department !== undefined) position.department = department;
@@ -179,6 +229,7 @@ router.put("/:id", async (req, res) => {
     if (requiredSkills !== undefined) position.requiredSkills = requiredSkills;
     if (reportsTo !== undefined) position.reportsTo = reportsTo || null;
     if (isActive !== undefined) position.isActive = isActive;
+    if (grantsModuleAccess !== undefined) position.grantsModuleAccess = !!grantsModuleAccess;
 
     if (
       position.salaryBandMin != null && position.salaryBandMax != null &&
@@ -189,6 +240,17 @@ router.put("/:id", async (req, res) => {
 
     position.updatedBy = req.user.id;
     await position.save();
+
+    // Flipping grantsModuleAccess (or renaming the position) changes
+    // what everyone currently holding it may do — re-sync their
+    // logins now so it takes effect immediately.
+    if (before.grantsModuleAccess !== position.grantsModuleAccess || before.title !== position.title) {
+      try {
+        await resyncUsersForPosition(position.department, [before.title, position.title]);
+      } catch (syncError) {
+        console.error("Failed to re-sync users for position:", syncError);
+      }
+    }
 
     const populated = await position.populate([
       { path: "department", select: "name" },

@@ -479,6 +479,7 @@ export default function Absences() {
             options={[
               { value: "", label: t("absences.filters.allStatuses") },
               { value: "pending", label: t("absences.status.pending") },
+              { value: "manager_approved", label: t("absences.status.manager_approved") },
               { value: "accepted", label: t("absences.status.accepted") },
               { value: "rejected", label: t("absences.status.rejected") },
             ]}
@@ -597,7 +598,7 @@ export default function Absences() {
                 />
 
                 <div className="dataTableActions">
-                  {absence.status === "pending" && (
+                  {["pending", "manager_approved"].includes(absence.status) && (
                     <>
                       <button
                         type="button"

@@ -477,11 +477,25 @@ employeeSchema.index(
 // These should not necessarily be globally unique
 // because the same CIN/CNSS should only be unique within
 // the company's employee records.
+// Partial (not sparse) indexes. A sparse COMPOUND index only skips
+// documents missing EVERY indexed field — and `company` is always
+// present, so an employee with no CIN was still indexed as
+// (company, null). Two employees in the same company without a
+// CIN (or CNSS number) therefore collided with E11000, even though
+// "not on file yet" is completely normal. The partial filter below
+// indexes ONLY employees that actually have a non-empty value
+// (`$gt: ""` matches non-empty strings only — MongoDB never
+// compares strings against null/missing), so uniqueness is enforced
+// exactly where it should be and nowhere else.
+//
+// Changing index options on an existing database requires the old
+// index to be dropped and rebuilt — see syncEmployeeIndexes in
+// server.js, which does that automatically at startup.
 employeeSchema.index(
     { company: 1, cin: 1 },
     {
         unique: true,
-        sparse: true,
+        partialFilterExpression: { cin: { $gt: "" } },
     }
 );
 
@@ -489,7 +503,7 @@ employeeSchema.index(
     { company: 1, cnssNumber: 1 },
     {
         unique: true,
-        sparse: true,
+        partialFilterExpression: { cnssNumber: { $gt: "" } },
     }
 );
 

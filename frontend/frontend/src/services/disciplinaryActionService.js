@@ -1,5 +1,10 @@
 import api from "./api";
 
+export const getMyDisciplinaryActions = async () => {
+  const response = await api.get("/disciplinary-actions/mine");
+  return response.data.data;
+};
+
 export const getDisciplinaryActions = async ({ companyId, employeeId, page = 1, limit = 20 } = {}) => {
   const params = new URLSearchParams();
   if (companyId) params.append("companyId", companyId);

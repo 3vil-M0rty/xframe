@@ -58,6 +58,20 @@ const departmentSchema = new mongoose.Schema(
       default: null,
     },
 
+    // The employee who runs this department. Must be an employee OF
+    // this department (enforced in routes/departments.js). Their login
+    // gets the department's module at the top tier regardless of job
+    // title, they can approve absence/advance requests from everyone
+    // in the department (except their own), and they decide — on the
+    // "My department" page — which of the department's job positions
+    // grant module access to their holders.
+    manager: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Employee",
+      default: null,
+      index: true,
+    },
+
     // A broader business-function tag than permissionKey — same
     // taxonomy User.department already uses, but here it carries NO
     // access-control meaning at all (unlike permissionKey, which

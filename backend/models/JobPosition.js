@@ -81,6 +81,19 @@ const jobPositionSchema = new mongoose.Schema(
       default: null,
     },
 
+    // Whether holding this position unlocks its department's module
+    // (Department.permissionKey — e.g. the HR or Production module)
+    // for the employee's linked login. Being IN a department is not
+    // enough on its own: a Machine Operator in Production shouldn't
+    // manage inventory, while a Responsable de Production should.
+    // Default false = the employee gets My Space only. Has no effect
+    // in a department with no permissionKey. See
+    // services/employeeAccountService.js's computeInheritedPermissions.
+    grantsModuleAccess: {
+      type: Boolean,
+      default: false,
+    },
+
     isActive: {
       type: Boolean,
       default: true,

@@ -318,10 +318,13 @@ router.delete("/absences/:id", async (req, res) => {
       return res.status(404).json({ success: false, message: "Absence request not found" });
     }
 
-    if (absence.status !== "pending") {
+    // "manager_approved" is still not a final decision (sequential
+    // approval: HR hasn't signed off yet), so the employee can still
+    // withdraw it — only accepted/rejected requests are locked.
+    if (!["pending", "manager_approved"].includes(absence.status)) {
       return res.status(400).json({
         success: false,
-        message: "Only a pending request can be cancelled",
+        message: "Only a request that hasn't been finalized yet can be cancelled",
       });
     }
 
@@ -457,8 +460,21 @@ router.get("/attendance", async (req, res) => {
 
 router.get("/team-requests", async (req, res) => {
   try {
+    // Without a linked employee there's no team — and querying
+    // { manager: null } would match every employee WITHOUT a manager.
+    if (!req.user.employee) {
+      return res.json({ success: true, data: { absences: [], advances: [] } });
+    }
+
+    // Direct reports, plus everyone in a department this person
+    // manages (Department.manager) — never their own requests.
+    const managedDepartments = req.user.managedDepartments || [];
     const directReports = await Employee.find({
-      manager: req.user.employee,
+      _id: { $ne: req.user.employee },
+      $or: [
+        { manager: req.user.employee },
+        ...(managedDepartments.length ? [{ department: { $in: managedDepartments } }] : []),
+      ],
     }).select("_id");
 
     const reportIds = directReports.map((e) => e._id);

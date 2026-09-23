@@ -6,7 +6,7 @@ const Employee = require("../models/Employee");
 const auth = require("../middleware/auth");
 const upload = require("../middleware/uploadMiddleware");
 const { requireAdminOrOwner } = require("../middleware/permissionMiddleware");
-const { canManageCompany } = require("../permissions/permissions");
+const { canManageCompany, isHRDepartment, isProductionDepartment } = require("../permissions/permissions");
 
 const {
   uploadImage,
@@ -32,10 +32,25 @@ const canManage = (req, company) => canManageCompany(req.user, company);
 
 router.get("/", auth, async (req, res) => {
   try {
-    const filter =
-      req.user.role === "admin"
-        ? {}
-        : { owner: req.user.id };
+    // Mirrors canAccessHRForCompany/canAccessProduction (see
+    // permissions/permissions.js) exactly — those already grant an
+    // HR- or production-department user access to EVERY company's
+    // records (the User model has no company-scoping field, so
+    // that's the documented, intentional design, not an oversight).
+    // This list endpoint was still filtering everyone non-admin down
+    // to companies they personally OWN, which meant an HR director
+    // (or any HR/production login that isn't also the owner) saw an
+    // empty company picker everywhere — unable to even select a
+    // company to view its employees, despite already having full
+    // access to that company's data the moment they did. Bringing
+    // the list filter in line with the authorization checks that
+    // were already granting the access fixes that mismatch.
+    const seesAllCompanies =
+      req.user.role === "admin" ||
+      isHRDepartment(req.user) ||
+      isProductionDepartment(req.user);
+
+    const filter = seesAllCompanies ? {} : { owner: req.user.id };
 
     const companies = await Company.find(filter)
       .sort({ createdAt: -1 });
@@ -157,6 +172,54 @@ router.post("/", auth, requireAdminOrOwner, async (req, res) => {
 // ======================================================
 // UPDATE COMPANY
 // ======================================================
+
+// ======================================================
+// UPDATE WORKFLOW SETTINGS (merge, not replace)
+// PATCH /api/companies/:id/settings
+// body: { requireSequentialApproval?: boolean }
+// ======================================================
+// A dedicated endpoint rather than going through PUT /:id: that
+// route spreads req.body straight into findByIdAndUpdate, so sending
+// `settings: {...}` there REPLACES the whole settings subdocument —
+// harmless with a single setting today, but it would silently wipe
+// every other setting the moment a second one is added. This writes
+// each known key via its own dotted path instead, so only what's
+// actually sent changes. Unknown keys are ignored rather than
+// persisted.
+const ALLOWED_SETTINGS = { requireSequentialApproval: "boolean" };
+
+router.patch("/:id/settings", auth, requireAdminOrOwner, async (req, res) => {
+  try {
+    const company = await Company.findById(req.params.id);
+    if (!company) {
+      return res.status(404).json({ success: false, message: "Company not found" });
+    }
+    if (!canManage(req, company)) {
+      return res.status(403).json({ success: false, message: "Not authorized to update this company" });
+    }
+
+    const update = {};
+    for (const [key, type] of Object.entries(ALLOWED_SETTINGS)) {
+      if (req.body[key] === undefined) continue;
+      if (typeof req.body[key] !== type) {
+        return res.status(400).json({ success: false, message: `${key} must be a ${type}` });
+      }
+      update[`settings.${key}`] = req.body[key];
+    }
+
+    if (Object.keys(update).length === 0) {
+      return res.status(400).json({ success: false, message: "No valid settings provided" });
+    }
+
+    update.updatedBy = req.user.id;
+    const updated = await Company.findByIdAndUpdate(req.params.id, { $set: update }, { new: true, runValidators: true });
+
+    res.json({ success: true, data: updated.settings });
+  } catch (error) {
+    console.error("PATCH company settings error:", error);
+    res.status(500).json({ success: false, message: "Error updating company settings", error: error.message });
+  }
+});
 
 router.put("/:id", auth, requireAdminOrOwner, async (req, res) => {
   try {

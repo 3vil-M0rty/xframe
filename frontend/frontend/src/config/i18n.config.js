@@ -7,12 +7,12 @@ export const translations = {
   // ENGLISH
   // ======================================================
 
-  en: {
+  en: { holidays: { title: "Public holidays", subtitle: "The year's jours fériés: whether the company works, and how hours worked are paid.", downloadTemplate: "Download template", import: "Import Excel", add: "Add a holiday", year: "Year", howItWorks: "Each year: download the template (fixed-date holidays are already filled in), add the religious holidays with their official dates, then import it. Closed holiday: nobody is expected, and anyone who clocks in has their hours recorded as holiday hours. Pay \"double\" adds one extra hourly rate per hour worked; \"normal\" adds nothing.", importDone: "Import complete: {created} added, {updated} updated.", namePlaceholder: "Holiday name (e.g. Aïd al-Fitr)", previewTitle: "Preview of {file}", previewErrors: "{count} row(s) to fix — correct the file and import it again", previewReady: "{count} row(s) ready to import", columns: { row: "Row", date: "Date", name: "Name", open: "Company", pay: "Pay if worked", check: "Check" }, defaultClosed: "Closed (default)", defaultDouble: "Double (default)", open: "Open", closed: "Closed", payDouble: "Double", payNormal: "Normal", confirmImport: "Import", emptyTitle: "No public holidays for {year} yet", emptyMessage: "Download the template, complete it, and import it.", deleteTitle: "Delete public holiday", deleteMessage: "Delete \"{name}\"? Attendance already recorded for that day is kept.", errors: { load: "Could not load the public holidays.", save: "Could not save this change.", template: "Could not download the template.", read: "Could not read this file.", import: "The import failed." } }, myDepartment: { adminTitle: "Department access", adminSubtitle: "Every department you oversee: its manager, which job titles get the department's module, and who has access.", adminEmptyTitle: "No departments yet.", noManagerAssigned: "No manager assigned", title: "My department", subtitle: "Your team, and which job titles get access to the department's module.", loadError: "Could not load your department.", saveError: "Could not save this change.", saved: "Saved.", accountsUpdated: "Saved — {count} account(s) updated.", emptyTitle: "You don't manage a department yet.", positionsTitle: "Job titles & access", positionsHint: "Switch on a job title to give everyone holding it access to this department's module. Everyone else sees My Space only.", noModule: "This department doesn't unlock a module, so there's no access to distribute.", noPositions: "No job positions defined for this department yet.", holders: "{count} employee(s)", toggleLabel: "Grants module access", teamTitle: "Team", noEmployees: "No employees in this department.", columns: { name: "Name", jobTitle: "Job title", access: "Access" }, noLogin: "No login", moduleAccess: "Module access", mySpaceOnly: "My Space only" },
     // ====================================================
     // SIDEBAR
     // ====================================================
 
-    sidebar: {
+    sidebar: { holidays: "Public holidays", departmentAccess: "Department access", myDepartment: "My department", myRecords: "My records",
       leaveCalendar: "Leave Calendar",
       performanceReviews: "Performance Reviews",
       disciplinaryActions: "Disciplinary Actions",
@@ -131,7 +131,7 @@ export const translations = {
     // COMPANY
     // ====================================================
 
-    company: {
+    company: { workflow: { title: "Approval workflow", sequentialApproval: "Require manager approval before HR", sequentialApprovalHint: "When on, absence and advance requests must be approved by the employee's manager first, then receive final approval from HR. Employees without a manager go straight to HR.", saveFailed: "Could not save this setting." },
       title: "Company",
 
       subtitle:
@@ -954,7 +954,7 @@ export const translations = {
         },
       },
     },
-    workSchedule: {
+    workSchedule: { shiftType: "Shift type", continuous: "One continuous shift", split: "Split shift (midday break)", continuousHint: "Employees clock in once and clock out once, e.g. 09:00 → 16:00. Anything worked beyond the scheduled hours counts as overtime.", splitHint: "Employees clock in and out twice, e.g. 08:00 → 12:00 and 14:00 → 18:00. The midday break isn't counted as worked time; overtime is anything beyond the scheduled hours, and lateness is checked on both arrivals.", morningIn: "Clock in", middayOut: "Midday out", middayIn: "Midday in", finalOut: "Clock out", scheduledHours: "Hours", applyToAll: "Copy this day's times to every working day", applyToAllShort: "Apply to all days", invalidTimes: "the times must be in order (clock in, then midday out, then midday in, then clock out).", invalidShort: "Check times",
       title: "Work Schedule",
       subtitle: "Set expected clock-in times, work hours, and grace periods per day — used to calculate lateness and overtime.",
       fields: { day: "Day", workingDay: "Working day", startTime: "Start time", workHours: "Work hours", grace: "Grace (min)" },
@@ -1056,7 +1056,7 @@ export const translations = {
       status: { received: "Received" },
     },
 
-    departments: {
+    departments: { noManagerBadge: "No manager", managerLabel: "Manager", moduleAccessBadge: "Module access",
       title: "Departments",
       subtitle: "Define your organization's departments and the job positions (postes) within them.",
       addDepartment: "Add department",
@@ -1076,8 +1076,10 @@ export const translations = {
       deletePositionSureMessage: "Are you sure you want to delete this position? Employees still holding it, or other positions reporting to it, must be reassigned first.",
       emptyTitle: "No departments yet",
       emptyMessage: "Add your first department to start building your org structure.",
+      searchPlaceholder: "Search departments...",
+      noSearchResults: "No departments match your search.",
       noPositions: "No positions defined in this department yet.",
-      fields: {
+      fields: { manager: "Department manager", noManager: "No manager", managerHint: "Oversees the whole department: full module access, approves the team's requests, and decides which job titles get module access.", grantsModuleAccess: "Grants module access", grantsModuleAccessHint: "Holders of this position get this department's module (e.g. HR or Inventory). Leave off for staff who should only see My Space.",
         name: "Name", description: "Description", permissionKey: "Module access",
         permissionKeyHint: "Optional — only set this on ONE department if employees there (and their auto-created logins) should get HR or Production module access. Most departments should leave this as \"No special access\".",
         category: "Job function",
@@ -1200,7 +1202,7 @@ export const translations = {
         other: "Other",
       },
 
-      status: {
+      status: { manager_approved: "Manager approved",
         pending: "Pending",
         accepted: "Accepted",
         rejected: "Rejected",
@@ -1271,7 +1273,7 @@ export const translations = {
         status: "Status",
       },
 
-      status: {
+      status: { manager_approved: "Manager approved",
         pending: "Pending",
         accepted: "Accepted",
         rejected: "Rejected",
@@ -1454,12 +1456,25 @@ export const translations = {
     mySpace: {
       title: "My Space",
       subtitle: "Your profile, payslips, and requests.",
-      tabs: { profile: "Profile", payslips: "Payslips", absences: "Absences", advances: "Advances", attendance: "Attendance" },
+      tabs: { profile: "Profile", payslips: "Payslips", absences: "Absences", advances: "Advances", attendance: "Attendance", records: "Records" },
+      records: {
+        performanceReviews: "Performance reviews",
+        disciplinaryActions: "Disciplinary records",
+        noReviews: "You have no performance reviews yet.",
+        noDisciplinaryActions: "You have no disciplinary records.",
+        reviewedBy: "Reviewed by",
+        acknowledge: "Acknowledge",
+        acknowledgeTitle: "Acknowledge",
+        acknowledgeReviewMessage: "This confirms you've read this performance review. Continue?",
+        acknowledgeDisciplineMessage: "This confirms you've read this record. Continue?",
+        loadError: "Failed to load your records.",
+        acknowledgeError: "Error acknowledging this record.",
+      },
       leaveBalance: { title: "Paid leave balance", accrued: "Accrued", used: "Used", remaining: "Remaining" },
       teamRequests: { title: "Your team's pending requests" },
       payslips: { emptyTitle: "No payslips yet", emptyMessage: "Your payslips will appear here once payroll is run." },
       absences: { cancelTitle: "Cancel request", cancelSureMessage: "Cancel this absence request?" },
-      attendance: { todayStatus: "Today", clockIn: "Clock in", clockOut: "Clock out" },
+      attendance: { holidayToday: "Public holiday today: {name}", holidayDouble: "hours worked are paid double", clockOutLunch: "Clock out for lunch", clockInAfternoon: "Clock back in", dayComplete: "Day complete ✓", scheduleToday: "Today", restDay: "Rest day", morning: "Morning", afternoon: "Afternoon", punchFailed: "Couldn't record this clock-in/out. Please try again.", todayStatus: "Today", clockIn: "Clock in", clockOut: "Clock out" },
     },
 
     notifications: {
@@ -1675,8 +1690,8 @@ export const translations = {
   // FRENCH
   // ======================================================
 
-  fr: {
-    sidebar: {
+  fr: { holidays: { title: "Jours fériés", subtitle: "Les jours fériés de l'année : l'entreprise travaille-t-elle, et comment les heures travaillées sont payées.", downloadTemplate: "Télécharger le modèle", import: "Importer Excel", add: "Ajouter un jour férié", year: "Année", howItWorks: "Chaque année : téléchargez le modèle (les fêtes à date fixe sont déjà remplies), ajoutez les fêtes religieuses avec leurs dates officielles, puis importez-le. Jour chômé : personne n'est attendu, et les heures de ceux qui pointent sont comptées en heures de jour férié. Paiement « double » : une heure supplémentaire payée par heure travaillée ; « normal » : aucune majoration.", importDone: "Import terminé : {created} ajouté(s), {updated} mis à jour.", namePlaceholder: "Nom du jour férié (ex. Aïd al-Fitr)", previewTitle: "Aperçu de {file}", previewErrors: "{count} ligne(s) à corriger — corrigez le fichier et importez-le à nouveau", previewReady: "{count} ligne(s) prêtes à importer", columns: { row: "Ligne", date: "Date", name: "Nom", open: "Entreprise", pay: "Paiement si travaillé", check: "Contrôle" }, defaultClosed: "Fermée (par défaut)", defaultDouble: "Double (par défaut)", open: "Ouverte", closed: "Fermée", payDouble: "Double", payNormal: "Normal", confirmImport: "Importer", emptyTitle: "Aucun jour férié pour {year}", emptyMessage: "Téléchargez le modèle, complétez-le et importez-le.", deleteTitle: "Supprimer le jour férié", deleteMessage: "Supprimer « {name} » ? Les pointages déjà enregistrés pour ce jour sont conservés.", errors: { load: "Impossible de charger les jours fériés.", save: "Impossible d'enregistrer cette modification.", template: "Impossible de télécharger le modèle.", read: "Impossible de lire ce fichier.", import: "L'import a échoué." } }, myDepartment: { adminTitle: "Accès par département", adminSubtitle: "Tous les départements que vous supervisez : leur responsable, les postes qui donnent accès au module et qui y a accès.", adminEmptyTitle: "Aucun département pour l'instant.", noManagerAssigned: "Aucun responsable désigné", title: "Mon département", subtitle: "Votre équipe, et les postes qui donnent accès au module du département.", loadError: "Impossible de charger votre département.", saveError: "Impossible d'enregistrer cette modification.", saved: "Enregistré.", accountsUpdated: "Enregistré — {count} compte(s) mis à jour.", emptyTitle: "Vous ne gérez encore aucun département.", positionsTitle: "Postes et accès", positionsHint: "Activez un poste pour donner à tous ses titulaires l'accès au module du département. Les autres ne voient que Mon espace.", noModule: "Ce département ne donne accès à aucun module : il n'y a pas d'accès à distribuer.", noPositions: "Aucun poste défini pour ce département.", holders: "{count} employé(s)", toggleLabel: "Donne accès au module", teamTitle: "Équipe", noEmployees: "Aucun employé dans ce département.", columns: { name: "Nom", jobTitle: "Poste", access: "Accès" }, noLogin: "Pas de compte", moduleAccess: "Accès module", mySpaceOnly: "Mon espace uniquement" },
+    sidebar: { holidays: "Jours fériés", departmentAccess: "Accès par département", myDepartment: "Mon département", myRecords: "Mon dossier",
       leaveCalendar: "Calendrier des congés",
       performanceReviews: "Évaluations",
       disciplinaryActions: "Actions disciplinaires",
@@ -1793,7 +1808,7 @@ export const translations = {
         "Informations",
     },
 
-    company: {
+    company: { workflow: { title: "Circuit de validation", sequentialApproval: "Validation du manager avant les RH", sequentialApprovalHint: "Si activé, les demandes d'absence et d'avance doivent d'abord être validées par le manager de l'employé, puis recevoir la validation finale des RH. Les employés sans manager passent directement par les RH.", saveFailed: "Impossible d'enregistrer ce paramètre." },
       title:
         "Entreprise",
 
@@ -2559,7 +2574,7 @@ export const translations = {
         },
       },
     },
-    workSchedule: {
+    workSchedule: { shiftType: "Type d'horaire", continuous: "Journée continue", split: "Journée coupée (pause de midi)", continuousHint: "Les employés pointent une fois à l'arrivée et une fois au départ, ex. 09:00 → 16:00. Tout temps travaillé au-delà des heures prévues compte en heures supplémentaires.", splitHint: "Les employés pointent deux fois à l'arrivée et deux fois au départ, ex. 08:00 → 12:00 et 14:00 → 18:00. La pause de midi n'est pas comptée ; les heures supplémentaires sont calculées au-delà des heures prévues, et le retard est vérifié aux deux arrivées.", morningIn: "Arrivée", middayOut: "Sortie midi", middayIn: "Retour midi", finalOut: "Départ", scheduledHours: "Heures", applyToAll: "Copier les horaires de ce jour sur tous les jours travaillés", applyToAllShort: "Appliquer à tous", invalidTimes: "les heures doivent se suivre (arrivée, sortie midi, retour midi, puis départ).", invalidShort: "Vérifier les heures",
       title: "Horaires de travail",
       subtitle: "Définissez les heures d'arrivée attendues, les heures de travail et les tolérances par jour — utilisées pour calculer les retards et les heures supplémentaires.",
       fields: { day: "Jour", workingDay: "Jour travaillé", startTime: "Heure de début", workHours: "Heures de travail", grace: "Tolérance (min)" },
@@ -2661,7 +2676,7 @@ export const translations = {
       status: { received: "Reçue" },
     },
 
-    departments: {
+    departments: { noManagerBadge: "Sans responsable", managerLabel: "Responsable", moduleAccessBadge: "Accès module",
       title: "Départements",
       subtitle: "Définissez les départements de votre organisation et les postes qui les composent.",
       addDepartment: "Ajouter un département",
@@ -2681,8 +2696,10 @@ export const translations = {
       deletePositionSureMessage: "Voulez-vous vraiment supprimer ce poste ? Les employés qui l'occupent encore, ou les autres postes qui lui sont rattachés, doivent d'abord être réaffectés.",
       emptyTitle: "Aucun département",
       emptyMessage: "Ajoutez votre premier département pour commencer à structurer votre organisation.",
+      searchPlaceholder: "Rechercher un département...",
+      noSearchResults: "Aucun département ne correspond à votre recherche.",
       noPositions: "Aucun poste défini dans ce département pour l'instant.",
-      fields: {
+      fields: { manager: "Responsable du département", noManager: "Aucun responsable", managerHint: "Supervise tout le département : accès complet au module, valide les demandes de l'équipe et décide quels postes donnent accès au module.", grantsModuleAccess: "Donne accès au module", grantsModuleAccessHint: "Les titulaires de ce poste accèdent au module du département (ex. RH ou Inventaire). Laissez désactivé pour le personnel qui ne doit voir que Mon espace.",
         name: "Nom", description: "Description", permissionKey: "Accès au module",
         permissionKeyHint: "Facultatif — à définir sur UN SEUL département si les employés qui y travaillent (et leurs accès créés automatiquement) doivent avoir accès au module RH ou Production. La plupart des départements doivent rester sur « Aucun accès spécial ».",
         category: "Fonction",
@@ -2805,7 +2822,7 @@ export const translations = {
         other: "Autre",
       },
 
-      status: {
+      status: { manager_approved: "Validée par le manager",
         pending: "En attente",
         accepted: "Acceptée",
         rejected: "Refusée",
@@ -2876,7 +2893,7 @@ export const translations = {
         status: "Statut",
       },
 
-      status: {
+      status: { manager_approved: "Validée par le manager",
         pending: "En attente",
         accepted: "Acceptée",
         rejected: "Refusée",
@@ -3059,12 +3076,25 @@ export const translations = {
     mySpace: {
       title: "Mon espace",
       subtitle: "Votre profil, vos bulletins de paie et vos demandes.",
-      tabs: { profile: "Profil", payslips: "Bulletins de paie", absences: "Absences", advances: "Avances", attendance: "Présence" },
+      tabs: { profile: "Profil", payslips: "Bulletins de paie", absences: "Absences", advances: "Avances", attendance: "Présence", records: "Dossier" },
+      records: {
+        performanceReviews: "Évaluations de performance",
+        disciplinaryActions: "Dossier disciplinaire",
+        noReviews: "Vous n'avez encore aucune évaluation de performance.",
+        noDisciplinaryActions: "Vous n'avez aucune action disciplinaire enregistrée.",
+        reviewedBy: "Évalué par",
+        acknowledge: "Accuser réception",
+        acknowledgeTitle: "Accuser réception",
+        acknowledgeReviewMessage: "Ceci confirme que vous avez lu cette évaluation de performance. Continuer ?",
+        acknowledgeDisciplineMessage: "Ceci confirme que vous avez lu cette fiche. Continuer ?",
+        loadError: "Échec du chargement de votre dossier.",
+        acknowledgeError: "Erreur lors de l'accusé de réception.",
+      },
       leaveBalance: { title: "Solde de congés payés", accrued: "Acquis", used: "Utilisé", remaining: "Restant" },
       teamRequests: { title: "Demandes en attente de votre équipe" },
       payslips: { emptyTitle: "Aucun bulletin de paie", emptyMessage: "Vos bulletins de paie apparaîtront ici une fois la paie effectuée." },
       absences: { cancelTitle: "Annuler la demande", cancelSureMessage: "Annuler cette demande d'absence ?" },
-      attendance: { todayStatus: "Aujourd'hui", clockIn: "Entrée", clockOut: "Sortie" },
+      attendance: { holidayToday: "Jour férié aujourd'hui : {name}", holidayDouble: "heures travaillées payées double", clockOutLunch: "Pointer la pause", clockInAfternoon: "Pointer le retour", dayComplete: "Journée terminée ✓", scheduleToday: "Aujourd'hui", restDay: "Jour de repos", morning: "Matin", afternoon: "Après-midi", punchFailed: "Impossible d'enregistrer ce pointage. Veuillez réessayer.", todayStatus: "Aujourd'hui", clockIn: "Entrée", clockOut: "Sortie" },
     },
 
     notifications: {
@@ -3280,8 +3310,8 @@ export const translations = {
   // ARABIC
   // ======================================================
 
-  ar: {
-    sidebar: {
+  ar: { holidays: { title: "العطل الرسمية", subtitle: "العطل الرسمية للسنة: هل تعمل الشركة، وكيف تُؤدّى ساعات العمل.", downloadTemplate: "تنزيل النموذج", import: "استيراد Excel", add: "إضافة عطلة", year: "السنة", howItWorks: "كل سنة: نزّل النموذج (العطل ذات التاريخ الثابت مُعبّأة مسبقاً)، أضف الأعياد الدينية بتواريخها الرسمية، ثم استورده. عطلة مغلقة: لا يُنتظر حضور أحد، وتُحتسب ساعات من يسجّل حضوره كساعات عطلة. الأداء «مضاعف» يضيف أجر ساعة إضافية عن كل ساعة عمل؛ «عادي» لا يضيف شيئاً.", importDone: "اكتمل الاستيراد: {created} مضافة، {updated} محدّثة.", namePlaceholder: "اسم العطلة (مثال: عيد الفطر)", previewTitle: "معاينة {file}", previewErrors: "{count} سطر(أسطر) يجب تصحيحها — صحّح الملف وأعد استيراده", previewReady: "{count} سطر(أسطر) جاهزة للاستيراد", columns: { row: "السطر", date: "التاريخ", name: "الاسم", open: "الشركة", pay: "الأداء عند العمل", check: "التحقق" }, defaultClosed: "مغلقة (افتراضي)", defaultDouble: "مضاعف (افتراضي)", open: "مفتوحة", closed: "مغلقة", payDouble: "مضاعف", payNormal: "عادي", confirmImport: "استيراد", emptyTitle: "لا توجد عطل رسمية لسنة {year}", emptyMessage: "نزّل النموذج، أكمله، ثم استورده.", deleteTitle: "حذف العطلة", deleteMessage: "حذف «{name}»؟ يتم الاحتفاظ بتسجيلات الحضور لهذا اليوم.", errors: { load: "تعذّر تحميل العطل الرسمية.", save: "تعذّر حفظ هذا التغيير.", template: "تعذّر تنزيل النموذج.", read: "تعذّرت قراءة هذا الملف.", import: "فشل الاستيراد." } }, myDepartment: { adminTitle: "الوصول حسب القسم", adminSubtitle: "جميع الأقسام التي تشرف عليها: مديرها، والمسميات الوظيفية التي تمنح الوصول إلى الوحدة، ومن لديه الوصول.", adminEmptyTitle: "لا توجد أقسام بعد.", noManagerAssigned: "لم يُعيَّن مدير", title: "قسمي", subtitle: "فريقك، والمسميات الوظيفية التي تمنح الوصول إلى وحدة القسم.", loadError: "تعذّر تحميل قسمك.", saveError: "تعذّر حفظ هذا التغيير.", saved: "تم الحفظ.", accountsUpdated: "تم الحفظ — تم تحديث {count} حساب(ات).", emptyTitle: "لا تدير أي قسم بعد.", positionsTitle: "المسميات الوظيفية والوصول", positionsHint: "فعّل مسمى وظيفياً لمنح جميع شاغليه الوصول إلى وحدة القسم. يرى الآخرون مساحتهم فقط.", noModule: "هذا القسم لا يفتح أي وحدة، لذلك لا يوجد وصول لتوزيعه.", noPositions: "لا توجد مناصب محددة لهذا القسم بعد.", holders: "{count} موظف(ين)", toggleLabel: "يمنح الوصول إلى الوحدة", teamTitle: "الفريق", noEmployees: "لا يوجد موظفون في هذا القسم.", columns: { name: "الاسم", jobTitle: "المسمى الوظيفي", access: "الوصول" }, noLogin: "بدون حساب", moduleAccess: "وصول إلى الوحدة", mySpaceOnly: "مساحتي فقط" },
+    sidebar: { holidays: "العطل الرسمية", departmentAccess: "الوصول حسب القسم", myDepartment: "قسمي", mySpace: "مساحتي", myProfile: "ملفي الشخصي", myPayslips: "كشوف أجري", myAbsences: "غياباتي", myAdvances: "تسبيقاتي", myAttendance: "حضوري", myRecords: "ملفي الإداري",
       leaveCalendar: "تقويم الإجازات",
       performanceReviews: "تقييمات الأداء",
       disciplinaryActions: "الإجراءات التأديبية",
@@ -3378,7 +3408,7 @@ export const translations = {
         "المعلومات",
     },
 
-    company: {
+    company: { workflow: { title: "مسار الموافقة", sequentialApproval: "موافقة المدير قبل الموارد البشرية", sequentialApprovalHint: "عند التفعيل، يجب أن يوافق مدير الموظف أولاً على طلبات الغياب والتسبيقات، ثم تمنح الموارد البشرية الموافقة النهائية. الموظفون بدون مدير تُحال طلباتهم مباشرة إلى الموارد البشرية.", saveFailed: "تعذّر حفظ هذا الإعداد." },
       title: "الشركة",
 
       subtitle:
@@ -4210,7 +4240,7 @@ export const translations = {
         other: "آخر",
       },
 
-      status: {
+      status: { manager_approved: "وافق عليها المدير",
         pending: "قيد الانتظار",
         accepted: "مقبول",
         rejected: "مرفوض",
@@ -4281,7 +4311,7 @@ export const translations = {
         status: "الحالة",
       },
 
-      status: {
+      status: { manager_approved: "وافق عليها المدير",
         pending: "قيد الانتظار",
         accepted: "مقبولة",
         rejected: "مرفوضة",
@@ -4382,7 +4412,7 @@ export const translations = {
       },
     },
 
-    departments: {
+    departments: { noManagerBadge: "بدون مدير", managerLabel: "المدير", moduleAccessBadge: "وصول إلى الوحدة",
       title: "الأقسام",
       subtitle: "حدد أقسام مؤسستك والمناصب الوظيفية ضمن كل قسم.",
       addDepartment: "إضافة قسم",
@@ -4402,8 +4432,10 @@ export const translations = {
       deletePositionSureMessage: "هل أنت متأكد من حذف هذا المنصب؟ يجب أولاً إعادة تعيين الموظفين الذين يشغلونه، أو المناصب الأخرى التابعة له.",
       emptyTitle: "لا توجد أقسام بعد",
       emptyMessage: "أضف أول قسم لبدء بناء هيكلك التنظيمي.",
+      searchPlaceholder: "بحث في الأقسام...",
+      noSearchResults: "لا توجد أقسام مطابقة لبحثك.",
       noPositions: "لا توجد مناصب محددة في هذا القسم بعد.",
-      fields: {
+      fields: { manager: "مدير القسم", noManager: "بدون مدير", managerHint: "يشرف على القسم بأكمله: وصول كامل إلى الوحدة، يوافق على طلبات الفريق، ويحدد المسميات الوظيفية التي تحصل على الوصول.", grantsModuleAccess: "يمنح الوصول إلى الوحدة", grantsModuleAccessHint: "يحصل شاغلو هذا المنصب على وحدة القسم (مثل الموارد البشرية أو المخزون). اتركه غير مفعّل للموظفين الذين يجب أن يروا مساحتهم فقط.",
         name: "الاسم", description: "الوصف", permissionKey: "الوصول إلى الوحدة",
         permissionKeyHint: "اختياري — يُحدد فقط على قسم واحد إذا كان يجب أن يحصل الموظفون فيه (وحساباتهم التي تُنشأ تلقائيًا) على صلاحية الوصول إلى وحدة الموارد البشرية أو الإنتاج. يجب أن تبقى معظم الأقسام على \"بدون وصول خاص\".",
         category: "الوظيفة",
@@ -4677,8 +4709,8 @@ export const translations = {
   // SPANISH
   // ======================================================
 
-  es: {
-    sidebar: {
+  es: { holidays: { title: "Días festivos", subtitle: "Los festivos del año: si la empresa trabaja y cómo se pagan las horas trabajadas.", downloadTemplate: "Descargar plantilla", import: "Importar Excel", add: "Añadir festivo", year: "Año", howItWorks: "Cada año: descarga la plantilla (los festivos de fecha fija ya están rellenados), añade los festivos religiosos con sus fechas oficiales e impórtala. Festivo cerrado: no se espera a nadie y las horas de quien fiche cuentan como horas de festivo. Pago «doble» añade una hora extra pagada por cada hora trabajada; «normal» no añade nada.", importDone: "Importación completada: {created} añadidos, {updated} actualizados.", namePlaceholder: "Nombre del festivo (p. ej. Aïd al-Fitr)", previewTitle: "Vista previa de {file}", previewErrors: "{count} fila(s) por corregir — corrige el archivo e impórtalo de nuevo", previewReady: "{count} fila(s) listas para importar", columns: { row: "Fila", date: "Fecha", name: "Nombre", open: "Empresa", pay: "Pago si se trabaja", check: "Revisión" }, defaultClosed: "Cerrada (por defecto)", defaultDouble: "Doble (por defecto)", open: "Abierta", closed: "Cerrada", payDouble: "Doble", payNormal: "Normal", confirmImport: "Importar", emptyTitle: "Aún no hay festivos para {year}", emptyMessage: "Descarga la plantilla, complétala e impórtala.", deleteTitle: "Eliminar festivo", deleteMessage: "¿Eliminar «{name}»? Los fichajes ya registrados ese día se conservan.", errors: { load: "No se pudieron cargar los festivos.", save: "No se pudo guardar este cambio.", template: "No se pudo descargar la plantilla.", read: "No se pudo leer este archivo.", import: "La importación falló." } }, myDepartment: { adminTitle: "Acceso por departamento", adminSubtitle: "Todos los departamentos que supervisas: su responsable, qué puestos dan acceso al módulo y quién tiene acceso.", adminEmptyTitle: "Aún no hay departamentos.", noManagerAssigned: "Sin responsable asignado", title: "Mi departamento", subtitle: "Tu equipo y qué puestos dan acceso al módulo del departamento.", loadError: "No se pudo cargar tu departamento.", saveError: "No se pudo guardar este cambio.", saved: "Guardado.", accountsUpdated: "Guardado — {count} cuenta(s) actualizada(s).", emptyTitle: "Todavía no gestionas ningún departamento.", positionsTitle: "Puestos y acceso", positionsHint: "Activa un puesto para dar a todos sus titulares acceso al módulo del departamento. El resto solo ve Mi espacio.", noModule: "Este departamento no desbloquea ningún módulo, así que no hay acceso que repartir.", noPositions: "Aún no hay puestos definidos para este departamento.", holders: "{count} empleado(s)", toggleLabel: "Da acceso al módulo", teamTitle: "Equipo", noEmployees: "No hay empleados en este departamento.", columns: { name: "Nombre", jobTitle: "Puesto", access: "Acceso" }, noLogin: "Sin cuenta", moduleAccess: "Acceso al módulo", mySpaceOnly: "Solo Mi espacio" },
+    sidebar: { holidays: "Días festivos", departmentAccess: "Acceso por departamento", myDepartment: "Mi departamento", mySpace: "Mi espacio", myProfile: "Mi perfil", myPayslips: "Mis nóminas", myAbsences: "Mis ausencias", myAdvances: "Mis anticipos", myAttendance: "Mi asistencia", myRecords: "Mi expediente",
       leaveCalendar: "Calendario de ausencias",
       performanceReviews: "Evaluaciones de desempeño",
       disciplinaryActions: "Acciones disciplinarias",
@@ -4768,7 +4800,7 @@ export const translations = {
       info: "Información",
     },
 
-    company: {
+    company: { workflow: { title: "Flujo de aprobación", sequentialApproval: "Aprobación del responsable antes de RR. HH.", sequentialApprovalHint: "Si está activado, las solicitudes de ausencia y anticipo deben ser aprobadas primero por el responsable del empleado y luego recibir la aprobación final de RR. HH. Los empleados sin responsable pasan directamente a RR. HH.", saveFailed: "No se pudo guardar este ajuste." },
       title: "Empresa",
       subtitle:
         "Gestiona la información de tu empresa",
@@ -5583,7 +5615,7 @@ export const translations = {
         other: "Otro",
       },
 
-      status: {
+      status: { manager_approved: "Aprobada por el responsable",
         pending: "Pendiente",
         accepted: "Aceptada",
         rejected: "Rechazada",
@@ -5654,7 +5686,7 @@ export const translations = {
         status: "Estado",
       },
 
-      status: {
+      status: { manager_approved: "Aprobada por el responsable",
         pending: "Pendiente",
         accepted: "Aceptado",
         rejected: "Rechazado",
@@ -5755,7 +5787,7 @@ export const translations = {
       },
     },
 
-    departments: {
+    departments: { noManagerBadge: "Sin responsable", managerLabel: "Responsable", moduleAccessBadge: "Acceso al módulo",
       title: "Departamentos",
       subtitle: "Defina los departamentos de su organización y los puestos dentro de cada uno.",
       addDepartment: "Añadir departamento",
@@ -5775,8 +5807,10 @@ export const translations = {
       deletePositionSureMessage: "¿Seguro que desea eliminar este puesto? Los empleados que lo ocupan, u otros puestos que dependen de él, deben reasignarse primero.",
       emptyTitle: "Aún no hay departamentos",
       emptyMessage: "Añada su primer departamento para empezar a construir su estructura organizativa.",
+      searchPlaceholder: "Buscar departamentos...",
+      noSearchResults: "Ningún departamento coincide con tu búsqueda.",
       noPositions: "Aún no hay puestos definidos en este departamento.",
-      fields: {
+      fields: { manager: "Responsable del departamento", noManager: "Sin responsable", managerHint: "Supervisa todo el departamento: acceso completo al módulo, aprueba las solicitudes del equipo y decide qué puestos dan acceso al módulo.", grantsModuleAccess: "Da acceso al módulo", grantsModuleAccessHint: "Quienes ocupen este puesto acceden al módulo del departamento (p. ej. RR. HH. o Inventario). Déjalo desactivado para el personal que solo debe ver Mi espacio.",
         name: "Nombre", description: "Descripción", permissionKey: "Acceso al módulo",
         permissionKeyHint: "Opcional — asígnelo solo a UN departamento si los empleados de ahí (y sus cuentas creadas automáticamente) deben tener acceso al módulo de RR. HH. o de Producción. La mayoría de los departamentos deben dejarlo en «Sin acceso especial».",
         category: "Función",
@@ -6050,8 +6084,8 @@ export const translations = {
   // PORTUGUESE
   // ======================================================
 
-  pt: {
-    sidebar: {
+  pt: { holidays: { title: "Feriados", subtitle: "Os feriados do ano: se a empresa trabalha e como são pagas as horas trabalhadas.", downloadTemplate: "Descarregar modelo", import: "Importar Excel", add: "Adicionar feriado", year: "Ano", howItWorks: "Todos os anos: descarregue o modelo (os feriados de data fixa já estão preenchidos), acrescente os feriados religiosos com as datas oficiais e importe-o. Feriado encerrado: ninguém é esperado e as horas de quem registar ponto contam como horas de feriado. Pagamento «a dobrar» acrescenta uma hora paga por cada hora trabalhada; «normal» não acrescenta nada.", importDone: "Importação concluída: {created} adicionados, {updated} atualizados.", namePlaceholder: "Nome do feriado (ex. Aïd al-Fitr)", previewTitle: "Pré-visualização de {file}", previewErrors: "{count} linha(s) a corrigir — corrija o ficheiro e importe-o novamente", previewReady: "{count} linha(s) prontas a importar", columns: { row: "Linha", date: "Data", name: "Nome", open: "Empresa", pay: "Pagamento se trabalhado", check: "Verificação" }, defaultClosed: "Encerrada (predefinição)", defaultDouble: "A dobrar (predefinição)", open: "Aberta", closed: "Encerrada", payDouble: "A dobrar", payNormal: "Normal", confirmImport: "Importar", emptyTitle: "Ainda não há feriados para {year}", emptyMessage: "Descarregue o modelo, preencha-o e importe-o.", deleteTitle: "Eliminar feriado", deleteMessage: "Eliminar «{name}»? Os registos de ponto desse dia são mantidos.", errors: { load: "Não foi possível carregar os feriados.", save: "Não foi possível guardar esta alteração.", template: "Não foi possível descarregar o modelo.", read: "Não foi possível ler este ficheiro.", import: "A importação falhou." } }, myDepartment: { adminTitle: "Acesso por departamento", adminSubtitle: "Todos os departamentos que supervisiona: o responsável, que cargos dão acesso ao módulo e quem tem acesso.", adminEmptyTitle: "Ainda não há departamentos.", noManagerAssigned: "Sem responsável atribuído", title: "O meu departamento", subtitle: "A sua equipa e que cargos dão acesso ao módulo do departamento.", loadError: "Não foi possível carregar o seu departamento.", saveError: "Não foi possível guardar esta alteração.", saved: "Guardado.", accountsUpdated: "Guardado — {count} conta(s) atualizada(s).", emptyTitle: "Ainda não gere nenhum departamento.", positionsTitle: "Cargos e acesso", positionsHint: "Ative um cargo para dar a todos os seus titulares acesso ao módulo do departamento. Os restantes veem apenas O meu espaço.", noModule: "Este departamento não desbloqueia nenhum módulo, por isso não há acesso a distribuir.", noPositions: "Ainda não há cargos definidos para este departamento.", holders: "{count} funcionário(s)", toggleLabel: "Dá acesso ao módulo", teamTitle: "Equipa", noEmployees: "Não há funcionários neste departamento.", columns: { name: "Nome", jobTitle: "Cargo", access: "Acesso" }, noLogin: "Sem conta", moduleAccess: "Acesso ao módulo", mySpaceOnly: "Apenas O meu espaço" },
+    sidebar: { holidays: "Feriados", departmentAccess: "Acesso por departamento", myDepartment: "O meu departamento", mySpace: "O meu espaço", myProfile: "O meu perfil", myPayslips: "Os meus recibos", myAbsences: "As minhas ausências", myAdvances: "Os meus adiantamentos", myAttendance: "A minha assiduidade", myRecords: "O meu processo",
       leaveCalendar: "Calendário de ausências",
       performanceReviews: "Avaliações de desempenho",
       disciplinaryActions: "Ações disciplinares",
@@ -6141,7 +6175,7 @@ export const translations = {
       info: "Informação",
     },
 
-    company: {
+    company: { workflow: { title: "Fluxo de aprovação", sequentialApproval: "Aprovação da chefia antes dos RH", sequentialApprovalHint: "Quando ativo, os pedidos de ausência e adiantamento têm de ser aprovados primeiro pela chefia do funcionário e depois receber a aprovação final dos RH. Funcionários sem chefia seguem diretamente para os RH.", saveFailed: "Não foi possível guardar esta definição." },
       title: "Empresa",
 
       subtitle:
@@ -6957,7 +6991,7 @@ export const translations = {
         other: "Outro",
       },
 
-      status: {
+      status: { manager_approved: "Aprovada pela chefia",
         pending: "Pendente",
         accepted: "Aceite",
         rejected: "Rejeitada",
@@ -7028,7 +7062,7 @@ export const translations = {
         status: "Estado",
       },
 
-      status: {
+      status: { manager_approved: "Aprovada pela chefia",
         pending: "Pendente",
         accepted: "Aceite",
         rejected: "Rejeitado",
@@ -7129,7 +7163,7 @@ export const translations = {
       },
     },
 
-    departments: {
+    departments: { noManagerBadge: "Sem responsável", managerLabel: "Responsável", moduleAccessBadge: "Acesso ao módulo",
       title: "Departamentos",
       subtitle: "Defina os departamentos da sua organização e os cargos dentro de cada um.",
       addDepartment: "Adicionar departamento",
@@ -7149,8 +7183,10 @@ export const translations = {
       deletePositionSureMessage: "Tem a certeza de que pretende eliminar este cargo? Os funcionários que o ocupam, ou outros cargos subordinados a ele, devem ser reatribuídos primeiro.",
       emptyTitle: "Ainda não há departamentos",
       emptyMessage: "Adicione o seu primeiro departamento para começar a construir a sua estrutura organizacional.",
+      searchPlaceholder: "Pesquisar departamentos...",
+      noSearchResults: "Nenhum departamento corresponde à sua pesquisa.",
       noPositions: "Ainda não há cargos definidos neste departamento.",
-      fields: {
+      fields: { manager: "Responsável do departamento", noManager: "Sem responsável", managerHint: "Supervisiona todo o departamento: acesso total ao módulo, aprova os pedidos da equipa e decide que cargos dão acesso ao módulo.", grantsModuleAccess: "Dá acesso ao módulo", grantsModuleAccessHint: "Quem ocupa este cargo acede ao módulo do departamento (ex. RH ou Inventário). Deixe desativado para funcionários que só devem ver O meu espaço.",
         name: "Nome", description: "Descrição", permissionKey: "Acesso ao módulo",
         permissionKeyHint: "Opcional — defina apenas num departamento se os funcionários aí (e as suas contas criadas automaticamente) devem ter acesso ao módulo de RH ou de Produção. A maioria dos departamentos deve manter «Sem acesso especial».",
         category: "Função",
@@ -7424,8 +7460,8 @@ export const translations = {
   // GERMAN
   // ======================================================
 
-  de: {
-    sidebar: {
+  de: { holidays: { title: "Feiertage", subtitle: "Die Feiertage des Jahres: ob das Unternehmen arbeitet und wie gearbeitete Stunden bezahlt werden.", downloadTemplate: "Vorlage herunterladen", import: "Excel importieren", add: "Feiertag hinzufügen", year: "Jahr", howItWorks: "Jedes Jahr: Vorlage herunterladen (Feiertage mit festem Datum sind bereits eingetragen), die religiösen Feiertage mit ihren offiziellen Daten ergänzen und importieren. Geschlossener Feiertag: niemand wird erwartet, und Stunden von Mitarbeitenden, die sich einstempeln, zählen als Feiertagsstunden. Bezahlung „doppelt“ fügt pro gearbeiteter Stunde einen weiteren Stundenlohn hinzu; „normal“ fügt nichts hinzu.", importDone: "Import abgeschlossen: {created} hinzugefügt, {updated} aktualisiert.", namePlaceholder: "Name des Feiertags (z. B. Aïd al-Fitr)", previewTitle: "Vorschau von {file}", previewErrors: "{count} Zeile(n) zu korrigieren — Datei korrigieren und erneut importieren", previewReady: "{count} Zeile(n) bereit zum Import", columns: { row: "Zeile", date: "Datum", name: "Name", open: "Unternehmen", pay: "Bezahlung bei Arbeit", check: "Prüfung" }, defaultClosed: "Geschlossen (Standard)", defaultDouble: "Doppelt (Standard)", open: "Geöffnet", closed: "Geschlossen", payDouble: "Doppelt", payNormal: "Normal", confirmImport: "Importieren", emptyTitle: "Noch keine Feiertage für {year}", emptyMessage: "Vorlage herunterladen, ausfüllen und importieren.", deleteTitle: "Feiertag löschen", deleteMessage: "„{name}“ löschen? Bereits erfasste Zeiten für diesen Tag bleiben erhalten.", errors: { load: "Feiertage konnten nicht geladen werden.", save: "Diese Änderung konnte nicht gespeichert werden.", template: "Die Vorlage konnte nicht heruntergeladen werden.", read: "Diese Datei konnte nicht gelesen werden.", import: "Der Import ist fehlgeschlagen." } }, myDepartment: { adminTitle: "Abteilungszugriff", adminSubtitle: "Alle Abteilungen, die Sie verantworten: Leitung, welche Positionen Modulzugriff haben und wer Zugriff hat.", adminEmptyTitle: "Noch keine Abteilungen.", noManagerAssigned: "Keine Leitung zugewiesen", title: "Meine Abteilung", subtitle: "Ihr Team und welche Positionen Zugriff auf das Modul der Abteilung haben.", loadError: "Ihre Abteilung konnte nicht geladen werden.", saveError: "Diese Änderung konnte nicht gespeichert werden.", saved: "Gespeichert.", accountsUpdated: "Gespeichert — {count} Konto/Konten aktualisiert.", emptyTitle: "Sie leiten noch keine Abteilung.", positionsTitle: "Positionen & Zugriff", positionsHint: "Aktivieren Sie eine Position, um allen Inhabern Zugriff auf das Modul der Abteilung zu geben. Alle anderen sehen nur „Mein Bereich“.", noModule: "Diese Abteilung schaltet kein Modul frei – es gibt keinen Zugriff zu verteilen.", noPositions: "Für diese Abteilung sind noch keine Positionen angelegt.", holders: "{count} Mitarbeiter", toggleLabel: "Gewährt Modulzugriff", teamTitle: "Team", noEmployees: "Keine Mitarbeiter in dieser Abteilung.", columns: { name: "Name", jobTitle: "Position", access: "Zugriff" }, noLogin: "Kein Konto", moduleAccess: "Modulzugriff", mySpaceOnly: "Nur Mein Bereich" },
+    sidebar: { holidays: "Feiertage", departmentAccess: "Abteilungszugriff", myDepartment: "Meine Abteilung", mySpace: "Mein Bereich", myProfile: "Mein Profil", myPayslips: "Meine Gehaltsabrechnungen", myAbsences: "Meine Abwesenheiten", myAdvances: "Meine Vorschüsse", myAttendance: "Meine Anwesenheit", myRecords: "Meine Akte",
       leaveCalendar: "Abwesenheitskalender",
       performanceReviews: "Leistungsbeurteilungen",
       disciplinaryActions: "Disziplinarmaßnahmen",
@@ -7515,7 +7551,7 @@ export const translations = {
       info: "Informationen",
     },
 
-    company: {
+    company: { workflow: { title: "Genehmigungsablauf", sequentialApproval: "Genehmigung durch Vorgesetzte vor HR", sequentialApprovalHint: "Wenn aktiviert, müssen Abwesenheits- und Vorschussanträge zuerst vom Vorgesetzten genehmigt werden und erhalten danach die endgültige Freigabe durch HR. Mitarbeiter ohne Vorgesetzten gehen direkt an HR.", saveFailed: "Diese Einstellung konnte nicht gespeichert werden." },
       title:
         "Unternehmen",
 
@@ -8349,7 +8385,7 @@ export const translations = {
         other: "Sonstiges",
       },
 
-      status: {
+      status: { manager_approved: "Vom Vorgesetzten genehmigt",
         pending: "Ausstehend",
         accepted: "Genehmigt",
         rejected: "Abgelehnt",
@@ -8420,7 +8456,7 @@ export const translations = {
         status: "Status",
       },
 
-      status: {
+      status: { manager_approved: "Vom Vorgesetzten genehmigt",
         pending: "Ausstehend",
         accepted: "Genehmigt",
         rejected: "Abgelehnt",
@@ -8521,7 +8557,7 @@ export const translations = {
       },
     },
 
-    departments: {
+    departments: { noManagerBadge: "Keine Leitung", managerLabel: "Leitung", moduleAccessBadge: "Modulzugriff",
       title: "Abteilungen",
       subtitle: "Definieren Sie die Abteilungen Ihres Unternehmens und die Stellen innerhalb jeder Abteilung.",
       addDepartment: "Abteilung hinzufügen",
@@ -8541,8 +8577,10 @@ export const translations = {
       deletePositionSureMessage: "Möchten Sie diese Stelle wirklich löschen? Mitarbeiter, die sie noch innehaben, oder andere ihr unterstellte Stellen, müssen zuerst neu zugewiesen werden.",
       emptyTitle: "Noch keine Abteilungen",
       emptyMessage: "Fügen Sie Ihre erste Abteilung hinzu, um Ihre Organisationsstruktur aufzubauen.",
+      searchPlaceholder: "Abteilungen durchsuchen...",
+      noSearchResults: "Keine Abteilung entspricht Ihrer Suche.",
       noPositions: "In dieser Abteilung sind noch keine Stellen definiert.",
-      fields: {
+      fields: { manager: "Abteilungsleitung", noManager: "Keine Leitung", managerHint: "Verantwortet die ganze Abteilung: voller Modulzugriff, genehmigt die Anträge des Teams und legt fest, welche Positionen Modulzugriff erhalten.", grantsModuleAccess: "Gewährt Modulzugriff", grantsModuleAccessHint: "Inhaber dieser Position erhalten das Modul der Abteilung (z. B. HR oder Inventar). Deaktiviert lassen für Mitarbeiter, die nur „Mein Bereich“ sehen sollen.",
         name: "Name", description: "Beschreibung", permissionKey: "Modulzugriff",
         permissionKeyHint: "Optional — nur bei EINER Abteilung festlegen, wenn Mitarbeiter dort (und ihre automatisch erstellten Konten) Zugriff auf das HR- oder Produktionsmodul erhalten sollen. Die meisten Abteilungen sollten bei „Kein spezieller Zugriff“ bleiben.",
         category: "Funktion",

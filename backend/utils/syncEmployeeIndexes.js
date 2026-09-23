@@ -1,0 +1,28 @@
+const Employee = require("../models/Employee");
+
+/**
+ * Brings the employees collection's indexes in line with
+ * models/Employee.js. Needed because the CIN / CNSS uniqueness
+ * indexes changed from `sparse` to `partialFilterExpression` (see the
+ * comment there) under the SAME index names — MongoDB won't change an
+ * existing index's options in place, and Mongoose's automatic index
+ * build just logs a conflict and keeps the old, broken one.
+ * syncIndexes() drops indexes whose definition differs from the
+ * schema and rebuilds them. Idempotent: once in sync it does nothing.
+ * Scoped to Employee only, deliberately.
+ */
+async function syncEmployeeIndexes() {
+  try {
+    const dropped = await Employee.syncIndexes();
+    if (dropped && dropped.length) {
+      console.log(`✓ Rebuilt employee indexes: ${dropped.join(", ")}`);
+    }
+  } catch (error) {
+    // Most likely cause: existing records that genuinely violate the
+    // (correct) uniqueness rule — two employees sharing a real CIN or
+    // CNSS number in the same company. Log loudly but don't crash.
+    console.error("Could not sync employee indexes:", error.message);
+  }
+}
+
+module.exports = { syncEmployeeIndexes };

@@ -11,7 +11,6 @@ import { useDebouncedValue } from "../../hooks/useDebouncedValue";
 
 import CustomSelect from "../../components/useful/CustomSelect";
 import SearchSelect from "../../components/useful/SearchSelect";
-import DateRangeFilter from "../../components/useful/DateRangeFilter";
 import Breadcrumbs from "../../components/useful/Breadcrumbs";
 import Pagination from "../../components/useful/Pagination";
 import ActionModal from "../../components/useful/ActionModal";
@@ -468,14 +467,18 @@ export default function Inventory() {
           ]} />
         </div>
 
-        <DateRangeFilter
-          from={asOfDate}
-          to={asOfDate}
-          onFromChange={setAsOfDate}
-          onToChange={setAsOfDate}
-          fromLabel={t("inventory.asOfDate")}
-          toLabel={t("inventory.asOfDate")}
-        />
+        {/* One date, not a range: stock is shown AS OF this day. (This
+            used to reuse the from/to range component with both ends
+            bound to the same value, so the same date showed twice.) */}
+        <div className="filterGroup">
+          <label>{t("inventory.asOfDate")}</label>
+          <input
+            type="date"
+            className="dateInput"
+            value={asOfDate}
+            onChange={(e) => setAsOfDate(e.target.value)}
+          />
+        </div>
 
         <label className={styles.lowStockToggle}>
           <input type="checkbox" checked={lowStockOnly} onChange={(e) => setLowStockOnly(e.target.checked)} />

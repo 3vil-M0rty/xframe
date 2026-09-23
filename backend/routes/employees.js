@@ -4,6 +4,7 @@ const mongoose = require("mongoose");
 const router = express.Router();
 
 const Employee = require("../models/Employee");
+const Department = require("../models/Department");
 const Company = require("../models/Company");
 const Salary = require("../models/Salary");
 const Contract = require("../models/Contract");
@@ -41,7 +42,7 @@ const {
 } = require("../permissions/permissions");
 
 const { logAudit } = require("../services/auditLogger");
-const { createLoginForEmployee, generateWorkEmail, resetPasswordForEmployee } = require("../services/employeeAccountService");
+const { createLoginForEmployee, generateWorkEmail, resetPasswordForEmployee, syncLinkedUserPermissions } = require("../services/employeeAccountService");
 const { attachTranslationRoutes } = require("../utils/translationRoutes");
 const {
   generateAttestationTravail,
@@ -71,6 +72,38 @@ const {
 
 const canManage = (req, company) =>
   canAccessHRForCompany(req.user, company);
+
+// Employee.js has sparse-unique indexes on { company, cin } and
+// { company, cnssNumber } — correct for letting many employees
+// share "no CIN on file", but only if the field is genuinely ABSENT
+// from the document. `sparse` excludes documents where the field
+// doesn't exist at all; it does NOT exclude one that's explicitly
+// set to an empty string, which is exactly what a blank form field
+// submits. Two employees both saved with cnssNumber: "" collide on
+// the unique index exactly like two real duplicate numbers would
+// (E11000). Blank values for these fields need to become "not set"
+// (undefined, so Mongoose omits the key entirely), not "set to
+// empty string", before they ever reach the database — this is
+// applied on both create and update below.
+const SPARSE_UNIQUE_FIELDS = ["cin", "cnssNumber"];
+function sanitizeSparseUniqueFields(data) {
+  const sanitized = { ...data };
+  for (const field of SPARSE_UNIQUE_FIELDS) {
+    if (sanitized[field] === "") sanitized[field] = undefined;
+  }
+  return sanitized;
+}
+
+// Turns a raw MongoDB E11000 duplicate-key error into a message
+// that names the actual field that collided, instead of a generic
+// "employee number, CIN or CNSS number" guess — `err.keyPattern`
+// reliably says which unique index was violated.
+function duplicateKeyMessage(error) {
+  const field = Object.keys(error.keyPattern || {}).find((k) => k !== "company");
+  const FIELD_LABELS = { employeeNumber: "Employee number", cin: "CIN", cnssNumber: "CNSS number" };
+  const label = FIELD_LABELS[field] || "A field";
+  return `${label} is already used by another employee in this company.`;
+}
 
 // ======================================================
 // GET ALL EMPLOYEES
@@ -546,7 +579,7 @@ router.post(
           lastName,
           workEmail,
 
-          ...rest,
+          ...sanitizeSparseUniqueFields(rest),
 
           createdBy: req.user.id,
           updatedBy: req.user.id,
@@ -627,8 +660,7 @@ router.post(
       if (error.code === 11000) {
         return res.status(409).json({
           success: false,
-          message:
-            "Employee number, CIN or CNSS number already exists",
+          message: duplicateKeyMessage(error),
           error: error.message,
         });
       }
@@ -741,13 +773,42 @@ router.put(
 
       Object.assign(
         employee,
-        req.body
+        sanitizeSparseUniqueFields(req.body)
       );
+
+      // An explicit undefined from the sanitizer above only stops
+      // Object.assign from OVERWRITING the field with an empty
+      // string — Mongoose still needs to be told to actually clear
+      // an existing value when the field was blanked out in the
+      // form (e.g. removing a previously-entered CNSS number), or
+      // the stale old value would silently stick around.
+      for (const field of SPARSE_UNIQUE_FIELDS) {
+        if (req.body[field] === "") employee[field] = undefined;
+      }
 
       employee.updatedBy =
         req.user.id;
 
       await employee.save();
+
+      // A new job title or department can change what this person's
+      // login is allowed to do (module access follows the position —
+      // see employeeAccountService.computeInheritedPermissions), so
+      // re-derive it now rather than leaving it stale until someone
+      // re-saves their user account. Non-fatal: the employee update
+      // itself has already succeeded either way.
+      try {
+        // Someone moved OUT of a department they were managing stops
+        // managing it (Department.manager must belong to the
+        // department — see routes/departments.js).
+        await Department.updateMany(
+          { manager: employee._id, _id: { $ne: employee.department || null } },
+          { $set: { manager: null } }
+        );
+        await syncLinkedUserPermissions(employee);
+      } catch (syncError) {
+        console.error("Failed to sync linked user permissions:", syncError);
+      }
 
       // --------------------------------------------------
       // RESPONSE
@@ -783,8 +844,7 @@ router.put(
       if (error.code === 11000) {
         return res.status(409).json({
           success: false,
-          message:
-            "Employee number, CIN or CNSS number already exists",
+          message: duplicateKeyMessage(error),
           error: error.message,
         });
       }

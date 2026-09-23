@@ -1,56 +1,77 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 const Department = require("../models/Department");
+const JobPosition = require("../models/JobPosition");
 const { computeInheritedPermissions } = require("./employeeAccountService");
 
-describe("computeInheritedPermissions", () => {
-  beforeEach(() => {
-    vi.restoreAllMocks();
-  });
+function mockDepartment(permissionKey) {
+  vi.spyOn(Department, "findById").mockReturnValue({ select: () => Promise.resolve({ permissionKey }) });
+}
+function mockPosition(position) {
+  vi.spyOn(JobPosition, "findOne").mockReturnValue({ select: () => Promise.resolve(position) });
+}
 
-  it("inherits department + hrRole from an HR department employee with a canonical title", async () => {
-    vi.spyOn(Department, "findById").mockReturnValue({
-      select: () => Promise.resolve({ permissionKey: "hr" }),
-    });
+describe("computeInheritedPermissions — module access follows the POSITION, not just the department", () => {
+  beforeEach(() => vi.restoreAllMocks());
 
-    const result = await computeInheritedPermissions({ department: "hr-dept-id", jobTitle: "Directeur RH" });
-    expect(result.department).toBe("hr");
-    expect(result.hrRole).toBe("hr_director");
-  });
-
-  it("leaves hrRole unset for a non-canonical/legacy job title, without erroring", async () => {
-    vi.spyOn(Department, "findById").mockReturnValue({
-      select: () => Promise.resolve({ permissionKey: "hr" }),
-    });
-
-    const result = await computeInheritedPermissions({ department: "hr-dept-id", jobTitle: "Some Custom Legacy Title" });
-    expect(result.department).toBe("hr");
+  it("REGRESSION: a plain employee in Production (e.g. Machine Operator) gets NO module access — My Space only", async () => {
+    // Bug history: any employee in a department with a permissionKey
+    // inherited the whole module, so a machine operator saw
+    // Inventory simply for being in Production.
+    mockDepartment("production");
+    mockPosition({ grantsModuleAccess: false });
+    const result = await computeInheritedPermissions({ department: "d1", jobTitle: "Machine Operator" });
+    expect(result.department).toBeUndefined();
     expect(result.hrRole).toBeUndefined();
   });
 
-  it("never sets hrRole for a non-HR department, even if the job title text happens to match one of the 4 canonical titles", async () => {
-    vi.spyOn(Department, "findById").mockReturnValue({
-      select: () => Promise.resolve({ permissionKey: "production" }),
-    });
+  it("an employee whose title has no matching position at all also gets no module access", async () => {
+    mockDepartment("production");
+    mockPosition(null);
+    const result = await computeInheritedPermissions({ department: "d1", jobTitle: "Something Unlisted" });
+    expect(result.department).toBeUndefined();
+  });
 
-    const result = await computeInheritedPermissions({ department: "prod-dept-id", jobTitle: "Directeur RH" });
+  it("a position flagged grantsModuleAccess (e.g. Responsable de Production) unlocks the module", async () => {
+    mockDepartment("production");
+    mockPosition({ grantsModuleAccess: true });
+    const result = await computeInheritedPermissions({ department: "d1", jobTitle: "Responsable de Production" });
     expect(result.department).toBe("production");
     expect(result.hrRole).toBeUndefined();
   });
 
-  it("works with a populated department ref object, not just a plain ID", async () => {
-    vi.spyOn(Department, "findById").mockReturnValue({
-      select: () => Promise.resolve({ permissionKey: "hr" }),
-    });
-
-    const result = await computeInheritedPermissions({ department: { _id: "hr-dept-id" }, jobTitle: "Responsable RH" });
+  it("the 4 canonical HR titles always grant HR access with their exact tier, flag or not", async () => {
+    mockDepartment("hr");
+    mockPosition(null);
+    const result = await computeInheritedPermissions({ department: "d1", jobTitle: "Directeur RH" });
     expect(result.department).toBe("hr");
-    expect(result.hrRole).toBe("hr_manager");
+    expect(result.hrRole).toBe("hr_director");
   });
 
-  it("returns no department/hrRole when the employee has no department set", async () => {
-    const result = await computeInheritedPermissions({ department: null, jobTitle: "Anything" });
+  it("a flag-granted HR position with a custom title gets the LOWEST tier (least privilege), not full access", async () => {
+    mockDepartment("hr");
+    mockPosition({ grantsModuleAccess: true });
+    const result = await computeInheritedPermissions({ department: "d1", jobTitle: "Gestionnaire Paie" });
+    expect(result.department).toBe("hr");
+    expect(result.hrRole).toBe("hr_assistant");
+  });
+
+  it("a non-canonical, unflagged title in HR gets no HR access", async () => {
+    mockDepartment("hr");
+    mockPosition({ grantsModuleAccess: false });
+    const result = await computeInheritedPermissions({ department: "d1", jobTitle: "Stagiaire" });
     expect(result.department).toBeUndefined();
-    expect(result.hrRole).toBeUndefined();
+  });
+
+  it("a department with no permissionKey never grants a module, even with the flag set", async () => {
+    mockDepartment(null);
+    mockPosition({ grantsModuleAccess: true });
+    const result = await computeInheritedPermissions({ department: "d1", jobTitle: "Commercial" });
+    expect(result.department).toBeUndefined();
+  });
+
+  it("no department or no job title -> no module access", async () => {
+    expect((await computeInheritedPermissions({ department: null, jobTitle: "X" })).department).toBeUndefined();
+    expect((await computeInheritedPermissions({ department: "d1", jobTitle: "" })).department).toBeUndefined();
   });
 });

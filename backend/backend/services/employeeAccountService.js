@@ -2,6 +2,7 @@ const crypto = require("crypto");
 const User = require("../models/User");
 const Employee = require("../models/Employee");
 const Department = require("../models/Department");
+const JobPosition = require("../models/JobPosition");
 const { hrRoleForJobTitle } = require("../config/hrJobTitles");
 
 /**
@@ -81,12 +82,10 @@ function generateTemporaryPassword() {
  *     employee's Department.permissionKey — NOT the department
  *     reference itself, since Department is a company-defined
  *     record with no fixed meaning to the permission system.
- *   - `hrRole`: only set when department resolves to "hr" AND the
- *     employee's job title is one of the 4 canonical HR titles (see
- *     config/hrJobTitles.js) — a custom/legacy title simply leaves
- *     this unset rather than erroring, which correctly falls back
- *     to full "Responsable RH"-equivalent access (see hrRoleLevel
- *     in permissions/permissions.js).
+ *     Only granted when the employee's POSITION grants it — see the
+ *     function body for the exact rule.
+ *   - `hrRole`: the canonical HR title's tier, or hr_assistant for
+ *     a flag-granted custom HR position.
  *
  * Used both when a login is first created for an employee, and by
  * routes/users.js's update handler to keep an ALREADY-linked user's
@@ -95,16 +94,89 @@ function generateTemporaryPassword() {
  * edit on the Users page and let drift out of sync.
  */
 async function computeInheritedPermissions(employee) {
-  let permissionDepartment;
-  if (employee.department) {
-    const departmentId = employee.department._id || employee.department;
-    const department = await Department.findById(departmentId).select("permissionKey");
-    permissionDepartment = department?.permissionKey || undefined;
+  // Module access follows the employee's POSITION, not merely their
+  // department. Previously any employee in a department with a
+  // permissionKey got that whole module — a Machine Operator in
+  // Production could manage inventory, simply for being in
+  // Production. Now an employee only unlocks the module when their
+  // job title matches a JobPosition in that department flagged
+  // grantsModuleAccess (set per position on the Departments page).
+  // Everyone else gets no module department, i.e. My Space only.
+  //
+  // HR keeps one extra route in: the 4 canonical HR titles (see
+  // config/hrJobTitles.js) are HR staff by definition and always
+  // grant access with their matching tier, so existing HR setups
+  // keep working even if their positions predate the flag. A
+  // flag-granted HR position with a CUSTOM title gets the lowest
+  // tier (hr_assistant) — least privilege, rather than falling back
+  // to full Responsable-level authority.
+  if (!employee.department || !employee.jobTitle) return { department: undefined, hrRole: undefined };
+
+  const departmentId = employee.department._id || employee.department;
+  const department = await Department.findById(departmentId).select("permissionKey manager");
+  const permissionKey = department?.permissionKey || undefined;
+  if (!permissionKey) return { department: undefined, hrRole: undefined };
+
+  // The department's manager oversees the whole department: full
+  // module access at the top tier, whatever their job title is.
+  if (department.manager && employee._id && String(department.manager) === String(employee._id)) {
+    return { department: permissionKey, hrRole: permissionKey === "hr" ? "hr_director" : undefined };
   }
 
-  const hrRole = permissionDepartment === "hr" ? hrRoleForJobTitle(employee.jobTitle) : undefined;
+  const title = String(employee.jobTitle).trim();
+  const position = await JobPosition.findOne({ department: departmentId, title }).select("grantsModuleAccess");
+  const flagged = !!position?.grantsModuleAccess;
 
-  return { department: permissionDepartment, hrRole };
+  if (permissionKey === "hr") {
+    const canonicalRole = hrRoleForJobTitle(title);
+    if (!canonicalRole && !flagged) return { department: undefined, hrRole: undefined };
+    return { department: "hr", hrRole: canonicalRole || "hr_assistant" };
+  }
+
+  return flagged ? { department: permissionKey, hrRole: undefined } : { department: undefined, hrRole: undefined };
+}
+
+/**
+ * Re-applies computeInheritedPermissions to the login linked to
+ * `employee`, if there is one. Call after anything that can change
+ * what an employee's account should be allowed to do — a new job
+ * title or department on the employee, or a position's
+ * grantsModuleAccess switch being flipped — so the change takes
+ * effect immediately (middleware/auth.js reads permissions fresh on
+ * every request) instead of waiting for someone to re-save the user
+ * on the Users page. No-op for employees without a login. Returns
+ * true if the user's permissions actually changed.
+ */
+async function syncLinkedUserPermissions(employee) {
+  const user = await User.findOne({ employee: employee._id });
+  if (!user) return false;
+
+  const { department, hrRole } = await computeInheritedPermissions(employee);
+  if (user.department === department && user.hrRole === hrRole) return false;
+
+  user.department = department;
+  user.hrRole = hrRole;
+  await user.save();
+  return true;
+}
+
+/**
+ * Re-syncs every linked login holding a given position — used when a
+ * position's grantsModuleAccess switch or title changes.
+ * `titles` may include both the old and new title on a rename.
+ */
+async function resyncUsersForPosition(departmentId, titles) {
+  const uniqueTitles = [...new Set(titles.filter(Boolean).map((t) => String(t).trim()))];
+  if (uniqueTitles.length === 0) return 0;
+
+  const employees = await Employee.find({ department: departmentId, jobTitle: { $in: uniqueTitles } })
+    .select("_id department jobTitle");
+  let changed = 0;
+  for (const employee of employees) {
+    // eslint-disable-next-line no-await-in-loop
+    if (await syncLinkedUserPermissions(employee)) changed += 1;
+  }
+  return changed;
 }
 
 /**
@@ -188,6 +260,8 @@ module.exports = {
   createLoginForEmployee,
   resetPasswordForEmployee,
   computeInheritedPermissions,
+  syncLinkedUserPermissions,
+  resyncUsersForPosition,
   generateTemporaryPassword,
   generateWorkEmail,
 };

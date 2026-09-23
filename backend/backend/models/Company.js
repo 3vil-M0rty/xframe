@@ -319,6 +319,26 @@ const companySchema = new mongoose.Schema(
     },
 
     // =========================================================
+    // WORKFLOW SETTINGS
+    // =========================================================
+
+    settings: {
+      // When true, an absence/advance request needs the employee's
+      // line manager to approve it FIRST, then a Responsable-RH-tier
+      // (or higher) HR reviewer to give final approval — instead of
+      // either one being able to decide alone, whichever gets there
+      // first. Off by default: smaller teams often find the extra
+      // step unnecessary friction. See routes/absences.js and
+      // routes/advances.js's review endpoints for the state machine
+      // this drives, and permissions/permissions.js's reviewerRole
+      // for how a reviewer's capacity (manager vs HR) is determined.
+      requireSequentialApproval: {
+        type: Boolean,
+        default: false,
+      },
+    },
+
+    // =========================================================
     // FISCAL / ACCOUNTING SETTINGS
     // =========================================================
 

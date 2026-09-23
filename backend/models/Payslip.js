@@ -53,6 +53,10 @@ const payslipSchema = new mongoose.Schema(
     allowances: [lineItemSchema],
     allowanceTotal: { type: Number, default: 0 },
     overtimeAmount: { type: Number, default: 0 },
+    // Premium for public holidays (jours fériés) worked — see
+    // services/payrollAttendanceService.js.
+    holidayAmount: { type: Number, default: 0 },
+    holidayHours: { type: Number, default: 0 },
     unpaidDeduction: { type: Number, default: 0 },
     grossSalary: { type: Number, required: true },
 

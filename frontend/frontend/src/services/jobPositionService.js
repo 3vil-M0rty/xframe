@@ -21,3 +21,10 @@ export const deleteJobPosition = async (id) => {
   const response = await api.delete(`/job-positions/${id}`);
   return response.data;
 };
+
+// Turn a position's module access on/off — allowed for admin/owner
+// and for the manager of that position's department.
+export const setPositionAccess = async (id, grantsModuleAccess) => {
+  const response = await api.patch(`/job-positions/${id}/access`, { grantsModuleAccess });
+  return response.data;
+};

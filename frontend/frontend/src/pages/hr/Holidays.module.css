@@ -1,0 +1,129 @@
+.headerActions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.headerActions button {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 12px;
+    margin-bottom: 10px;
+}
+
+.toolbar :global(.filterGroup) {
+    min-width: 180px;
+}
+
+.hint {
+    margin: 0 0 16px;
+    max-width: 820px;
+    font-size: 0.8rem;
+    line-height: 1.5;
+    color: var(--color-text-secondary);
+}
+
+.notice {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 14px;
+    padding: 10px 14px;
+    font-size: 0.82rem;
+    color: #4cc38a;
+    background: rgba(76, 195, 138, 0.08);
+    border: 1px solid rgba(76, 195, 138, 0.25);
+    border-radius: 8px;
+}
+
+.addForm {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 16px;
+    padding: 12px;
+    border: 1px solid var(--color-border);
+    border-radius: 10px;
+}
+
+.dateInput {
+    padding: 8px 10px;
+    color-scheme: dark;
+}
+
+.nameInput {
+    flex: 1 1 220px;
+    padding: 8px 10px;
+}
+
+.preview {
+    margin-bottom: 20px;
+    padding: 14px;
+    border: 1px solid #3b82f6;
+    border-radius: 12px;
+    background: rgba(59, 130, 246, 0.04);
+}
+
+.previewHeader {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 10px;
+    font-size: 0.86rem;
+}
+
+.previewGood {
+    color: #4cc38a;
+    font-size: 0.8rem;
+}
+
+.previewBad {
+    color: #fca5a5;
+    font-size: 0.8rem;
+}
+
+.preview :global(.dataTableRow)[data-error="true"] {
+    background: rgba(248, 113, 113, 0.06);
+}
+
+.rowError {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 0.76rem;
+    color: #fca5a5;
+}
+
+.rowWarning {
+    font-size: 0.76rem;
+    color: #e8b93f;
+}
+
+.previewActions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 12px;
+}
+
+.dateCell {
+    text-transform: capitalize;
+}
+
+.switchCell {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.8rem;
+    color: var(--color-text-secondary);
+    cursor: pointer;
+}

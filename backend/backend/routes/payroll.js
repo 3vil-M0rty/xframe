@@ -164,6 +164,7 @@ async function generateRun({ company, month, year, actorId, existingRun }) {
       deductions: adjustments.otherDeductions,
       numberOfDependents: employee.numberOfDependents || 0,
       overtimeAmount: adjustments.overtimeAmount,
+      holidayAmount: adjustments.holidayAmount,
       unpaidDeduction: adjustments.unpaidDeduction,
     });
 
@@ -178,6 +179,8 @@ async function generateRun({ company, month, year, actorId, existingRun }) {
       allowances: calc.allowances,
       allowanceTotal: calc.allowanceTotal,
       overtimeAmount: calc.overtimeAmount,
+      holidayAmount: calc.holidayAmount,
+      holidayHours: adjustments.holidayHours,
       unpaidDeduction: calc.unpaidDeduction,
       grossSalary: calc.grossSalary,
       cnssEmployee: calc.cnssEmployee,

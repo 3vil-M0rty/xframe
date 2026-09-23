@@ -143,3 +143,21 @@ export function canDeleteUser(actor, targetUser) {
 
   return false;
 }
+
+/**
+ * Manages at least one department (Department.manager). The backend
+ * sends this as `managedDepartments` on /users/me — see
+ * middleware/auth.js. Gates the "My department" page.
+ */
+export function isDepartmentManager(actor) {
+  return Array.isArray(actor?.managedDepartments) && actor.managedDepartments.length > 0;
+}
+
+/**
+ * Can open the department oversight page. Admins oversee every
+ * department; owners every department of their own companies;
+ * department managers their own. Mirrors GET /departments/managed.
+ */
+export function canOverseeDepartments(actor) {
+  return isAdmin(actor) || isOwner(actor) || isDepartmentManager(actor);
+}

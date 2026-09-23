@@ -17,6 +17,7 @@ import {
 
 import CollapsibleForm from "../../components/useful/CollapsibleForm";
 import ActionModal from "../../components/useful/ActionModal";
+import CompanyWorkflowSettings from "../../components/CompanyWorkflowSettings";
 
 import styles from "./Company.module.css";
 
@@ -1214,6 +1215,12 @@ export default function Company() {
 
         </div>
       )}
+
+      {/* ==================================
+          WORKFLOW SETTINGS (sequential approval toggle)
+          ================================== */}
+
+      {company && !mode && <CompanyWorkflowSettings company={company} />}
 
       {/* ==================================
           ACTION MODAL

@@ -12,9 +12,15 @@ export const clockOut = async () => {
   return response.data.data;
 };
 
+// Today's record plus the day's schedule shape (continuous or split)
+// and which punch comes next — see routes/attendance.js GET /today.
 export const getTodayAttendance = async () => {
   const response = await api.get("/attendance/today");
-  return response.data.data;
+  return {
+    record: response.data.data,
+    schedule: response.data.schedule || null,
+    nextPunch: response.data.nextPunch ?? null,
+  };
 };
 
 // ---------- HR view ----------

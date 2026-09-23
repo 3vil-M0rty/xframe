@@ -14,7 +14,9 @@
 .daysHead,
 .dayRow {
     display: grid;
-    grid-template-columns: 1.1fr 1.1fr 1.2fr 1fr 1fr;
+    /* set per shift type from WorkSchedule.jsx; the mobile media
+       query below still overrides it with a single column */
+    grid-template-columns: var(--day-columns, 1.1fr 1.1fr 1.2fr 1fr 1fr);
     align-items: center;
     gap: 14px;
     padding: 14px 18px;
@@ -215,4 +217,106 @@
         grid-template-columns: 1fr;
         gap: 8px;
     }
+}
+
+/* ---------- shift type (continuous / split) ---------- */
+.shiftTypeBar {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px 14px;
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--color-border);
+}
+
+.shiftTypeLabel {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--color-text-primary);
+}
+
+.segmented {
+    display: inline-flex;
+    padding: 3px;
+    border: 1px solid var(--color-border);
+    border-radius: 10px;
+    background: var(--color-bg-secondary, rgba(255, 255, 255, 0.03));
+}
+
+.segment,
+.segmentActive {
+    padding: 6px 14px;
+    font-size: 0.8rem;
+    font-weight: 500;
+    border: none;
+    border-radius: 7px;
+    cursor: pointer;
+    transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.segment {
+    color: var(--color-text-secondary);
+    background: transparent;
+}
+
+.segment:hover {
+    color: var(--color-text-primary);
+}
+
+.segmentActive {
+    color: #fff;
+    background: #3b82f6;
+}
+
+.shiftTypeHint {
+    flex-basis: 100%;
+    font-size: 0.76rem;
+    line-height: 1.45;
+    color: var(--color-text-tertiary);
+}
+
+/* ---------- day rows ---------- */
+.timeInput {
+    box-sizing: border-box;
+    width: 100%;
+    max-width: 120px;
+    padding: 6px 8px;
+    font-size: 0.82rem;
+    color-scheme: dark;
+}
+
+.timeInput:disabled {
+    opacity: 0.4;
+}
+
+.dayRow[data-invalid="true"] .timeInput {
+    border-color: #f87171;
+}
+
+.applyAll {
+    display: block;
+    margin-top: 3px;
+    padding: 0;
+    font-size: 0.7rem;
+    color: #6ea8fe;
+    background: none;
+    border: none;
+    cursor: pointer;
+    text-align: left;
+}
+
+.applyAll:hover {
+    text-decoration: underline;
+}
+
+.hoursValue {
+    font-size: 0.84rem;
+    font-weight: 600;
+    color: var(--color-text-primary);
+}
+
+.hoursInvalid {
+    font-size: 0.76rem;
+    font-weight: 600;
+    color: #fca5a5;
 }

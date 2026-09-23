@@ -15,7 +15,11 @@ const { logAudit } = require("../services/auditLogger");
 const { attachTranslationRoutes } = require("../utils/translationRoutes");
 const { notify } = require("../services/notificationService");
 
-router.use(auth, requireHRAccess);
+// Only login is required at the router level — requireHRAccess is
+// applied per-route below instead of globally, so /mine and
+// /:id/acknowledge stay reachable by any logged-in employee. See
+// the identical fix and reasoning in routes/performanceReviews.js.
+router.use(auth);
 
 const canManage = (req, company) => canAccessHRForCompany(req.user, company);
 
@@ -28,11 +32,40 @@ const canManage = (req, company) => canAccessHRForCompany(req.user, company);
 const canManageDiscipline = canApproveHRRequests;
 
 // ======================================================
+// MY RECORDS (self-service)
+// GET /api/disciplinary-actions/mine
+// ======================================================
+// Registered before GET /:id below, for the same route-ordering
+// reason as performanceReviews.js's /mine. No requireHRAccess here
+// — any logged-in user linked to an employee can see their own
+// record. Unlike performance reviews there's no "draft" concept
+// here to filter out — a disciplinary action is real the moment
+// it's created, which is exactly why write access to this resource
+// is gated at Responsable RH and above (see canManageDiscipline).
+
+router.get("/mine", async (req, res) => {
+  try {
+    if (!req.user.employee) {
+      return res.json({ success: true, data: [] });
+    }
+
+    const actions = await DisciplinaryAction.find({ employee: req.user.employee })
+      .populate("issuedBy", "firstName lastName")
+      .sort({ date: -1 });
+
+    res.json({ success: true, data: actions });
+  } catch (error) {
+    console.error("GET my disciplinary actions error:", error);
+    res.status(500).json({ success: false, message: "Error fetching your records", error: error.message });
+  }
+});
+
+// ======================================================
 // GET ALL DISCIPLINARY ACTIONS
 // GET /api/disciplinary-actions?companyId=&employeeId=&page=&limit=
 // ======================================================
 
-router.get("/", async (req, res) => {
+router.get("/", requireHRAccess, async (req, res) => {
   try {
     const { companyId, employeeId, page = 1, limit = 20 } = req.query;
     if (!companyId || !mongoose.Types.ObjectId.isValid(companyId)) {
@@ -75,7 +108,7 @@ router.get("/", async (req, res) => {
 // GET /api/disciplinary-actions/:id
 // ======================================================
 
-router.get("/:id", async (req, res) => {
+router.get("/:id", requireHRAccess, async (req, res) => {
   try {
     if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
       return res.status(400).json({ success: false, message: "Invalid ID" });
@@ -101,7 +134,7 @@ router.get("/:id", async (req, res) => {
 // POST /api/disciplinary-actions
 // ======================================================
 
-router.post("/", async (req, res) => {
+router.post("/", requireHRAccess, async (req, res) => {
   try {
     const { company, employee, type, date, reason, description, suspensionDays, issuedBy, notes } = req.body;
 
@@ -151,7 +184,7 @@ router.post("/", async (req, res) => {
         type: "other",
         title: "New record on file",
         message: "A new record has been added to your HR file. Contact HR for details.",
-        link: "/me",
+        link: "/me/records",
       });
     }
 
@@ -167,7 +200,7 @@ router.post("/", async (req, res) => {
 // PUT /api/disciplinary-actions/:id
 // ======================================================
 
-router.put("/:id", async (req, res) => {
+router.put("/:id", requireHRAccess, async (req, res) => {
   try {
     if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
       return res.status(400).json({ success: false, message: "Invalid ID" });
@@ -232,7 +265,7 @@ router.patch("/:id/acknowledge", async (req, res) => {
 // DELETE /api/disciplinary-actions/:id
 // ======================================================
 
-router.delete("/:id", async (req, res) => {
+router.delete("/:id", requireHRAccess, async (req, res) => {
   try {
     if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
       return res.status(400).json({ success: false, message: "Invalid ID" });

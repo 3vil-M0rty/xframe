@@ -268,13 +268,32 @@ function isOwnEmployeeRecord(actor, employeeId) {
  *   populated) once it's been fetched — this function doesn't hit
  *   the database itself.
  */
+/**
+ * True when `actor` manages the department `requestingEmployee`
+ * belongs to (Department.manager — see middleware/auth.js, which
+ * loads actor.managedDepartments). Never true for the actor's OWN
+ * request: overseeing a department must not mean approving your own
+ * absence or advance.
+ */
+function isDepartmentManagerOf(actor, requestingEmployee) {
+  if (!requestingEmployee?.department || !Array.isArray(actor?.managedDepartments)) return false;
+  if (sameId(actor.employee, requestingEmployee._id)) return false;
+  const departmentId = requestingEmployee.department._id || requestingEmployee.department;
+  return actor.managedDepartments.some((id) => sameId(id, departmentId));
+}
+
+/** The requester's direct line manager (Employee.manager). */
+function isLineManagerOf(actor, requestingEmployee) {
+  return !!requestingEmployee?.manager && sameId(actor.employee, requestingEmployee.manager);
+}
+
 function canReviewRequest(actor, company, requestingEmployee) {
   if (isAdmin(actor)) return true;
   if (isOwner(actor)) return sameId(company?.owner, actor.id);
   if (canApproveHRRequests(actor)) return true;
 
-  if (canSelfService(actor) && requestingEmployee?.manager) {
-    return sameId(actor.employee, requestingEmployee.manager);
+  if (canSelfService(actor)) {
+    return isLineManagerOf(actor, requestingEmployee) || isDepartmentManagerOf(actor, requestingEmployee);
   }
 
   return false;
@@ -282,6 +301,33 @@ function canReviewRequest(actor, company, requestingEmployee) {
 
 const canReviewAbsence = canReviewRequest;
 const canReviewAdvance = canReviewRequest;
+
+/**
+ * Distinguishes WHICH capacity a reviewer is acting in — canReviewRequest
+ * above only answers "can this actor review this request at all", not
+ * "as the manager, or as HR". The sequential-approval workflow
+ * (Company.settings.requireSequentialApproval — see models/Company.js)
+ * needs that distinction to decide the resulting status. Returns
+ * "hr", "manager", or null (not authorized to review at all — exactly
+ * mirrors canReviewRequest's false case). Admin/owner act with
+ * HR-equivalent final authority, same as everywhere else in this
+ * module. If someone happens to be BOTH the requester's line manager
+ * AND HR-tier-or-above, "hr" wins — the stronger authority takes
+ * precedence rather than forcing them through the manager step first.
+ */
+function reviewerRole(actor, company, requestingEmployee) {
+  if (isAdmin(actor)) return "hr";
+  if (isOwner(actor)) return sameId(company?.owner, actor.id) ? "hr" : null;
+  if (canApproveHRRequests(actor)) return "hr";
+
+  if (canSelfService(actor)) {
+    return isLineManagerOf(actor, requestingEmployee) || isDepartmentManagerOf(actor, requestingEmployee)
+      ? "manager"
+      : null;
+  }
+
+  return null;
+}
 
 // ------------------------------------------------------------
 // COMPANIES
@@ -438,6 +484,8 @@ module.exports = {
   canReviewRequest,
   canReviewAbsence,
   canReviewAdvance,
+  reviewerRole,
+  isDepartmentManagerOf,
   canCreateCompany,
   canManageCompany,
   canDeleteCompany,

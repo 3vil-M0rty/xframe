@@ -103,10 +103,18 @@ const absenceSchema = new mongoose.Schema(
         // =========================================================
         // WORKFLOW
         // =========================================================
+        // "manager_approved" is an intermediate state used only when
+        // Company.settings.requireSequentialApproval is on: the
+        // employee's line manager has signed off, but it isn't
+        // final until a Responsable-RH-tier (or higher) HR reviewer
+        // also approves. When sequential approval is off, this
+        // status is never used — a review goes straight from
+        // "pending" to "accepted"/"rejected" as before. See
+        // routes/absences.js's /:id/review for the state machine.
 
         status: {
             type: String,
-            enum: ["pending", "accepted", "rejected"],
+            enum: ["pending", "manager_approved", "accepted", "rejected"],
             default: "pending",
             index: true,
         },

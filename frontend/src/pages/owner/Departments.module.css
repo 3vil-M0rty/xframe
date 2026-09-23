@@ -1,7 +1,16 @@
 .toolbar {
     display: flex;
+    flex-wrap: wrap;
+    /* the company select has a label above it and the search bar
+       doesn't — aligning on the bottom edge puts both controls on
+       the same line */
+    align-items: flex-end;
+    gap: 12px;
     margin-bottom: 20px;
-    max-width: 320px;
+}
+
+.toolbar :global(.filterGroup) {
+    min-width: 220px;
 }
 
 .errorMessage {
@@ -295,4 +304,58 @@
     .defaultsList {
         grid-template-columns: 1fr;
     }
+}
+
+/* Position form: "grants module access" switch */
+.accessToggle {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    cursor: pointer;
+}
+
+.accessToggle input {
+    flex-shrink: 0;
+}
+
+.accessToggle span {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.accessToggle strong {
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--color-text-primary);
+}
+
+.accessToggle small {
+    font-size: 0.74rem;
+    line-height: 1.4;
+    color: var(--color-text-secondary);
+}
+
+.positionTitleCell {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.fieldHint {
+    font-size: 0.72rem;
+    line-height: 1.4;
+    color: var(--color-text-tertiary);
+}
+
+.deptManager {
+    padding: 2px 8px;
+    font-size: 0.72rem;
+    color: var(--color-text-secondary);
+    border: 1px solid var(--color-border);
+    border-radius: 999px;
 }

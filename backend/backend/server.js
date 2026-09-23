@@ -1,7 +1,9 @@
 const path = require('path');
 const express = require('express');
 const mongoose = require('mongoose');
+const { syncEmployeeIndexes } = require('./utils/syncEmployeeIndexes');
 const cors = require('cors');
+const compression = require('compression');
 
 // Load .env from THIS file's directory explicitly, rather than
 // relying on `dotenv`'s default (the process's current working
@@ -58,10 +60,18 @@ const productRoutes = require("./routes/products");
 const purchaseRequestRoutes = require("./routes/purchaseRequests");
 const performanceReviewRoutes = require("./routes/performanceReviews");
 const disciplinaryActionRoutes = require("./routes/disciplinaryActions");
+const holidayRoutes = require("./routes/holidays");
 
 const app = express();
 
 // Middleware
+// gzip/brotli-compresses every JSON response before it goes over
+// the wire — free bandwidth/latency win on every request, not just
+// initial page load, since API responses (employee lists, payroll
+// runs, reports) are plain JSON and compress very well. Placed
+// before express.json() so it also covers static/other middleware
+// output, not just the API routes below.
+app.use(compression());
 app.use(express.json());
 
 // ------------------------------------------------------------
@@ -84,16 +94,42 @@ function startScheduledJobs() {
 // Connect to MongoDB
 mongoose
   .connect(process.env.MONGODB_URI)
-  .then(() => {
+  .then(async () => {
     console.log('✓ Connected to MongoDB');
+    await syncEmployeeIndexes();
     startScheduledJobs();
   })
   .catch(err => console.error('MongoDB connection error:', err));
 
 const cookieParser = require('cookie-parser');
 app.use(cookieParser());
+
+// CORS_ORIGINS is a comma-separated list, e.g.
+// "https://your-app.vercel.app,https://your-app-git-preview.vercel.app".
+// FRONTEND_URL (a single URL) is also supported as a fallback — it
+// was already documented in .env.example for exactly this purpose,
+// but nothing actually read it before now; this line is what
+// finally makes it do something. Defaults to the local Vite dev
+// server so nothing changes for local development without a .env —
+// this only needs setting once the frontend is actually deployed
+// somewhere other than localhost. Requests with no Origin header at
+// all (server-to-server calls, curl, health checks) are always
+// allowed through, since CORS is a browser-enforced concept —
+// there's nothing to protect against for a request that was never
+// going to carry a browser's cookies in the first place.
+const allowedOrigins = (process.env.CORS_ORIGINS || process.env.FRONTEND_URL || 'http://localhost:5173')
+  .split(',')
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+
 app.use(cors({
-  origin: 'http://localhost:5173',
+  origin: (origin, callback) => {
+    if (!origin || allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+    console.warn(`CORS: rejected request from origin "${origin}" — not in CORS_ORIGINS`);
+    return callback(new Error('Not allowed by CORS'));
+  },
   credentials: true  // ← Important!
 }));
 
@@ -129,6 +165,7 @@ app.use("/api/products", productRoutes);
 app.use("/api/purchase-requests", purchaseRequestRoutes);
 app.use("/api/performance-reviews", performanceReviewRoutes);
 app.use("/api/disciplinary-actions", disciplinaryActionRoutes);
+app.use("/api/holidays", holidayRoutes);
 
 // Health check
 app.get('/health', (req, res) => {

@@ -7,6 +7,7 @@ const Absence = require("../models/Absence");
 const Employee = require("../models/Employee");
 const Company = require("../models/Company");
 const User = require("../models/User");
+const Department = require("../models/Department");
 
 const auth = require("../middleware/auth");
 const { requireHRAccess } = require("../middleware/permissionMiddleware");
@@ -15,9 +16,10 @@ const { findMatchingEmployeeIds } = require("../utils/employeeSearch");
 const {
   canAccessHRForCompany,
   canReviewAbsence,
+  reviewerRole,
 } = require("../permissions/permissions");
 const { logAudit } = require("../services/auditLogger");
-const { notify } = require("../services/notificationService");
+const { notify, notifyMany, getHRRecipientIds } = require("../services/notificationService");
 
 // Only auth at the router level now — the review endpoint needs to
 // also allow a requester's manager through (see canReviewAbsence),
@@ -453,6 +455,26 @@ router.put("/:id", requireHRAccess, async (req, res) => {
 // PATCH /api/absences/:id/review
 // body: { status: "accepted" | "rejected", reviewComment? }
 // ======================================================
+// Two workflows live in this one endpoint, chosen by
+// company.settings.requireSequentialApproval:
+//
+// SEQUENTIAL OFF (default) — unchanged from before: whichever
+// authorized reviewer (the line manager OR an HR approver) acts
+// first sets the FINAL status directly.
+//
+// SEQUENTIAL ON — a two-step chain, enforced by reviewerRole (see
+// permissions/permissions.js) telling us WHICH capacity the current
+// reviewer is acting in:
+//   pending -> [manager approves] -> manager_approved -> [HR approves] -> accepted
+//   pending -> [either rejects]   -> rejected (rejection always short-circuits the chain)
+// A manager can't act again once they've already approved (it's
+// HR's turn), and HR can't skip straight to a final approval before
+// the manager has — though HR CAN still reject directly from
+// "pending", since rejecting doesn't need the manager's sign-off.
+// If the employee has no manager on file, sequential mode falls
+// back to the single-step behavior for that request — there's no
+// one to perform the manager step, so requiring it would make the
+// request unreviewable by anyone.
 
 router.patch("/:id/review", async (req, res) => {
   try {
@@ -463,9 +485,9 @@ router.patch("/:id/review", async (req, res) => {
       });
     }
 
-    const { status, reviewComment } = req.body;
+    const { status: requestedStatus, reviewComment } = req.body;
 
-    if (!["accepted", "rejected"].includes(status)) {
+    if (!["accepted", "rejected"].includes(requestedStatus)) {
       return res.status(400).json({
         success: false,
         message: 'status must be "accepted" or "rejected"',
@@ -474,7 +496,7 @@ router.patch("/:id/review", async (req, res) => {
 
     const absence = await Absence.findById(req.params.id)
       .populate("company")
-      .populate("employee", "firstName lastName manager");
+      .populate("employee", "firstName lastName manager department");
 
     if (!absence) {
       return res.status(404).json({
@@ -490,9 +512,57 @@ router.patch("/:id/review", async (req, res) => {
       });
     }
 
+    if (!["pending", "manager_approved"].includes(absence.status)) {
+      return res.status(400).json({
+        success: false,
+        message: "This request has already been reviewed",
+      });
+    }
+
+    // The manager step can be performed by the employee's line manager
+    // OR their department's manager (as long as that isn't the
+    // employee themself) — with neither, fall back to single-step.
+    const absenceDepartment = absence.employee.department
+      ? await Department.findById(absence.employee.department).select("manager").lean()
+      : null;
+    const hasManagerStep =
+      !!absence.employee.manager ||
+      (!!absenceDepartment?.manager && String(absenceDepartment.manager) !== String(absence.employee._id));
+    const sequential = !!absence.company.settings?.requireSequentialApproval && hasManagerStep;
+    const capacity = reviewerRole(req.user, absence.company, absence.employee);
+
+    let newStatus = requestedStatus;
+    let isFinal = true;
+
+    if (sequential && requestedStatus === "accepted") {
+      if (absence.status === "pending") {
+        if (capacity !== "manager") {
+          return res.status(400).json({
+            success: false,
+            message: "This request needs the employee's manager to approve it first",
+          });
+        }
+        newStatus = "manager_approved";
+        isFinal = false;
+      } else {
+        // status === "manager_approved" here (the only other value
+        // this route reaches with, per the check above)
+        if (capacity !== "hr") {
+          return res.status(400).json({
+            success: false,
+            message: "The manager has already approved this request — it's now awaiting HR's final approval",
+          });
+        }
+        newStatus = "accepted";
+      }
+    }
+    // Rejection (sequential or not) and non-sequential acceptance
+    // both go straight to their requested final status — no
+    // additional gating beyond the canReviewAbsence check above.
+
     const before = absence.toObject();
 
-    absence.status = status;
+    absence.status = newStatus;
     absence.reviewComment = reviewComment;
     absence.reviewedBy = req.user.id;
     absence.reviewedAt = new Date();
@@ -514,21 +584,35 @@ router.patch("/:id/review", async (req, res) => {
       after: absence.toObject(),
     });
 
-    // Notify the employee (if they have a linked User account).
-    const requesterUser = await User.findOne({ employee: absence.employee._id }).select("_id");
-    if (requesterUser) {
-      await notify(requesterUser._id, {
-        type: "absence_reviewed",
-        title: status === "accepted" ? "Absence request accepted" : "Absence request rejected",
-        message: reviewComment || undefined,
-        link: "/me/absences",
+    if (newStatus === "manager_approved") {
+      // Not a final decision — tell HR it's their turn instead of
+      // notifying the employee (see below for that, which only
+      // fires on a genuinely final accepted/rejected).
+      const hrRecipientIds = await getHRRecipientIds(absence.company);
+      await notifyMany(hrRecipientIds, {
+        type: "absence_pending",
+        title: "Absence request awaiting your approval",
+        message: `${absence.employee.firstName} ${absence.employee.lastName}'s manager has approved — final HR approval needed.`,
+        link: "/hr/absences",
       });
+    } else {
+      // Notify the employee (if they have a linked User account) —
+      // only for a final accepted/rejected outcome.
+      const requesterUser = await User.findOne({ employee: absence.employee._id }).select("_id");
+      if (requesterUser) {
+        await notify(requesterUser._id, {
+          type: "absence_reviewed",
+          title: newStatus === "accepted" ? "Absence request accepted" : "Absence request rejected",
+          message: reviewComment || undefined,
+          link: "/me/absences",
+        });
+      }
     }
 
     res.json({
       success: true,
       data: populated,
-      message: `Absence ${status} successfully`,
+      message: `Absence ${newStatus} successfully`,
     });
   } catch (error) {
     console.error("PATCH absence review error:", error);

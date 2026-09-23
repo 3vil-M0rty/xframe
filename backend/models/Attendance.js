@@ -40,6 +40,14 @@ const attendanceSchema = new mongoose.Schema(
 
     clockIn: { type: Date, default: null },
     clockOut: { type: Date, default: null },
+    // Split-shift days only (WorkSchedule day splitShift): the midday
+    // clock-out and clock-in, between clockIn and clockOut.
+    breakOut: { type: Date, default: null },
+    breakIn: { type: Date, default: null },
+    // Public holiday (jour férié) worked time, and the rate it's paid
+    // at (2 = double, 1 = normal) — see services/attendanceCalc.js.
+    holidayMinutes: { type: Number, default: 0 },
+    holidayPayRate: { type: Number, default: null },
 
     status: {
       type: String,

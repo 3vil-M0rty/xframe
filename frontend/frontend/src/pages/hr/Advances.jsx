@@ -480,6 +480,7 @@ export default function Advances() {
             options={[
               { value: "", label: t("advances.filters.allStatuses") },
               { value: "pending", label: t("advances.status.pending") },
+              { value: "manager_approved", label: t("advances.status.manager_approved") },
               { value: "accepted", label: t("advances.status.accepted") },
               { value: "rejected", label: t("advances.status.rejected") },
             ]}
@@ -576,7 +577,7 @@ export default function Advances() {
                 />
 
                 <div className="dataTableActions">
-                  {advance.status === "pending" && (
+                  {["pending", "manager_approved"].includes(advance.status) && (
                     <>
                       <button
                         type="button"

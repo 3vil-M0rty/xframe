@@ -156,6 +156,9 @@ function generatePayslipPdf({ payslip, employee, company, ytdGross = 0, ytdNet =
   for (const item of payslip.allowances || []) {
     tableRow(item.label, "", formatAmount(item.amount));
   }
+  if (payslip.holidayAmount > 0) {
+    tableRow("Jours fériés travaillés", payslip.holidayHours ? `${payslip.holidayHours} h` : "", formatAmount(payslip.holidayAmount));
+  }
   if (payslip.overtimeAmount > 0) {
     tableRow("Heures supplémentaires", "", formatAmount(payslip.overtimeAmount));
   }

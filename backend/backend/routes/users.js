@@ -28,9 +28,12 @@ router.get("/me", auth, async (req, res) => {
       });
     }
 
+    // managedDepartments comes from the auth middleware (see
+    // middleware/auth.js) — the frontend uses it to show the
+    // "My department" page to department managers.
     res.json({
       success: true,
-      data: user,
+      data: { ...user.toObject(), managedDepartments: req.user.managedDepartments || [] },
     });
   } catch (error) {
     res.status(500).json({

@@ -11,6 +11,8 @@ import {
   Plus,
   X,
   Download,
+  ClipboardList,
+  ShieldAlert,
 } from "lucide-react";
 
 import { useI18n } from "../../hooks/useI18n";
@@ -42,6 +44,8 @@ import {
 } from "../../services/attendanceService";
 import { reviewAbsence } from "../../services/absenceService";
 import { reviewAdvance } from "../../services/advanceService";
+import { getMyPerformanceReviews, acknowledgePerformanceReview } from "../../services/performanceReviewService";
+import { getMyDisciplinaryActions, acknowledgeDisciplinaryAction } from "../../services/disciplinaryActionService";
 
 import styles from "./MySpace.module.css";
 
@@ -62,7 +66,7 @@ function formatAmount(amount, currency = "MAD") {
   return `${Number(amount).toLocaleString("en-US")} ${currency}`;
 }
 
-const TABS = ["profile", "payslips", "absences", "advances", "attendance"];
+const TABS = ["profile", "payslips", "absences", "advances", "attendance", "records"];
 
 export default function MySpace() {
   const { t } = useI18n();
@@ -115,6 +119,9 @@ export default function MySpace() {
         <button type="button" className={`${styles.tab} ${activeTab === "attendance" ? styles.tabActive : ""}`} onClick={() => goToTab("attendance")}>
           <Clock size={14} /> {t("mySpace.tabs.attendance")}
         </button>
+        <button type="button" className={`${styles.tab} ${activeTab === "records" ? styles.tabActive : ""}`} onClick={() => goToTab("records")}>
+          <ClipboardList size={14} /> {t("mySpace.tabs.records")}
+        </button>
       </div>
 
       {activeTab === "profile" && <ProfileTab t={t} />}
@@ -122,6 +129,7 @@ export default function MySpace() {
       {activeTab === "absences" && <AbsencesTab t={t} />}
       {activeTab === "advances" && <AdvancesTab t={t} />}
       {activeTab === "attendance" && <AttendanceTab t={t} />}
+      {activeTab === "records" && <RecordsTab t={t} />}
     </div>
   );
 }
@@ -482,7 +490,7 @@ function AbsencesTab({ t }) {
                 <span className="dataTableCellMuted">{a.daysCount ?? "—"}</span>
                 <StatusPill status={a.status} label={t(`absences.status.${a.status}`)} />
                 <div className="dataTableActions">
-                  {a.status === "pending" && (
+                  {["pending", "manager_approved"].includes(a.status) && (
                     <button type="button" className="tableActionBtn tableActionBtnDanger" title={t("common.cancel")} onClick={() => askCancel(a)}>
                       <X size={15} />
                     </button>
@@ -624,8 +632,15 @@ function AdvancesTab({ t }) {
 // ATTENDANCE TAB
 // ============================================================
 
+// Minutes-since-midnight -> "HH:MM"
+const minutesToHHMM = (mins) =>
+  mins === null || mins === undefined ? "—" : `${String(Math.floor(mins / 60)).padStart(2, "0")}:${String(mins % 60).padStart(2, "0")}`;
+
 function AttendanceTab({ t }) {
   const [today, setToday] = useState(null);
+  const [todaySchedule, setTodaySchedule] = useState(null);
+  const [nextPunch, setNextPunch] = useState("clockIn");
+  const [actionError, setActionError] = useState("");
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
@@ -633,11 +648,13 @@ function AttendanceTab({ t }) {
   const [dateTo, setDateTo] = useState("");
 
   const load = async (from = dateFrom, to = dateTo) => {
-    const [todayRecord, records] = await Promise.all([
+    const [todayData, records] = await Promise.all([
       getTodayAttendance(),
       getMyAttendance({ from: from || undefined, to: to || undefined }),
     ]);
-    setToday(todayRecord);
+    setToday(todayData.record);
+    setTodaySchedule(todayData.schedule);
+    setNextPunch(todayData.nextPunch);
     setHistory(records);
   };
 
@@ -654,29 +671,41 @@ function AttendanceTab({ t }) {
     })();
   }, [dateFrom, dateTo]);
 
-  const handleClockIn = async () => {
+  // One handler for every punch. On a split day the server decides
+  // whether a "clock in" is the morning or the after-lunch one (and
+  // likewise for clock-outs); we just send the direction.
+  const handlePunch = async (direction) => {
     setActionLoading(true);
+    setActionError("");
     try {
-      await clockIn();
+      if (direction === "in") await clockIn();
+      else await clockOut();
       await load();
     } catch (error) {
-      console.error("Clock-in failed:", error);
+      // Previously only logged to the console, so a refused punch
+      // looked like the button simply did nothing.
+      setActionError(error.response?.data?.message || t("mySpace.attendance.punchFailed"));
     } finally {
       setActionLoading(false);
     }
   };
 
-  const handleClockOut = async () => {
-    setActionLoading(true);
-    try {
-      await clockOut();
-      await load();
-    } catch (error) {
-      console.error("Clock-out failed:", error);
-    } finally {
-      setActionLoading(false);
-    }
+  const PUNCH_BUTTON = {
+    clockIn: { direction: "in", label: t("mySpace.attendance.clockIn"), icon: <Play size={15} />, className: "btnPrimary" },
+    breakOut: { direction: "out", label: t("mySpace.attendance.clockOutLunch"), icon: <Square size={15} />, className: "btnEdit" },
+    breakIn: { direction: "in", label: t("mySpace.attendance.clockInAfternoon"), icon: <Play size={15} />, className: "btnPrimary" },
+    clockOut: { direction: "out", label: t("mySpace.attendance.clockOut"), icon: <Square size={15} />, className: "btnDelete" },
   };
+  const button = nextPunch ? PUNCH_BUTTON[nextPunch] : null;
+  const isSplit = !!todaySchedule?.split;
+
+  const scheduleText = !todaySchedule
+    ? ""
+    : !todaySchedule.isWorkingDay
+      ? t("mySpace.attendance.restDay")
+      : isSplit
+        ? `${minutesToHHMM(todaySchedule.start)}–${minutesToHHMM(todaySchedule.breakStart)} / ${minutesToHHMM(todaySchedule.breakEnd)}–${minutesToHHMM(todaySchedule.end)}`
+        : `${minutesToHHMM(todaySchedule.start)}–${minutesToHHMM(todaySchedule.end)}`;
 
   if (loading) return <p className={styles.loadingText}>{t("common.loading")}</p>;
 
@@ -686,21 +715,36 @@ function AttendanceTab({ t }) {
     <>
       <div className={styles.clockCard}>
         <div>
-          <span className={styles.clockLabel}>{t("mySpace.attendance.todayStatus")}</span>
-          <span className={styles.clockTimes}>
-            {t("attendance.fields.clockIn")}: {formatTime(today?.clockIn)} · {t("attendance.fields.clockOut")}: {formatTime(today?.clockOut)}
+          <span className={styles.clockLabel}>
+            {t("mySpace.attendance.todayStatus")}
+            {scheduleText && <span className={styles.clockSchedule}> · {t("mySpace.attendance.scheduleToday")}: {scheduleText}</span>}
           </span>
+          {todaySchedule?.holiday && (
+            <span className={styles.clockHoliday}>
+              {t("mySpace.attendance.holidayToday").replace("{name}", todaySchedule.holiday.name)}
+              {todaySchedule.holiday.payRate === 2 && ` · ${t("mySpace.attendance.holidayDouble")}`}
+            </span>
+          )}
+          {isSplit ? (
+            <span className={styles.clockTimes}>
+              {t("mySpace.attendance.morning")}: {formatTime(today?.clockIn)} → {formatTime(today?.breakOut)}
+              {" · "}
+              {t("mySpace.attendance.afternoon")}: {formatTime(today?.breakIn)} → {formatTime(today?.clockOut)}
+            </span>
+          ) : (
+            <span className={styles.clockTimes}>
+              {t("attendance.fields.clockIn")}: {formatTime(today?.clockIn)} · {t("attendance.fields.clockOut")}: {formatTime(today?.clockOut)}
+            </span>
+          )}
+          {actionError && <span className={styles.clockError}>{actionError}</span>}
         </div>
         <div className={styles.clockActions}>
-          {!today?.clockIn && (
-            <button type="button" className="btnPrimary" disabled={actionLoading} onClick={handleClockIn}>
-              <Play size={15} /> {t("mySpace.attendance.clockIn")}
+          {button ? (
+            <button type="button" className={button.className} disabled={actionLoading} onClick={() => handlePunch(button.direction)}>
+              {button.icon} {button.label}
             </button>
-          )}
-          {today?.clockIn && !today?.clockOut && (
-            <button type="button" className="btnDelete" disabled={actionLoading} onClick={handleClockOut}>
-              <Square size={15} /> {t("mySpace.attendance.clockOut")}
-            </button>
+          ) : (
+            <span className={styles.clockDone}>{t("mySpace.attendance.dayComplete")}</span>
           )}
         </div>
       </div>
@@ -740,6 +784,193 @@ function AttendanceTab({ t }) {
           ))}
         </div>
       )}
+    </>
+  );
+}
+
+// ============================================================
+// RECORDS TAB (performance reviews + disciplinary actions)
+// ============================================================
+// Both are read-mostly, occasional-view content compared to
+// payslips/absences/advances, so they share one tab rather than
+// each getting their own — keeps the tab bar from growing forever
+// as more HR record types get added later.
+
+function RecordsTab({ t }) {
+  const [reviews, setReviews] = useState([]);
+  const [actions, setActions] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [ackTarget, setAckTarget] = useState(null); // { kind: 'review'|'discipline', id }
+  const [ackLoading, setAckLoading] = useState(false);
+
+  const load = async () => {
+    const [reviewData, actionData] = await Promise.all([
+      getMyPerformanceReviews(),
+      getMyDisciplinaryActions(),
+    ]);
+    setReviews(reviewData || []);
+    setActions(actionData || []);
+  };
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        setLoading(true);
+        setError("");
+        const [reviewData, actionData] = await Promise.all([
+          getMyPerformanceReviews(),
+          getMyDisciplinaryActions(),
+        ]);
+        if (cancelled) return;
+        setReviews(reviewData || []);
+        setActions(actionData || []);
+      } catch (err) {
+        if (cancelled) return;
+        console.error("Failed to load records:", err);
+        setError(err.response?.data?.message || t("mySpace.records.loadError"));
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const openAck = (kind, id) => setAckTarget({ kind, id });
+  const closeAck = () => setAckTarget(null);
+
+  const handleConfirmAck = async () => {
+    if (!ackTarget) return;
+    setAckLoading(true);
+    try {
+      if (ackTarget.kind === "review") await acknowledgePerformanceReview(ackTarget.id);
+      else await acknowledgeDisciplinaryAction(ackTarget.id);
+      closeAck();
+      await load();
+    } catch (err) {
+      setError(err.response?.data?.message || t("mySpace.records.acknowledgeError"));
+    } finally {
+      setAckLoading(false);
+    }
+  };
+
+  const reviewerName = (r) => `${r?.reviewer?.firstName || ""} ${r?.reviewer?.lastName || ""}`.trim() || "—";
+  const issuerName = (a) => `${a?.issuedBy?.firstName || ""} ${a?.issuedBy?.lastName || ""}`.trim() || "—";
+
+  if (loading) return <p className={styles.loadingText}>{t("common.loading")}</p>;
+
+  return (
+    <>
+      {error && <div className="errorMessage">{error}</div>}
+
+      <div className={styles.recordsSection}>
+        <h3 className={styles.recordsSectionTitle}>
+          <ClipboardList size={16} /> {t("mySpace.records.performanceReviews")}
+        </h3>
+
+        {reviews.length === 0 ? (
+          <p className={styles.emptyText}>{t("mySpace.records.noReviews")}</p>
+        ) : (
+          <div className={styles.recordsList}>
+            {reviews.map((review) => (
+              <div key={review._id} className={styles.recordCard}>
+                <div className={styles.recordCardHeader}>
+                  <div>
+                    <span className={styles.recordTitle}>{review.periodLabel}</span>
+                    <span className={styles.recordMeta}>
+                      {t("mySpace.records.reviewedBy")} {reviewerName(review)} — {formatDate(review.reviewDate)}
+                    </span>
+                  </div>
+                  <StatusPill
+                    status={review.status === "acknowledged" ? "accepted" : "pending"}
+                    label={t(`performanceReviews.statuses.${review.status}`)}
+                  />
+                </div>
+
+                {review.strengths && (
+                  <p className={styles.recordField}><strong>{t("performanceReviews.fields.strengths")}:</strong> {review.strengths}</p>
+                )}
+                {review.areasForImprovement && (
+                  <p className={styles.recordField}><strong>{t("performanceReviews.fields.areasForImprovement")}:</strong> {review.areasForImprovement}</p>
+                )}
+                {review.comments && (
+                  <p className={styles.recordField}><strong>{t("performanceReviews.fields.comments")}:</strong> {review.comments}</p>
+                )}
+                {Array.isArray(review.goals) && review.goals.length > 0 && (
+                  <div className={styles.recordField}>
+                    <strong>{t("performanceReviews.fields.goals")}:</strong>
+                    <ul className={styles.goalsList}>
+                      {review.goals.map((goal) => (
+                        <li key={goal._id || goal.description}>{goal.description}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {review.status === "submitted" && (
+                  <div className={styles.recordActions}>
+                    <button type="button" className="btnPrimary" onClick={() => openAck("review", review._id)}>
+                      {t("mySpace.records.acknowledge")}
+                    </button>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div className={styles.recordsSection}>
+        <h3 className={styles.recordsSectionTitle}>
+          <ShieldAlert size={16} /> {t("mySpace.records.disciplinaryActions")}
+        </h3>
+
+        {actions.length === 0 ? (
+          <p className={styles.emptyText}>{t("mySpace.records.noDisciplinaryActions")}</p>
+        ) : (
+          <div className={styles.recordsList}>
+            {actions.map((action) => (
+              <div key={action._id} className={styles.recordCard}>
+                <div className={styles.recordCardHeader}>
+                  <div>
+                    <span className={styles.recordTitle}>{t(`disciplinaryActions.types.${action.type}`)}</span>
+                    <span className={styles.recordMeta}>
+                      {issuerName(action)} — {formatDate(action.date)}
+                    </span>
+                  </div>
+                  <StatusPill
+                    status={action.acknowledgedByEmployee ? "accepted" : "pending"}
+                    label={action.acknowledgedByEmployee ? t("disciplinaryActions.acknowledged") : t("disciplinaryActions.notAcknowledged")}
+                  />
+                </div>
+
+                <p className={styles.recordField}>{action.reason}</p>
+                {action.description && <p className={styles.recordField}>{action.description}</p>}
+
+                {!action.acknowledgedByEmployee && (
+                  <div className={styles.recordActions}>
+                    <button type="button" className="btnPrimary" onClick={() => openAck("discipline", action._id)}>
+                      {t("mySpace.records.acknowledge")}
+                    </button>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <ActionModal
+        isOpen={!!ackTarget}
+        type="confirm"
+        title={t("mySpace.records.acknowledgeTitle")}
+        message={ackTarget?.kind === "review" ? t("mySpace.records.acknowledgeReviewMessage") : t("mySpace.records.acknowledgeDisciplineMessage")}
+        loading={ackLoading}
+        onConfirm={handleConfirmAck}
+        onClose={closeAck}
+      />
     </>
   );
 }

@@ -217,8 +217,14 @@ export default function Attendance() {
               <div key={r._id} className="dataTableRow" style={{ gridTemplateColumns: gridColumns }}>
                 <span>{employeeName(r.employee)}</span>
                 <span className="dataTableCellMuted">{formatDate(r.date)}</span>
-                <span className="dataTableCellMuted">{formatTime(r.clockIn)}</span>
-                <span className="dataTableCellMuted">{formatTime(r.clockOut)}</span>
+                {/* Split-shift days have two arrivals and two departures:
+                    morning in · back from lunch / out for lunch · final out */}
+                <span className="dataTableCellMuted">
+                  {formatTime(r.clockIn)}{(r.breakIn || r.breakOut) && ` · ${formatTime(r.breakIn)}`}
+                </span>
+                <span className="dataTableCellMuted">
+                  {(r.breakIn || r.breakOut) && `${formatTime(r.breakOut)} · `}{formatTime(r.clockOut)}
+                </span>
                 <StatusPill status={STATUS_TO_PILL[r.status] || "pending"} label={t(`attendance.status.${r.status}`)} />
                 <button
                   type="button"

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ShoppingCart, BriefcaseBusiness, Check, X as XIcon, Trash2, Languages } from "lucide-react";
+import { ShoppingCart, BriefcaseBusiness, Trash2, Languages } from "lucide-react";
 
 import { useI18n } from "../../hooks/useI18n";
 import { getUnitLabel } from "../../config/units";
@@ -14,7 +14,6 @@ import TranslationEditorModal from "../../components/useful/TranslationEditorMod
 
 import {
   getPurchaseRequests,
-  reviewPurchaseRequest,
   deletePurchaseRequest,
 } from "../../services/purchaseRequestService";
 import { getCompanies } from "../../services/companyService";
@@ -29,7 +28,12 @@ function formatDate(date) {
   return new Date(date).toLocaleDateString("en-GB");
 }
 
-const STATUS_TO_PILL = { pending: "pending", approved: "accepted", rejected: "rejected", received: "accepted" };
+const STATUS_TO_PILL = {
+  pending: "pending", delayed: "manager_approved", ordered: "accepted", declined: "rejected", received: "accepted",
+  approved: "accepted", rejected: "rejected", // requests created before the purchasing workflow
+};
+// legacy statuses read as their purchasing-workflow equivalents
+const statusKey = (s) => ({ approved: "ordered", rejected: "declined" }[s] || s);
 
 export default function PurchaseRequests() {
   const { t } = useI18n();
@@ -108,15 +112,6 @@ export default function PurchaseRequests() {
     return () => { cancelled = true; };
   }, [selectedCompanyId, statusFilter, page]);
 
-  const handleReview = async (request, status) => {
-    try {
-      await reviewPurchaseRequest(request._id, status);
-      await reload();
-    } catch (error) {
-      console.error("Failed to review purchase request:", error);
-    }
-  };
-
   const handleDelete = async (request) => {
     try {
       await deletePurchaseRequest(request._id);
@@ -126,7 +121,7 @@ export default function PurchaseRequests() {
     }
   };
 
-  const gridColumns = "minmax(140px,1.2fr) minmax(90px,0.7fr) minmax(100px,0.8fr) minmax(90px,0.7fr) 1fr";
+  const gridColumns = "minmax(140px,1.2fr) minmax(90px,0.7fr) minmax(100px,0.8fr) minmax(90px,0.7fr) minmax(140px,1.3fr) 90px";
 
   return (
     <div className="pageShell">
@@ -153,10 +148,7 @@ export default function PurchaseRequests() {
           <label>{t("absences.fields.status")}</label>
           <CustomSelect value={statusFilter} onSelect={setStatusFilter} options={[
             { value: "", label: t("absences.filters.allStatuses") },
-            { value: "pending", label: t("absences.status.pending") },
-            { value: "approved", label: t("absences.status.accepted") },
-            { value: "rejected", label: t("absences.status.rejected") },
-            { value: "received", label: t("purchaseRequests.status.received") },
+            ...["pending", "delayed", "ordered", "declined", "received"].map((s) => ({ value: s, label: t(`purchasing.requestStatus.${s}`) })),
           ]} />
         </div>
       </div>
@@ -185,6 +177,7 @@ export default function PurchaseRequests() {
               <span>{t("purchaseRequests.fields.quantity")}</span>
               <span>{t("purchaseRequests.fields.requestedBy")}</span>
               <span>{t("absences.fields.status")}</span>
+              <span>{t("purchasing.requests.purchasingAnswer")}</span>
               <span />
             </div>
             {requests.map((request) => (
@@ -192,24 +185,18 @@ export default function PurchaseRequests() {
                 <span>{request.product ? <TranslatedText doc={request.product} field="name" /> : "—"} <span className="dataTableCellMuted">({request.product?.internalReference})</span></span>
                 <span className="dataTableCellMuted">{request.requestedQuantity} {getUnitLabel(t, request.product?.unit)}</span>
                 <span className="dataTableCellMuted">{request.requestedBy ? `${request.requestedBy.firstName} ${request.requestedBy.lastName}` : "—"} · {formatDate(request.createdAt)}</span>
-                <StatusPill status={STATUS_TO_PILL[request.status]} label={t(`purchaseRequests.status.${request.status}`)} />
+                <StatusPill status={STATUS_TO_PILL[request.status]} label={t(`purchasing.requestStatus.${statusKey(request.status)}`)} />
+                {/* The purchasing team's answer: why it's declined or late, and the order it's on */}
+                <span className="dataTableCellMuted">
+                  {request.declineReason || request.purchasingNote || "—"}
+                  {request.purchaseOrder?.number && ` · ${request.purchaseOrder.number}`}
+                </span>
                 <div className="dataTableActions">
-                  {userIsAdmin && request.status === "pending" && (
-                    <>
-                      <button type="button" className="tableActionBtn tableActionBtnAccept" title={t("absences.actions.accept")} onClick={() => handleReview(request, "approved")}>
-                        <Check size={14} />
-                      </button>
-                      <button type="button" className="tableActionBtn tableActionBtnReject" title={t("absences.actions.reject")} onClick={() => handleReview(request, "rejected")}>
-                        <XIcon size={14} />
-                      </button>
-                    </>
-                  )}
-                  {userIsAdmin && request.status === "approved" && (
-                    <button type="button" className="tableActionBtn tableActionBtnAccept" title={t("purchaseRequests.markReceived")} onClick={() => handleReview(request, "received")}>
-                      <Check size={14} />
-                    </button>
-                  )}
-                  {userIsAdmin && (
+                  {/* Answering requests is the purchasing team's job (Achats >
+                      Demandes d'achat). Here: withdraw your own open request,
+                      or any request as an admin — mirrors the backend rule. */}
+                  {(userIsAdmin || (String(request.requestedBy?._id || request.requestedBy) === String(currentUser?.id || currentUser?._id)
+                    && ["pending", "delayed"].includes(request.status))) && (
                     <button type="button" className="tableActionBtn tableActionBtnDanger" title={t("common.delete")} onClick={() => handleDelete(request)}>
                       <Trash2 size={14} />
                     </button>

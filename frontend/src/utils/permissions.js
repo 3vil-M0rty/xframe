@@ -70,6 +70,17 @@ export function canAccessProduction(actor) {
   return isAdmin(actor) || actor?.department === PRODUCTION_DEPARTMENT;
 }
 
+/** Purchasing module (service achats) — mirrors the backend. */
+// Owners included: they approve large purchase orders.
+export function canAccessPurchasing(actor) {
+  return isAdmin(actor) || isOwner(actor) || actor?.department === "purchasing";
+}
+
+/** Inventory is read by purchasing too; only production changes it. */
+export function canViewInventory(actor) {
+  return canAccessProduction(actor) || canAccessPurchasing(actor);
+}
+
 /**
  * Mirrors the backend's canSelfService — does this user have a
  * linked employee record, unlocking the "My Space" self-service

@@ -240,7 +240,17 @@ input[type="file"]:disabled::file-selector-button {
   cursor: not-allowed;
 }
 
-/* Scrollbar */
+/* Scrollbar
+   Standard properties first: Firefox only understands these, and
+   current Chromium browsers use them (ignoring ::-webkit-scrollbar)
+   wherever they're set — without them, dropdown menus showed the
+   bright native Windows scrollbar with arrows. The webkit rules below
+   remain as a fallback for older browsers. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #3d3d3d transparent;
+}
+
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;

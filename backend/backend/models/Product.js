@@ -56,9 +56,12 @@ const productSchema = new mongoose.Schema(
     },
 
     // Required — this is the company's own internal stock code.
+    // Required when production creates an article (enforced in
+    // routes/products.js), but may be empty for an article the
+    // purchasing team created from a purchase-order line — they add
+    // it later (PATCH /products/:id/supplier-info).
     internalReference: {
       type: String,
-      required: [true, "Internal reference is required"],
       trim: true,
       uppercase: true,
     },
@@ -128,7 +131,15 @@ const productSchema = new mongoose.Schema(
 productSchema.plugin(translatable, { fields: ["name", "notes"] });
 
 // One internal reference per company.
-productSchema.index({ company: 1, internalReference: 1 }, { unique: true });
+// Partial, not plain: uniqueness only for articles that HAVE a
+// reference — with a plain unique index, two articles without one
+// would collide as (company, null), the same trap as the employee
+// CIN/CNSS index (see models/Employee.js). Rebuilt on existing
+// databases at startup by utils/syncEmployeeIndexes.js.
+productSchema.index(
+  { company: 1, internalReference: 1 },
+  { unique: true, partialFilterExpression: { internalReference: { $gt: "" } } }
+);
 productSchema.index({ company: 1, category: 1 });
 productSchema.index({ company: 1, name: 1 });
 

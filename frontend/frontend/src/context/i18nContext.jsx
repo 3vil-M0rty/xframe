@@ -3,6 +3,9 @@ import { translations, SUPPORTED_LANGUAGES, getDefaultLanguage } from '../config
 
 export const I18nContext = createContext();
 
+// Which complete language to use when a key is missing.
+const FALLBACK_LANGUAGE = { ar: 'fr', es: 'en', pt: 'en', de: 'en', fr: 'en', en: 'fr' };
+
 export const I18nProvider = ({ children }) => {
   const [language, setLanguage] = useState(getDefaultLanguage());
 
@@ -11,20 +14,29 @@ export const I18nProvider = ({ children }) => {
     localStorage.setItem('language', language);
   }, [language]);
 
-  // Translate function with nested key support
+  // Translate function with nested key support.
+  // Missing key in the current language -> fall back to a complete
+  // language instead of showing the raw key ("purchasing.requests.title").
+  // English and French are always complete (checked in CI-style audits);
+  // Arabic falls back to French (natural for Moroccan users), the others
+  // to English.
+  const lookup = (lang, keys) => {
+    let value = translations[lang];
+    for (const k of keys) {
+      if (value && typeof value === 'object' && k in value) value = value[k];
+      else return undefined;
+    }
+    return typeof value === 'string' ? value : undefined;
+  };
+
   const t = (key, defaultValue = key) => {
     const keys = key.split('.');
-    let value = translations[language];
-
-    for (const k of keys) {
-      if (value && typeof value === 'object' && k in value) {
-        value = value[k];
-      } else {
-        return defaultValue;
-      }
+    const chain = [language, FALLBACK_LANGUAGE[language] || 'en', 'en'];
+    for (const lang of chain) {
+      const value = lookup(lang, keys);
+      if (value !== undefined) return value;
     }
-
-    return typeof value === 'string' ? value : defaultValue;
+    return defaultValue;
   };
 
   // Translate with variable substitution

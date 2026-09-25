@@ -12,13 +12,15 @@ import {
   Menu,
   IdCardLanyard,
   Factory,
+  ShoppingBag,
 } from "lucide-react";
 
 import { useI18n } from "../hooks/useI18n";
 import { useAuth } from "../hooks/useAuth";
 import styles from "./Sidebar.module.css";
 import LanguageSwitcher from "./useful/LanguageSwitcher";
-import { canAccessHR, canSelfService, canAccessProduction, canManageCompanySettings, isDepartmentManager } from "../utils/permissions";
+import { canAccessHR, canSelfService, canAccessProduction, canManageCompanySettings, isDepartmentManager, canAccessPurchasing } from "../utils/permissions";
+import { getOpenRequestCount } from "../services/purchasingService";
 
 export default function Sidebar() {
   const [isOpen, setIsOpen] = useState(true);
@@ -41,6 +43,27 @@ export default function Sidebar() {
   // ============================================================
   // MENU
   // ============================================================
+
+  // "Demandes d'achat (N)": requests still waiting for the purchasing
+  // team (pending + delayed). Polled like the notification bell, and
+  // only for people who can see the purchasing module.
+  const [openRequestCount, setOpenRequestCount] = useState(0);
+  const purchasingUser = canAccessPurchasing(user);
+  useEffect(() => {
+    if (!purchasingUser) { setOpenRequestCount(0); return undefined; }
+    let cancelled = false;
+    const load = async () => {
+      try {
+        const count = await getOpenRequestCount();
+        if (!cancelled) setOpenRequestCount(count);
+      } catch {
+        // non-critical: keep the last known count
+      }
+    };
+    load();
+    const interval = setInterval(load, 60000);
+    return () => { cancelled = true; clearInterval(interval); };
+  }, [purchasingUser]);
 
   const menuItems = [
     {
@@ -209,6 +232,29 @@ export default function Sidebar() {
           href: "/me/department",
           permission: isDepartmentManager,
         },
+      ],
+    },
+
+    {
+      id: "purchasing",
+      label: t("sidebar.purchasing"),
+      icon: ShoppingBag,
+      permission: canAccessPurchasing,
+      subsections: [
+        {
+          label: t("sidebar.purchaseRequestsQueue"),
+          href: "/purchasing/requests",
+          // requests still waiting for an answer (pending + delayed)
+          badge: openRequestCount,
+        },
+        { label: t("sidebar.purchaseOrders"), href: "/purchasing/orders" },
+        { label: t("sidebar.supplierInvoices"), href: "/purchasing/invoices" },
+        { label: t("sidebar.restock"), href: "/purchasing/restock" },
+        { label: t("sidebar.purchasingReports"), href: "/purchasing/reports" },
+        { label: t("sidebar.priceRequests"), href: "/purchasing/price-requests" },
+        { label: t("sidebar.suppliers"), href: "/purchasing/suppliers" },
+        { label: t("sidebar.purchasingInventory"), href: "/purchasing/inventory" },
+        { label: t("sidebar.articleHistory"), href: "/purchasing/article-history" },
       ],
     },
 
@@ -609,6 +655,9 @@ export default function Sidebar() {
                                 />
 
                                 {sub.label}
+                                {sub.badge > 0 && (
+                                  <span className={styles.subBadge}>{sub.badge > 99 ? "99+" : sub.badge}</span>
+                                )}
                               </Link>
                             );
                           }

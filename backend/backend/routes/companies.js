@@ -6,7 +6,7 @@ const Employee = require("../models/Employee");
 const auth = require("../middleware/auth");
 const upload = require("../middleware/uploadMiddleware");
 const { requireAdminOrOwner } = require("../middleware/permissionMiddleware");
-const { canManageCompany, isHRDepartment, isProductionDepartment } = require("../permissions/permissions");
+const { canManageCompany, isHRDepartment, isProductionDepartment, isPurchasingDepartment } = require("../permissions/permissions");
 
 const {
   uploadImage,
@@ -48,7 +48,8 @@ router.get("/", auth, async (req, res) => {
     const seesAllCompanies =
       req.user.role === "admin" ||
       isHRDepartment(req.user) ||
-      isProductionDepartment(req.user);
+      isProductionDepartment(req.user) ||
+      isPurchasingDepartment(req.user);
 
     const filter = seesAllCompanies ? {} : { owner: req.user.id };
 

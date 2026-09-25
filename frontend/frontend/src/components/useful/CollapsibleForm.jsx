@@ -4,6 +4,7 @@ import { createPortal } from "react-dom";
 
 import SearchSelect from "./SearchSelect";
 import styles from "./CollapsibleForm.module.css";
+import { useI18n } from "../../hooks/useI18n";
 
 // ========================================
 // CUSTOM SELECT (styled dropdown, replaces native <select>)
@@ -144,6 +145,7 @@ export default function CollapsibleForm({
   initialValues = {},
   onFieldChange,
 }) {
+  const { t } = useI18n();
   const [isOpen, setIsOpen] = useState(defaultOpen);
 
   // ========================================
@@ -360,7 +362,7 @@ export default function CollapsibleForm({
                       className={styles.passwordToggle}
                       onClick={() => togglePassword(field.name)}
                       aria-label={
-                        showPasswords[field.name] ? "Hide password" : "Show password"
+                        showPasswords[field.name] ? t("common.hidePassword") : t("common.showPassword")
                       }
                     >
                       {showPasswords[field.name] ? (

@@ -61,6 +61,9 @@ const purchaseRequestRoutes = require("./routes/purchaseRequests");
 const performanceReviewRoutes = require("./routes/performanceReviews");
 const disciplinaryActionRoutes = require("./routes/disciplinaryActions");
 const holidayRoutes = require("./routes/holidays");
+const supplierRoutes = require("./routes/suppliers");
+const purchaseOrderRoutes = require("./routes/purchaseOrders");
+const priceRequestRoutes = require("./routes/priceRequests");
 
 const app = express();
 
@@ -166,6 +169,10 @@ app.use("/api/purchase-requests", purchaseRequestRoutes);
 app.use("/api/performance-reviews", performanceReviewRoutes);
 app.use("/api/disciplinary-actions", disciplinaryActionRoutes);
 app.use("/api/holidays", holidayRoutes);
+// Purchasing module (service achats)
+app.use("/api/suppliers", supplierRoutes);
+app.use("/api/purchase-orders", purchaseOrderRoutes);
+app.use("/api/price-requests", priceRequestRoutes);
 
 // Health check
 app.get('/health', (req, res) => {

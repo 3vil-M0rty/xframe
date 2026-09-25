@@ -17,6 +17,7 @@ import {
 
 import CollapsibleForm from "../../components/useful/CollapsibleForm";
 import ActionModal from "../../components/useful/ActionModal";
+import Breadcrumbs from "../../components/useful/Breadcrumbs";
 import CompanyWorkflowSettings from "../../components/CompanyWorkflowSettings";
 
 import styles from "./Company.module.css";
@@ -708,6 +709,7 @@ export default function Company() {
 
   return (
     <div className="pageShell">
+      <Breadcrumbs items={[{ label: t("sidebar.organization") }, { label: t("company.title") }]} />
 
       {/* ==================================
           HEADER

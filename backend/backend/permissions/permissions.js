@@ -222,6 +222,25 @@ function canAccessProduction(actor) {
 }
 
 // ------------------------------------------------------------
+// PURCHASING (service achats)
+// ------------------------------------------------------------
+// Same model as production: admins, plus logins whose department
+// resolves to "purchasing" (a Department with permissionKey
+// "purchasing", via a position that grants module access, or its
+// manager — see services/employeeAccountService.js).
+const PURCHASING_DEPARTMENT = "purchasing";
+const isPurchasingDepartment = (actor) => actor?.department === PURCHASING_DEPARTMENT;
+
+function canAccessPurchasing(actor) {
+  return isAdmin(actor) || isPurchasingDepartment(actor);
+}
+
+/** Inventory is shared: production manages it, purchasing looks it up. */
+function canViewInventory(actor) {
+  return canAccessProduction(actor) || canAccessPurchasing(actor);
+}
+
+// ------------------------------------------------------------
 // SELF-SERVICE (My Space) + MANAGER APPROVAL ROUTING
 // ------------------------------------------------------------
 // A User account can optionally be linked to one Employee record
@@ -479,6 +498,10 @@ module.exports = {
   PRODUCTION_DEPARTMENT,
   isProductionDepartment,
   canAccessProduction,
+  PURCHASING_DEPARTMENT,
+  isPurchasingDepartment,
+  canAccessPurchasing,
+  canViewInventory,
   canSelfService,
   isOwnEmployeeRecord,
   canReviewRequest,

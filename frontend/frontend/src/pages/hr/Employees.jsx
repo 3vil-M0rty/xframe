@@ -714,7 +714,7 @@ export default function Employees() {
       return;
     }
 
-    if (item.id === "employees") {
+    if (item.id === "employees" || item.id === "hr") {
       handleBackToEmployees();
       return;
     }

@@ -69,3 +69,10 @@ export const deleteProduct = async (id) => {
   const response = await api.delete(`/products/${id}`);
   return response.data;
 };
+
+// Supplier prices/references (+ a missing internal reference) — the
+// only article change the purchasing team can make.
+export const updateSupplierInfo = async (id, { prices, internalReference }) => {
+  const response = await api.patch(`/products/${id}/supplier-info`, { prices, internalReference });
+  return response.data.data;
+};

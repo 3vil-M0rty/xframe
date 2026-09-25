@@ -347,7 +347,7 @@ export default function Departments() {
 
   return (
     <div className="pageShell">
-      <Breadcrumbs items={[{ label: t("departments.title") }]} />
+      <Breadcrumbs items={[{ label: t("sidebar.organization"), href: "/organization/company" }, { label: t("departments.title") }]} />
 
       <div className="pageHeader">
         <div>
@@ -405,6 +405,7 @@ export default function Departments() {
                 { value: "", label: t("departments.fields.noSpecialAccess") },
                 { value: "hr", label: t("departments.fields.hrAccess") },
                 { value: "production", label: t("departments.fields.productionAccess") },
+                { value: "purchasing", label: t("departments.fields.purchasingAccess") },
               ]} />
             </div>
             <div className={styles.formField}>

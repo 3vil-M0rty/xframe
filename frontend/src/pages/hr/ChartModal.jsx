@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import CustomSelect from "../../components/useful/CustomSelect";
 import { X } from "lucide-react";
 import {
   ResponsiveContainer,
@@ -15,6 +16,7 @@ import {
 } from "recharts";
 
 import styles from "./ChartModal.module.css";
+import { useI18n } from "../../hooks/useI18n";
 
 /**
  * Full-screen view of a bar/line chart with:
@@ -40,6 +42,7 @@ export default function ChartModal({
   fetchSeries, // async (months) => [{ month, year, ...values }]
   monthLabel, // (index0based) => "Jan" etc, for x-axis labels
 }) {
+  const { t } = useI18n();
   const [months, setMonths] = useState(12);
   const [granularity, setGranularity] = useState("monthly");
   const [rawSeries, setRawSeries] = useState([]);
@@ -95,51 +98,46 @@ export default function ChartModal({
       <div className={styles.panel} onClick={(e) => e.stopPropagation()}>
         <div className={styles.header}>
           <h2>{title}</h2>
-          <button type="button" className="tableActionBtn" onClick={onClose} title="Close">
+          <button type="button" className="tableActionBtn" onClick={onClose} title={t("common.close")}>
             <X size={18} />
           </button>
         </div>
 
         <div className={styles.controls}>
           <div className={styles.controlGroup}>
-            <label>Range</label>
-            <select
-              className={styles.select}
-              value={months}
-              onChange={(e) => setMonths(Number(e.target.value))}
-            >
-              <option value={6}>Last 6 months</option>
-              <option value={12}>Last 12 months</option>
-              <option value={24}>Last 24 months</option>
-              <option value={36}>Last 36 months</option>
-            </select>
+            <label>{t("reports.chart.range")}</label>
+            <CustomSelect
+              value={String(months)}
+              onSelect={(v) => setMonths(Number(v))}
+              options={[6, 12, 24, 36].map((n) => ({ value: String(n), label: t("reports.chart.lastMonths").replace("{n}", n) }))}
+            />
           </div>
 
           <div className={styles.controlGroup}>
-            <label>View</label>
+            <label>{t("reports.chart.view")}</label>
             <div className={styles.toggleGroup}>
               <button
                 type="button"
                 className={`${styles.toggleBtn} ${granularity === "monthly" ? styles.toggleBtnActive : ""}`}
                 onClick={() => setGranularity("monthly")}
               >
-                Monthly
+                {t("reports.chart.monthly")}
               </button>
               <button
                 type="button"
                 className={`${styles.toggleBtn} ${granularity === "yearly" ? styles.toggleBtnActive : ""}`}
                 onClick={() => setGranularity("yearly")}
               >
-                Yearly
+                {t("reports.chart.yearly")}
               </button>
             </div>
           </div>
 
-          <span className={styles.hint}>Drag the handles below the chart to zoom in</span>
+          <span className={styles.hint}>{t("reports.chart.zoomHint")}</span>
         </div>
 
         {loading ? (
-          <div className={styles.loading}>Loading...</div>
+          <div className={styles.loading}>{t("common.loading")}</div>
         ) : (
           <ResponsiveContainer width="100%" height={480}>
             <ChartComponent data={chartData} margin={{ bottom: 20 }}>

@@ -34,3 +34,12 @@
   color: #aaa;
   font-weight: 500;
 }
+
+/* A section name with no page of its own (not clickable) */
+.section {
+  color: #666;
+}
+
+.breadcrumbs {
+  flex-wrap: wrap;
+}

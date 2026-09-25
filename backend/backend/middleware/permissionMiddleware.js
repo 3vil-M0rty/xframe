@@ -1,4 +1,4 @@
-const { ROLES, canAccessHR, canAccessProduction } = require("../permissions/permissions");
+const { ROLES, canAccessHR, canAccessProduction, canAccessPurchasing, canViewInventory } = require("../permissions/permissions");
 
 /**
  * requireRole('admin', 'owner')
@@ -68,10 +68,28 @@ const requireProductionAccess = (req, res, next) => {
   next();
 };
 
+/** Purchasing module (service achats): admins + "purchasing" department. */
+const requirePurchasingAccess = (req, res, next) => {
+  if (!canAccessPurchasing(req.user)) {
+    return res.status(403).json({ success: false, message: "You do not have permission to access the Purchasing module" });
+  }
+  next();
+};
+
+/** Reading inventory: production OR purchasing (writing stays production-only). */
+const requireInventoryViewAccess = (req, res, next) => {
+  if (!canViewInventory(req.user)) {
+    return res.status(403).json({ success: false, message: "You do not have permission to view the inventory" });
+  }
+  next();
+};
+
 module.exports = {
   requireRole,
   requireAdminOrOwner,
   requireAdmin,
   requireHRAccess,
   requireProductionAccess,
+  requirePurchasingAccess,
+  requireInventoryViewAccess,
 };

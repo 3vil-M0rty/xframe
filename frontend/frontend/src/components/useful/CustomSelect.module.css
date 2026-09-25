@@ -110,6 +110,11 @@
 .customSelectOptions {
   z-index: 10000;
 
+  /* dark, thin scrollbar inside the open menu (see global.css) */
+  color-scheme: dark;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.22) transparent;
+
   display: flex;
   flex-direction: column;
 

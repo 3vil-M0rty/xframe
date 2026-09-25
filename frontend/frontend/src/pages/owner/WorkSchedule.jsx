@@ -224,7 +224,7 @@ export default function WorkSchedule() {
 
   return (
     <div className="pageShell">
-      <Breadcrumbs items={[{ label: t("workSchedule.title") }]} />
+      <Breadcrumbs items={[{ label: t("sidebar.organization"), href: "/organization/company" }, { label: t("workSchedule.title") }]} />
 
       <div className="pageHeader">
         <div>

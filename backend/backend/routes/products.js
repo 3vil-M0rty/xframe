@@ -5,58 +5,31 @@ const router = express.Router();
 
 const Product = require("../models/Product");
 const InventoryMovement = require("../models/InventoryMovement");
+const { applyMovement } = require("../services/inventoryService");
 const InventoryCategory = require("../models/InventoryCategory");
 const Company = require("../models/Company");
 
 const auth = require("../middleware/auth");
 const upload = require("../middleware/uploadMiddleware");
-const { requireProductionAccess } = require("../middleware/permissionMiddleware");
+const { requireProductionAccess, requireInventoryViewAccess } = require("../middleware/permissionMiddleware");
+const { canAccessProduction } = require("../permissions/permissions");
 const { uploadImage, deleteImage } = require("../services/cloudinaryService");
 const { logAudit } = require("../services/auditLogger");
 const { attachTranslationRoutes } = require("../utils/translationRoutes");
 
-router.use(auth, requireProductionAccess);
+// Reading is shared with the purchasing team (they look articles up
+// and follow purchase history); every change stays production-only.
+router.use(auth);
 
-/**
- * Records a movement AND keeps Product.quantity in sync in the
- * same call — every quantity change in this file goes through
- * this one function so the two can never drift apart.
- */
-async function applyMovement({ product, type, quantity, reason, actorId }) {
-  let newQuantity = product.quantity;
-  if (type === "in") newQuantity += quantity;
-  else if (type === "out") newQuantity -= quantity;
-  else newQuantity = quantity; // "adjustment" sets an absolute value
-
-  if (newQuantity < 0) {
-    const error = new Error("This would bring the quantity below zero.");
-    error.status = 400;
-    throw error;
-  }
-
-  await InventoryMovement.create({
-    company: product.company,
-    product: product._id,
-    type,
-    quantity: type === "adjustment" ? Math.abs(newQuantity - product.quantity) : quantity,
-    resultingQuantity: newQuantity,
-    reason,
-    performedBy: actorId,
-  });
-
-  product.quantity = newQuantity;
-  product.updatedBy = actorId;
-  await product.save();
-
-  return product;
-}
+// applyMovement lives in services/inventoryService.js so purchase
+// order receptions/returns share the exact same stock logic.
 
 // ======================================================
 // GET ALL PRODUCTS (search, category, low-stock, as-of-date, pagination)
 // GET /api/products?companyId=&category=&search=&lowStockOnly=&asOfDate=&page=&limit=
 // ======================================================
 
-router.get("/", async (req, res) => {
+router.get("/", requireInventoryViewAccess, async (req, res) => {
   try {
     const {
       companyId,
@@ -190,7 +163,7 @@ router.get("/", async (req, res) => {
 // GET /api/products/suggestions?companyId=&q=
 // ======================================================
 
-router.get("/suggestions", async (req, res) => {
+router.get("/suggestions", requireInventoryViewAccess, async (req, res) => {
   try {
     const { companyId, q } = req.query;
 
@@ -223,7 +196,7 @@ router.get("/suggestions", async (req, res) => {
 // GET /api/products/:id
 // ======================================================
 
-router.get("/:id", async (req, res) => {
+router.get("/:id", requireInventoryViewAccess, async (req, res) => {
   try {
     if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
       return res.status(400).json({ success: false, message: "Invalid product ID" });
@@ -246,7 +219,7 @@ router.get("/:id", async (req, res) => {
 // GET /api/products/:id/movements
 // ======================================================
 
-router.get("/:id/movements", async (req, res) => {
+router.get("/:id/movements", requireInventoryViewAccess, async (req, res) => {
   try {
     if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
       return res.status(400).json({ success: false, message: "Invalid product ID" });
@@ -269,7 +242,7 @@ router.get("/:id/movements", async (req, res) => {
 // POST /api/products
 // ======================================================
 
-router.post("/", async (req, res) => {
+router.post("/", requireProductionAccess, async (req, res) => {
   try {
     const {
       company,
@@ -366,7 +339,7 @@ router.post("/", async (req, res) => {
 // PUT /api/products/:id
 // ======================================================
 
-router.put("/:id", async (req, res) => {
+router.put("/:id", requireProductionAccess, async (req, res) => {
   try {
     if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
       return res.status(400).json({ success: false, message: "Invalid product ID" });
@@ -425,7 +398,68 @@ router.put("/:id", async (req, res) => {
 // body: { type: "in" | "out", quantity, reason? }
 // ======================================================
 
-router.post("/:id/adjust", async (req, res) => {
+// ======================================================
+// SUPPLIER PRICES & REFERENCES (the purchasing team's edit)
+// PATCH /api/products/:id/supplier-info
+// body: { prices?: [{ supplierName, supplierReference?, price }], internalReference? }
+// ======================================================
+// The ONLY change the purchasing team can make to an article: its
+// supplier prices/references, and its internal reference when it
+// doesn't have one yet. Name, category, stock, thresholds... stay
+// production's (PUT /:id). Production can use this route too.
+
+router.patch("/:id/supplier-info", requireInventoryViewAccess, async (req, res) => {
+  try {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ success: false, message: "Invalid article ID" });
+    }
+    const product = await Product.findById(req.params.id);
+    if (!product) return res.status(404).json({ success: false, message: "Article not found" });
+
+    const { prices, internalReference } = req.body;
+
+    if (prices !== undefined) {
+      if (!Array.isArray(prices) || prices.length > 50) {
+        return res.status(400).json({ success: false, message: "Invalid supplier prices" });
+      }
+      const clean = [];
+      for (const p of prices) {
+        const supplierName = String(p?.supplierName || "").trim();
+        const price = Number(p?.price);
+        if (!supplierName) return res.status(400).json({ success: false, message: "Every supplier price needs a supplier name" });
+        if (!Number.isFinite(price) || price < 0) {
+          return res.status(400).json({ success: false, message: `Invalid price for "${supplierName}"` });
+        }
+        clean.push({ supplierName, price, supplierReference: String(p.supplierReference || "").trim() || undefined });
+      }
+      product.prices = clean;
+    }
+
+    if (internalReference !== undefined && String(internalReference).trim()) {
+      const ref = String(internalReference).trim().toUpperCase();
+      const current = String(product.internalReference || "").trim();
+      // Anyone may fill a MISSING reference; changing an existing one
+      // stays production's (it may be printed on labels, used by
+      // people searching the stock...).
+      if (current && current !== ref && !canAccessProduction(req.user)) {
+        return res.status(403).json({ success: false, message: "This article already has an internal reference — only production can change it" });
+      }
+      product.internalReference = ref;
+    }
+
+    product.updatedBy = req.user.id;
+    await product.save();
+    res.json({ success: true, data: product });
+  } catch (error) {
+    if (error.code === 11000) {
+      return res.status(409).json({ success: false, message: "Another article already uses this internal reference" });
+    }
+    console.error("PATCH product supplier-info error:", error);
+    res.status(500).json({ success: false, message: "Error saving supplier prices", error: error.message });
+  }
+});
+
+router.post("/:id/adjust", requireProductionAccess, async (req, res) => {
   try {
     if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
       return res.status(400).json({ success: false, message: "Invalid product ID" });
@@ -470,7 +504,7 @@ router.post("/:id/adjust", async (req, res) => {
 // POST /api/products/:id/photo
 // ======================================================
 
-router.post("/:id/photo", upload.single("photo"), async (req, res) => {
+router.post("/:id/photo", requireProductionAccess, upload.single("photo"), async (req, res) => {
   try {
     if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
       return res.status(400).json({ success: false, message: "Invalid product ID" });
@@ -511,7 +545,7 @@ router.post("/:id/photo", upload.single("photo"), async (req, res) => {
 // DELETE /api/products/:id
 // ======================================================
 
-router.delete("/:id", async (req, res) => {
+router.delete("/:id", requireProductionAccess, async (req, res) => {
   try {
     if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
       return res.status(400).json({ success: false, message: "Invalid product ID" });

@@ -48,6 +48,9 @@ const PurchaseRequest = require("../models/PurchaseRequest");
 const PerformanceReview = require("../models/PerformanceReview");
 const DisciplinaryAction = require("../models/DisciplinaryAction");
 const PublicHoliday = require("../models/PublicHoliday");
+const Supplier = require("../models/Supplier");
+const PurchaseOrder = require("../models/PurchaseOrder");
+const PriceRequest = require("../models/PriceRequest");
 const { MOROCCO_FIXED_HOLIDAYS } = require("../config/moroccoFixedHolidays");
 
 const { calculatePayslip } = require("../services/payrollCalculationService");
@@ -99,6 +102,9 @@ async function run() {
     PerformanceReview.deleteMany({}),
     DisciplinaryAction.deleteMany({}),
     PublicHoliday.deleteMany({}),
+    Supplier.deleteMany({}),
+    PurchaseOrder.deleteMany({}),
+    PriceRequest.deleteMany({}),
   ]);
 
   // Rebuild the CIN/CNSS uniqueness indexes if this database still has
@@ -180,6 +186,17 @@ async function run() {
     role: "user",
     department: "hr",
     hrRole: "hr_director",
+  });
+
+  // Purchasing (service achats) login — sees Achats: requests,
+  // orders, suppliers, price requests, and the inventory read-only.
+  await User.create({
+    firstName: "Rachid",
+    lastName: "Acheteur",
+    email: "achats@frame.test",
+    password: "Achats@123",
+    role: "user",
+    department: "purchasing",
   });
 
   const hrAssistantUser = await User.create({
@@ -863,6 +880,12 @@ async function run() {
 
   console.log("✓ Purchase requests created (pending + approved)");
 
+  await Supplier.create([
+    { company: company._id, name: "AcierPlus", contactName: "M. Tazi", phone: "0522 00 11 22", city: "Casablanca", paymentTerms: "30 jours fin de mois", createdBy: hrUser._id },
+    { company: company._id, name: "Emballages du Nord", contactName: "Mme Idrissi", phone: "0539 00 33 44", city: "Tanger", paymentTerms: "Comptant", createdBy: hrUser._id },
+  ]);
+  console.log("✓ 2 suppliers created");
+
   // ==========================================================
   // PERFORMANCE REVIEWS (one per workflow state)
   // ==========================================================
@@ -983,6 +1006,7 @@ async function run() {
   console.log("  Owner          owner@frame.test        / Owner@123");
   console.log("  HR (full)      hr@frame.test           / Hr@12345       (no hrRole set -> full HR access)");
   console.log("  HR manager     hr-manager@frame.test   / HrManager@123  (Directeur RH — HR department manager)");
+  console.log("  Purchasing     achats@frame.test       / Achats@123     (service achats)");
   console.log("  HR (assistant) hr-assistant@frame.test / HrAssist@123   (hr_assistant tier -> view-only, most actions blocked)");
   console.log("  Manager        manager@frame.test      / Manager@123    (Production department manager — see My Space > My department)");
   console.log("  Employee       employee@frame.test     / Employee@123   (Opérateur de Production — My Space only)");

@@ -54,7 +54,7 @@ const departmentSchema = new mongoose.Schema(
     // should unlock a given module.
     permissionKey: {
       type: String,
-      enum: ["hr", "production", null],
+      enum: ["hr", "production", "purchasing", null],
       default: null,
     },
 

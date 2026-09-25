@@ -9,3 +9,28 @@
 .toolbar .filterGroup {
     flex: 1 1 200px;
 }
+
+/* ============================================================
+   UNIFIED FILTER BAR — identical on every list page.
+   Dropdowns keep a FIXED width (they never resize with the chosen
+   option); the search bar sits on the SAME line and takes the
+   remaining space; everything wraps cleanly on narrow screens.
+   ============================================================ */
+.toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 12px;
+    margin-bottom: 18px;
+}
+
+.toolbar > * {
+    flex: 0 0 220px;
+    min-width: 0;
+    max-width: 100%;
+}
+
+/* the search field grows to fill the line */
+.toolbar > *:has(input[type="text"]) {
+    flex: 1 1 280px;
+}

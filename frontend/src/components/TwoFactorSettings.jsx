@@ -168,7 +168,7 @@ export default function TwoFactorSettings() {
         </div>
         <p className={styles.hint}>{t("twoFactor.scanHint")}</p>
 
-        <img src={setupData.qrCodeDataUrl} alt="2FA QR code" className={styles.qrCode} />
+        <img src={setupData.qrCodeDataUrl} alt={t("twoFactor.qrAlt")} className={styles.qrCode} />
 
         <p className={styles.manualEntryLabel}>{t("twoFactor.manualEntryLabel")}</p>
         <code className={styles.manualEntryKey}>{setupData.secret}</code>

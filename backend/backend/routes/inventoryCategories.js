@@ -8,18 +8,20 @@ const Product = require("../models/Product");
 const Company = require("../models/Company");
 
 const auth = require("../middleware/auth");
-const { requireProductionAccess } = require("../middleware/permissionMiddleware");
+const { requireProductionAccess, requireInventoryViewAccess } = require("../middleware/permissionMiddleware");
 const { logAudit } = require("../services/auditLogger");
 const { attachTranslationRoutes } = require("../utils/translationRoutes");
 
-router.use(auth, requireProductionAccess);
+// Reading is shared with the purchasing team (they look articles up
+// and follow purchase history); every change stays production-only.
+router.use(auth);
 
 // ======================================================
 // GET ALL CATEGORIES
 // GET /api/inventory-categories?companyId=
 // ======================================================
 
-router.get("/", async (req, res) => {
+router.get("/", requireInventoryViewAccess, async (req, res) => {
   try {
     const { companyId } = req.query;
 
@@ -41,7 +43,7 @@ router.get("/", async (req, res) => {
 // POST /api/inventory-categories
 // ======================================================
 
-router.post("/", async (req, res) => {
+router.post("/", requireProductionAccess, async (req, res) => {
   try {
     const { company, name, icon, color, description } = req.body;
 
@@ -91,7 +93,7 @@ router.post("/", async (req, res) => {
 // PUT /api/inventory-categories/:id
 // ======================================================
 
-router.put("/:id", async (req, res) => {
+router.put("/:id", requireProductionAccess, async (req, res) => {
   try {
     if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
       return res.status(400).json({ success: false, message: "Invalid category ID" });
@@ -139,7 +141,7 @@ router.put("/:id", async (req, res) => {
 // orphaning products or having to cascade-delete stock records.
 // ======================================================
 
-router.delete("/:id", async (req, res) => {
+router.delete("/:id", requireProductionAccess, async (req, res) => {
   try {
     if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
       return res.status(400).json({ success: false, message: "Invalid category ID" });

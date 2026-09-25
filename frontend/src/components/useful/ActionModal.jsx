@@ -81,7 +81,7 @@ export default function ActionModal({
             type="button"
             className={styles.closeIcon}
             onClick={onClose}
-            aria-label="Close"
+            aria-label={t("common.close")}
           >
             <X size={18} />
           </button>
@@ -126,10 +126,10 @@ export default function ActionModal({
           <h3>
             {title ||
               (isConfirm
-                ? "Confirm Action"
+                ? t("common.confirmAction")
                 : isSuccess
-                ? "Success"
-                : "Something went wrong")}
+                ? t("common.success")
+                : t("common.somethingWentWrong"))}
           </h3>
 
           <p>

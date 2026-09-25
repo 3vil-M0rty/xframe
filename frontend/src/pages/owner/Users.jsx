@@ -916,6 +916,7 @@ export default function Users() {
 
                 <Breadcrumbs
                     items={[
+                        { label: t("sidebar.organization"), href: "/organization/company" },
                         {
                             id: "users",
                             label: t("users.title"),
@@ -992,6 +993,7 @@ export default function Users() {
 
                 <Breadcrumbs
                     items={[
+                        { label: t("sidebar.organization"), href: "/organization/company" },
                         {
                             id: "users",
                             label: t("users.title"),
@@ -1105,6 +1107,7 @@ export default function Users() {
 
                 <Breadcrumbs
                     items={[
+                        { label: t("sidebar.organization"), href: "/organization/company" },
                         {
                             id: "users",
                             label: t("users.title"),
@@ -1333,7 +1336,8 @@ export default function Users() {
 
             <Breadcrumbs
                 items={[
-                    {
+                    { label: t("sidebar.organization"), href: "/organization/company" },
+                        {
                         id: "users",
                         label: t("users.title"),
                     },

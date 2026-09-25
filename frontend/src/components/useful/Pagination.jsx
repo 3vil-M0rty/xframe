@@ -1,5 +1,6 @@
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import styles from "./Pagination.module.css";
+import { useI18n } from "../../hooks/useI18n";
 
 /**
  * Simple numbered pagination control.
@@ -17,6 +18,7 @@ export default function Pagination({
   onPageChange,
   summaryLabel,
 }) {
+  const { t } = useI18n();
   if (!pages || pages <= 1) {
     return null;
   }
@@ -50,7 +52,7 @@ export default function Pagination({
   const rangeEnd = Math.min(page * limit, total);
 
   return (
-    <nav className={styles.pagination} aria-label="Pagination">
+    <nav className={styles.pagination} aria-label={t("common.pagination")}>
       {typeof total === "number" && (
         <span className={styles.summary}>
           {summaryLabel
@@ -68,7 +70,7 @@ export default function Pagination({
           className={styles.navButton}
           onClick={() => goTo(page - 1)}
           disabled={page <= 1}
-          aria-label="Previous page"
+          aria-label={t("common.previousPage")}
         >
           <ChevronLeft size={16} />
         </button>
@@ -101,7 +103,7 @@ export default function Pagination({
           className={styles.navButton}
           onClick={() => goTo(page + 1)}
           disabled={page >= pages}
-          aria-label="Next page"
+          aria-label={t("common.nextPage")}
         >
           <ChevronRight size={16} />
         </button>

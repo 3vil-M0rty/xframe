@@ -1,4 +1,5 @@
 const Employee = require("../models/Employee");
+const Product = require("../models/Product");
 
 /**
  * Brings the employees collection's indexes in line with
@@ -22,6 +23,14 @@ async function syncEmployeeIndexes() {
     // (correct) uniqueness rule — two employees sharing a real CIN or
     // CNSS number in the same company. Log loudly but don't crash.
     console.error("Could not sync employee indexes:", error.message);
+  }
+  // Same story for inventory articles' internal reference (now
+  // optional — see models/Product.js).
+  try {
+    const dropped = await Product.syncIndexes();
+    if (dropped && dropped.length) console.log(`✓ Rebuilt product indexes: ${dropped.join(", ")}`);
+  } catch (error) {
+    console.error("Could not sync product indexes:", error.message);
   }
 }
 

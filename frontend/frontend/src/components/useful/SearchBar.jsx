@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Search, X } from 'lucide-react'
 import styles from './SearchBar.module.css'
+import { useI18n } from "../../hooks/useI18n";
 
 export default function SearchBar({
   placeholder = 'Search...',
@@ -10,6 +11,7 @@ export default function SearchBar({
   isLoading = false,
   suggestions = []
 }) {
+  const { t } = useI18n();
   const [value, setValue] = useState('')
   const [showSuggestions, setShowSuggestions] = useState(false)
 
@@ -53,7 +55,7 @@ export default function SearchBar({
           <button
             onClick={handleClear}
             className={styles.clearBtn}
-            title="Clear search"
+            title={t("common.clearSearch")}
           >
             <X size={18} />
           </button>

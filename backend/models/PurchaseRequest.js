@@ -35,12 +35,35 @@ const purchaseRequestSchema = new mongoose.Schema(
       min: 0.01,
     },
 
+    // Workflow (production asks, purchasing answers):
+    //   pending   waiting for the purchasing team
+    //   delayed   acknowledged but not handled yet — `purchasingNote`
+    //             says why (supplier out of stock, awaiting quote...)
+    //   ordered   a purchase order was placed (see purchaseOrder)
+    //   declined  refused — `declineReason` is required
+    //   received  the order it's on has been fully received
+    // "approved"/"rejected" are kept only so requests created before
+    // this workflow still load; they read as ordered/declined.
     status: {
       type: String,
-      enum: ["pending", "approved", "rejected", "received"],
+      enum: ["pending", "delayed", "ordered", "declined", "received", "approved", "rejected"],
       default: "pending",
       index: true,
     },
+    // Explanation from purchasing, visible to production (why it's
+    // late, what's happening). Updated with each note/status change.
+    purchasingNote: { type: String, trim: true, maxlength: 1000 },
+    declineReason: { type: String, trim: true, maxlength: 1000 },
+    purchaseOrder: { type: mongoose.Schema.Types.ObjectId, ref: "PurchaseOrder", default: null },
+    // Full timeline, shown on the request: who did what, when, and why.
+    history: [
+      {
+        status: String,
+        note: String,
+        at: { type: Date, default: Date.now },
+        by: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+      },
+    ],
 
     notes: {
       type: String,
@@ -61,6 +84,6 @@ purchaseRequestSchema.index({ company: 1, product: 1 });
 // Multilingual content layer (see plugins/translatable.js) for the
 // free-text field(s) below — every language in config/i18nContent.js's
 // CONTENT_LANGUAGES gets its own auto-translated + manually-editable slot.
-purchaseRequestSchema.plugin(translatable, { fields: ["notes"] });
+purchaseRequestSchema.plugin(translatable, { fields: ["notes", "purchasingNote", "declineReason"] });
 
 module.exports = mongoose.model("PurchaseRequest", purchaseRequestSchema);

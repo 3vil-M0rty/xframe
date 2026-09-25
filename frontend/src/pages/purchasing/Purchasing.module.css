@@ -1,0 +1,173 @@
+/* Shared styles for the purchasing (achats) pages. */
+
+.muted { color: var(--color-text-secondary); font-size: 0.8rem; }
+.amountDue { color: #f87171; font-weight: 600; }
+.lowStock { display: block; color: #e8b93f; font-size: 0.74rem; }
+.subTitle { margin: 22px 0 10px; font-size: 0.95rem; font-weight: 600; color: var(--color-text-primary); }
+
+/* ---------- toolbar / tabs ---------- */
+.toolbar { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px; margin-bottom: 16px; }
+.toolbar :global(.filterGroup) { min-width: 170px; }
+.tabs { display: inline-flex; flex-wrap: wrap; padding: 3px; border: 1px solid var(--color-border); border-radius: 10px; }
+/* Active tab uses the app's primary-button look (white on black
+   theme) instead of a bright blue that clashed with the dark UI. */
+.tab, .tabActive { padding: 6px 12px; font-size: 0.8rem; font-weight: 500; border: none; border-radius: 7px; cursor: pointer; transition: background-color 0.15s ease, color 0.15s ease; }
+.tab { color: var(--color-text-secondary); background: transparent; }
+.tab:hover { color: var(--color-text-primary); background: rgba(255, 255, 255, 0.06); }
+.tabActive { color: #111; background: #fff; font-weight: 600; }
+
+/* ---------- inputs / forms ---------- */
+.input { box-sizing: border-box; width: 100%; padding: 8px 10px; font-size: 0.84rem; color-scheme: dark; }
+.field { display: flex; flex-direction: column; gap: 5px; margin-bottom: 12px; font-size: 0.8rem; color: var(--color-text-secondary); }
+.formGrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 0 14px; }
+.formActions { display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: 8px; margin-top: 12px; }
+.formActions button, .formActions label, .headerActions button { display: inline-flex; align-items: center; gap: 6px; }
+.headerActions { display: flex; flex-wrap: wrap; gap: 8px; }
+.inlineCheck { display: inline-flex; align-items: center; gap: 8px; margin-bottom: 10px; font-size: 0.82rem; cursor: pointer; }
+.infoBanner {
+  margin-bottom: 14px; padding: 10px 14px; font-size: 0.82rem; color: #93c5fd;
+  background: rgba(59, 130, 246, 0.08); border: 1px solid rgba(59, 130, 246, 0.25); border-radius: 8px;
+}
+
+/* ---------- sections / panels / cards ---------- */
+.section { margin-top: 22px; }
+.section h2, .sectionHeader h2 {
+  display: flex; align-items: center; gap: 8px; margin: 0 0 10px;
+  font-size: 0.95rem; font-weight: 600; color: var(--color-text-primary);
+}
+.sectionHeader { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
+.sectionHeader h2 { margin: 0; }
+.panel { margin-bottom: 14px; padding: 14px 16px; border: 1px solid #3b82f6; border-radius: 12px; background: rgba(59, 130, 246, 0.04); }
+.panel h3 { margin: 0 0 12px; font-size: 0.9rem; }
+.card { margin-bottom: 10px; border: 1px solid var(--color-border); border-radius: 12px; background: var(--color-bg-primary); }
+.cardHeader { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 12px 14px; font-size: 0.84rem; cursor: pointer; }
+.cardBody { padding: 0 14px 14px; }
+
+/* ---------- tables ---------- */
+.clickableRow { cursor: pointer; }
+.clickableRow:hover { background: var(--color-bg-secondary, rgba(255, 255, 255, 0.03)); }
+.articleCell { display: flex; align-items: flex-start; gap: 6px; }
+.articleCell small { display: block; }
+.expandBtn { padding: 2px; color: var(--color-text-secondary); background: none; border: none; cursor: pointer; }
+.noteCell { font-size: 0.78rem; line-height: 1.4; color: var(--color-text-secondary); }
+.orderLink { display: inline-block; margin-left: 6px; font-size: 0.76rem; color: #6ea8fe; }
+.fileLink { display: inline-flex; align-items: center; gap: 4px; margin: 6px 8px 0 0; font-size: 0.78rem; color: #6ea8fe; }
+.plainList { margin: 0 0 8px; padding-left: 18px; font-size: 0.84rem; line-height: 1.9; }
+.progressCell { display: flex; align-items: center; gap: 6px; }
+.progressBar { position: relative; flex: 1; height: 6px; overflow: hidden; border-radius: 999px; background: var(--color-border); }
+.progressBar > span { position: absolute; inset: 0 auto 0 0; background: #4cc38a; }
+.timeline { margin: 0 0 8px 40px; padding: 8px 12px; border-left: 2px solid var(--color-border); }
+.timelineItem { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 6px; font-size: 0.8rem; }
+.timelineDate { min-width: 130px; font-size: 0.74rem; color: var(--color-text-tertiary); }
+
+/* ---------- recap figures ---------- */
+.summaryGrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 10px; margin-bottom: 18px; }
+.summaryCard {
+  display: flex; flex-direction: column; gap: 6px; padding: 12px 14px;
+  border: 1px solid var(--color-border); border-radius: 12px; background: var(--color-bg-primary);
+}
+.summaryCard > span { font-size: 0.74rem; color: var(--color-text-secondary); }
+.summaryCard strong { font-size: 1.05rem; color: var(--color-text-primary); }
+.statusCounts { display: flex; flex-direction: column; gap: 2px; font-size: 0.76rem; color: var(--color-text-secondary); }
+.totalsBlock { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px 22px; margin-top: 10px; font-size: 0.84rem; }
+
+/* ---------- receptions ---------- */
+.recLines { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 8px 16px; margin-bottom: 10px; }
+.recLine { display: flex; flex-direction: column; gap: 4px; font-size: 0.8rem; }
+
+/* ---------- lines editor ---------- */
+.linesEditor { margin: 6px 0 14px; }
+.linesHead, .lineRow { display: grid; grid-template-columns: 1.6fr 1.6fr 0.7fr 0.6fr 0.9fr 0.6fr 36px; gap: 8px; align-items: center; }
+.linesHead { padding: 0 2px 6px; font-size: 0.72rem; font-weight: 600; text-transform: uppercase; color: var(--color-text-tertiary); }
+.lineRow { margin-bottom: 6px; }
+.cellInput { box-sizing: border-box; width: 100%; padding: 7px 8px; font-size: 0.82rem; }
+.linesFooter { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; margin-top: 8px; }
+.linesFooter button { display: inline-flex; align-items: center; gap: 6px; }
+.totals { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 0.84rem; }
+
+/* ---------- dialog ---------- */
+.modalOverlay { position: fixed; inset: 0; z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 16px; background: rgba(0, 0, 0, 0.6); }
+.modalCard { width: 100%; max-width: 460px; padding: 20px; border: 1px solid var(--color-border); border-radius: 14px; background: var(--color-bg-primary); }
+.modalCard h3 { margin: 0 0 6px; font-size: 1rem; }
+.modalActions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 14px; }
+
+@media (max-width: 800px) {
+  .linesHead { display: none; }
+  .lineRow { grid-template-columns: 1fr 1fr; padding: 8px; border: 1px solid var(--color-border); border-radius: 10px; }
+}
+
+/* lines editor without price columns (a price request being written) */
+.linesHeadNoPrice, .lineRowNoPrice { display: grid; grid-template-columns: 1.6fr 1.8fr 0.7fr 0.7fr 36px; gap: 8px; align-items: center; }
+.linesHeadNoPrice { padding: 0 2px 6px; font-size: 0.72rem; font-weight: 600; text-transform: uppercase; color: var(--color-text-tertiary); }
+.lineRowNoPrice { margin-bottom: 6px; }
+@media (max-width: 800px) {
+  .linesHeadNoPrice { display: none; }
+  .lineRowNoPrice { grid-template-columns: 1fr 1fr; padding: 8px; border: 1px solid var(--color-border); border-radius: 10px; }
+}
+
+/* supplier prices editor */
+.priceHead, .priceRow { display: grid; grid-template-columns: 1.4fr 1.2fr 0.9fr 36px; gap: 8px; align-items: center; }
+.priceHead { padding: 4px 2px 6px; font-size: 0.72rem; font-weight: 600; text-transform: uppercase; color: var(--color-text-tertiary); }
+.priceRow { margin-bottom: 6px; }
+
+.linkButton { display: block; margin-top: 3px; padding: 0; font-size: 0.74rem; color: #6ea8fe; background: none; border: none; cursor: pointer; text-align: left; }
+.linkButton:hover { text-decoration: underline; }
+
+/* order line price taken from the article's supplier price */
+.cellFromArticle { border-color: rgba(76, 195, 138, 0.45); }
+.cellMissing { border-color: #e8b93f; }
+.priceWarning { display: flex; align-items: center; gap: 6px; margin: 4px 0; font-size: 0.78rem; color: #e8b93f; }
+
+.cardTopActions { display: flex; justify-content: flex-end; margin-bottom: 8px; }
+.cardTopActions button { display: inline-flex; align-items: center; gap: 6px; }
+
+/* ============================================================
+   UNIFIED FILTER BAR — identical on every list page.
+   Dropdowns keep a FIXED width (they never resize with the chosen
+   option); the search bar sits on the SAME line and takes the
+   remaining space; everything wraps cleanly on narrow screens.
+   ============================================================ */
+.toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 12px;
+    margin-bottom: 18px;
+}
+
+.toolbar > * {
+    flex: 0 0 220px;
+    min-width: 0;
+    max-width: 100%;
+}
+
+/* the search field grows to fill the line */
+.toolbar > *:has(input[type="text"]) {
+    flex: 1 1 280px;
+}
+
+/* filter tabs in the bar keep their natural width */
+.toolbar > .tabs {
+    flex: 0 1 auto;
+}
+
+/* ---------- multi-supplier chips & quote comparison ---------- */
+.chipList { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.chip { display: inline-flex; align-items: center; gap: 4px; padding: 3px 4px 3px 10px; font-size: 0.78rem; color: var(--color-text-primary); border: 1px solid var(--color-border); border-radius: 999px; }
+.chip button { display: inline-flex; padding: 2px; color: var(--color-text-secondary); background: none; border: none; cursor: pointer; }
+.compareBtn { display: inline-flex; align-items: center; gap: 5px; margin-left: auto; padding: 4px 10px; font-size: 0.76rem; color: var(--color-text-primary); background: transparent; border: 1px solid var(--color-border); border-radius: 999px; cursor: pointer; }
+.compareBtn:hover { background: rgba(255, 255, 255, 0.06); }
+.compareScroll { overflow-x: auto; margin: 10px 0; }
+.compareTable { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+.compareTable th, .compareTable td { padding: 8px 10px; text-align: right; border-bottom: 1px solid var(--color-border); white-space: nowrap; }
+.compareTable th:first-child, .compareTable td:first-child { text-align: left; white-space: normal; }
+.compareTable th small { display: block; font-weight: 400; color: var(--color-text-tertiary); }
+.compareTotal td { font-weight: 700; }
+.bestPrice { color: #4cc38a; font-weight: 700; background: rgba(76, 195, 138, 0.08); }
+
+/* supplier documents: expiry states */
+.docExpired { font-size: 0.78rem; font-weight: 600; color: #f87171; }
+.docExpiring { font-size: 0.78rem; font-weight: 600; color: #e8b93f; }
+.docOk { font-size: 0.78rem; color: #4cc38a; }
+.docBtn_expired { color: #f87171 !important; border-color: rgba(248, 113, 113, 0.5) !important; }
+.docBtn_expiring { color: #e8b93f !important; border-color: rgba(232, 185, 63, 0.5) !important; }

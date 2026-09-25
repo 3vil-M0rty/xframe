@@ -7,6 +7,7 @@ import { Search, X, User } from "lucide-react";
 // visual style, just a different behavior (pick one result instead
 // of live-filtering a list) layered on the same look.
 import styles from "./SearchBar.module.css";
+import { useI18n } from "../../hooks/useI18n";
 
 /**
  * A search-as-you-type dropdown that resolves to a single selected
@@ -38,6 +39,7 @@ export default function SearchSelect({
   placeholder = "Search...",
   noResultsLabel = "No results found",
 }) {
+  const { t } = useI18n();
   const [query, setQuery] = useState("");
   const [isOpen, setIsOpen] = useState(false);
 
@@ -123,7 +125,7 @@ export default function SearchSelect({
             type="button"
             onClick={handleClear}
             className={styles.clearBtn}
-            title="Clear"
+            title={t("common.clear")}
           >
             <X size={18} />
           </button>

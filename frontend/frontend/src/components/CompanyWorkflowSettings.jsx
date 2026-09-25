@@ -19,10 +19,13 @@ export default function CompanyWorkflowSettings({ company }) {
   const [enabled, setEnabled] = useState(!!company?.settings?.requireSequentialApproval);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [threshold, setThreshold] = useState(String(company?.settings?.purchaseApprovalThreshold ?? 0));
+  const [thresholdSaved, setThresholdSaved] = useState(false);
 
   // Keep in sync if the parent switches to a different company.
   useEffect(() => {
     setEnabled(!!company?.settings?.requireSequentialApproval);
+    setThreshold(String(company?.settings?.purchaseApprovalThreshold ?? 0));
     setError("");
   }, [company?._id, company?.settings?.requireSequentialApproval]);
 
@@ -36,6 +39,24 @@ export default function CompanyWorkflowSettings({ company }) {
       setEnabled(!!saved?.requireSequentialApproval);
     } catch (err) {
       setEnabled(!next); // roll back
+      setError(err.response?.data?.message || t("company.workflow.saveFailed"));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // Purchase orders at or above this amount (TTC) need an approver.
+  const saveThreshold = async () => {
+    const value = Math.max(Number(threshold) || 0, 0);
+    if (value === Number(company?.settings?.purchaseApprovalThreshold ?? 0)) return;
+    setSaving(true);
+    setError("");
+    try {
+      const saved = await updateCompanySettings(company._id, { purchaseApprovalThreshold: value });
+      setThreshold(String(saved?.purchaseApprovalThreshold ?? value));
+      setThresholdSaved(true);
+      setTimeout(() => setThresholdSaved(false), 2000);
+    } catch (err) {
       setError(err.response?.data?.message || t("company.workflow.saveFailed"));
     } finally {
       setSaving(false);
@@ -64,6 +85,20 @@ export default function CompanyWorkflowSettings({ company }) {
           onChange={handleToggle}
         />
       </label>
+
+      <div className={styles.row} style={{ marginTop: 14, cursor: "default" }}>
+        <div className={styles.text}>
+          <span className={styles.label}>{t("company.workflow.purchaseThreshold")}</span>
+          <span className={styles.hint}>{t("company.workflow.purchaseThresholdHint")}</span>
+        </div>
+        <div className={styles.thresholdField}>
+          <input type="number" min="0" step="100" value={threshold} disabled={saving}
+            onChange={(e) => setThreshold(e.target.value)} onBlur={saveThreshold}
+            onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()} />
+          <span>MAD</span>
+          {thresholdSaved && <span className={styles.saved}>✓</span>}
+        </div>
+      </div>
 
       {error && <p className={styles.error}>{error}</p>}
     </div>

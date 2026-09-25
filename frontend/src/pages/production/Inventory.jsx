@@ -1,7 +1,8 @@
+import { useNavigate } from "react-router-dom";
 import { useEffect, useRef, useState } from "react";
 import {
   Boxes, Plus, Minus, Edit, Trash2, X, Search,
-  AlertTriangle, ShoppingCart, BriefcaseBusiness, Package, Languages, Ruler,
+  AlertTriangle, ShoppingCart, BriefcaseBusiness, Package, Languages, Ruler, History, Tags,
 } from "lucide-react";
 
 import { useI18n } from "../../hooks/useI18n";
@@ -32,7 +33,9 @@ import { getInventoryCategories } from "../../services/inventoryCategoryService"
 import { createPurchaseRequest } from "../../services/purchaseRequestService";
 import { getCompanies } from "../../services/companyService";
 import { getInventoryIcon } from "../../utils/inventoryIcons";
-import { isAdmin } from "../../utils/permissions";
+import { canAccessProduction } from "../../utils/permissions";
+import SupplierPricesModal from "../purchasing/SupplierPricesModal";
+import SupplierSelect, { useCompanySuppliers } from "../../components/useful/SupplierSelect";
 
 import styles from "./Inventory.module.css";
 
@@ -43,14 +46,22 @@ function formatAmount(amount, currency = "MAD") {
   return `${Number(amount).toLocaleString("en-US")} ${currency}`;
 }
 
-export default function Inventory() {
+/**
+ * readOnly: the purchasing team's view (Achats > Inventaire) — they
+ * look articles up and open their purchase history, but never change
+ * stock (the backend enforces this too: writes are production-only).
+ */
+export default function Inventory({ readOnly = false }) {
+  const navigate = useNavigate();
+  const [pricesProduct, setPricesProduct] = useState(null); // purchasing: supplier prices editor
   const { t } = useI18n();
   const { user: currentUser } = useAuth();
-  const userIsAdmin = isAdmin(currentUser);
 
   // ---------- Company ----------
   const [companies, setCompanies] = useState([]);
   const [selectedCompanyId, setSelectedCompanyId] = useState("");
+  // existing suppliers, for the article prices dropdown
+  const companySuppliers = useCompanySuppliers(selectedCompanyId);
   const [companiesLoading, setCompaniesLoading] = useState(true);
 
   useEffect(() => {
@@ -394,7 +405,9 @@ export default function Inventory() {
 
   return (
     <div className="pageShell">
-      <Breadcrumbs items={[{ label: t("production.title") }, { label: t("inventory.title") }]} />
+      <Breadcrumbs items={readOnly
+        ? [{ label: t("sidebar.purchasing"), href: "/purchasing/requests" }, { label: t("inventory.title") }]
+        : [{ label: t("production.title") }, { label: t("inventory.title") }]} />
 
       <div className="pageHeader">
         <div>
@@ -404,7 +417,7 @@ export default function Inventory() {
           </div>
           <p className="pageSubtitle">{t("inventory.subtitle")}</p>
         </div>
-        {selectedCompanyId && (
+        {selectedCompanyId && !readOnly && (
           <div className="pageHeaderActions">
             <button type="button" className="btnPrimary" onClick={openCreateForm}>
               <Plus size={16} />
@@ -554,7 +567,8 @@ export default function Inventory() {
             </div>
             {formPrices.map((price, index) => (
               <div key={index} className={styles.priceRow}>
-                <input type="text" className={styles.textInput} placeholder={t("inventory.fields.supplierName")} value={price.supplierName} onChange={(e) => updatePriceRow(index, "supplierName", e.target.value)} />
+                <SupplierSelect suppliers={companySuppliers} value={price.supplierName}
+                  onChange={(name) => updatePriceRow(index, "supplierName", name)} />
                 <input type="number" min={0} className={styles.textInput} placeholder={t("inventory.fields.price")} value={price.price} onChange={(e) => updatePriceRow(index, "price", e.target.value)} />
                 <input type="text" className={styles.textInput} placeholder={t("inventory.fields.supplierReference")} value={price.supplierReference || ""} onChange={(e) => updatePriceRow(index, "supplierReference", e.target.value)} />
                 <button type="button" className="tableActionBtn tableActionBtnDanger" onClick={() => removePriceRow(index)}>
@@ -625,7 +639,7 @@ export default function Inventory() {
                         <Languages size={13} />
                       </button>
                     </div>
-                    <span className={styles.productRef}>{product.internalReference}</span>
+                    <span className={styles.productRef}>{product.internalReference || t("purchasing.supplierPrices.noReference")}</span>
 
                     <div className={styles.quantityRow}>
                       <span className={styles.quantityValue}>{product.quantity}</span>
@@ -647,23 +661,42 @@ export default function Inventory() {
                   </div>
 
                   <div className={styles.productActions}>
-                    <button type="button" className="tableActionBtn tableActionBtnAccept" title={t("inventory.actions.add")} onClick={() => openAdjust(product, "in")}>
-                      <Plus size={14} />
-                    </button>
-                    <button type="button" className="tableActionBtn tableActionBtnReject" title={t("inventory.actions.remove")} onClick={() => openAdjust(product, "out")}>
-                      <Minus size={14} />
-                    </button>
-                    <button type="button" className="tableActionBtn" title={t("common.edit")} onClick={() => openEditForm(product)}>
-                      <Edit size={14} />
-                    </button>
-                    {userIsAdmin && (
-                      <button type="button" className="tableActionBtn" title={t("inventory.actions.requestPurchase")} onClick={() => openPurchaseRequest(product)}>
-                        <ShoppingCart size={14} />
-                      </button>
+                    {readOnly ? (
+                      <>
+                        {/* The purchasing team's only edit: supplier prices/references
+                            (+ a missing internal reference). */}
+                        <button type="button" className="tableActionBtn" title={t("purchasing.supplierPrices.open")}
+                          onClick={() => setPricesProduct(product)}>
+                          <Tags size={14} />
+                        </button>
+                        <button type="button" className="tableActionBtn" title={t("purchasing.history.openForArticle")}
+                          onClick={() => navigate(`/purchasing/article-history?product=${product._id}`)}>
+                          <History size={14} />
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <button type="button" className="tableActionBtn tableActionBtnAccept" title={t("inventory.actions.add")} onClick={() => openAdjust(product, "in")}>
+                          <Plus size={14} />
+                        </button>
+                        <button type="button" className="tableActionBtn tableActionBtnReject" title={t("inventory.actions.remove")} onClick={() => openAdjust(product, "out")}>
+                          <Minus size={14} />
+                        </button>
+                        <button type="button" className="tableActionBtn" title={t("common.edit")} onClick={() => openEditForm(product)}>
+                          <Edit size={14} />
+                        </button>
+                        {/* Production managers ask the purchasing team to buy
+                            (was admin-only before the purchasing module). */}
+                        {canAccessProduction(currentUser) && (
+                          <button type="button" className="tableActionBtn" title={t("inventory.actions.requestPurchase")} onClick={() => openPurchaseRequest(product)}>
+                            <ShoppingCart size={14} />
+                          </button>
+                        )}
+                        <button type="button" className="tableActionBtn tableActionBtnDanger" title={t("common.delete")} onClick={() => askDelete(product)}>
+                          <Trash2 size={14} />
+                        </button>
+                      </>
                     )}
-                    <button type="button" className="tableActionBtn tableActionBtnDanger" title={t("common.delete")} onClick={() => askDelete(product)}>
-                      <Trash2 size={14} />
-                    </button>
                   </div>
                 </div>
               );
@@ -749,6 +782,16 @@ export default function Inventory() {
         fields={[{ key: "name", label: t("inventory.fields.name") }]}
         onSaved={handleTranslationSaved}
       />
+      {pricesProduct && (
+        <SupplierPricesModal
+          product={pricesProduct}
+          onClose={() => setPricesProduct(null)}
+          onSaved={(saved) => {
+            setProducts((prev) => prev.map((p) => (p._id === saved._id ? { ...p, ...saved, category: p.category } : p)));
+            setPricesProduct(null);
+          }}
+        />
+      )}
     </div>
   );
 }

@@ -4,8 +4,10 @@ import { useAuth } from '../hooks/useAuth'
 import styles from './LoginPage.module.css'
 import ShinyText from '../components/useful/ShinyText'
 import { ShieldCheck } from 'lucide-react'
+import { useI18n } from "../hooks/useI18n";
 
 export default function LoginPage() {
+  const { t } = useI18n();
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
@@ -44,7 +46,7 @@ export default function LoginPage() {
       setStep('twoFactor')
       return
     }
-    setError(result.error || 'Login failed')
+    setError(result.error || t("login.failed"))
   }
 
   const handleVerifyCode = async (e) => {
@@ -55,7 +57,7 @@ export default function LoginPage() {
       navigate('/profile')
       return
     }
-    setError(result.error || 'Invalid code')
+    setError(result.error || t("login.invalidCode"))
   }
 
   const handleBackToCredentials = () => {
@@ -91,18 +93,16 @@ export default function LoginPage() {
 
         {step === 'credentials' ? (
           <form onSubmit={handleSubmit} className={styles.form}>
-            <input type="email" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} required className={styles.input} />
-            <input type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} required className={styles.input} />
-            <button type="submit" disabled={loading} className={styles.button}>{loading ? 'Signing in...' : 'Sign In'}</button>
+            <input type="email" placeholder={t("login.email")} value={email} onChange={(e) => setEmail(e.target.value)} required className={styles.input} />
+            <input type="password" placeholder={t("login.password")} value={password} onChange={(e) => setPassword(e.target.value)} required className={styles.input} />
+            <button type="submit" disabled={loading} className={styles.button}>{loading ? t("login.signingIn") : t("login.signIn")}</button>
           </form>
         ) : (
           <form onSubmit={handleVerifyCode} className={styles.form}>
             <div className={styles.twoFactorHint}>
               <ShieldCheck size={16} />
               <span>
-                {useBackupCode
-                  ? 'Enter one of your backup codes.'
-                  : 'Enter the 6-digit code from your authenticator app.'}
+                {useBackupCode ? t("login.backupCodeHint") : t("login.authenticatorHint")}
               </span>
             </div>
             <input
@@ -117,14 +117,14 @@ export default function LoginPage() {
               maxLength={useBackupCode ? 9 : 6}
             />
             <button type="submit" disabled={loading} className={styles.button}>
-              {loading ? 'Verifying...' : 'Verify'}
+              {loading ? t("login.verifying") : t("login.verify")}
             </button>
             <div className={styles.twoFactorLinks}>
               <button type="button" className={styles.linkButton} onClick={() => { setUseBackupCode((v) => !v); setCode(''); setError(''); }}>
-                {useBackupCode ? 'Use authenticator code instead' : 'Use a backup code instead'}
+                {useBackupCode ? t("login.useAuthenticator") : t("login.useBackupCode")}
               </button>
               <button type="button" className={styles.linkButton} onClick={handleBackToCredentials}>
-                Back
+                {t("common.back")}
               </button>
             </div>
           </form>

@@ -59,7 +59,7 @@ export default function Profile() {
         setModal({
           open: true,
           type: "error",
-          title: "Failed to Load Profile",
+          title: t("profile.loadFailed"),
           message:
             error.response?.data?.message ||
             "We couldn't load your profile. Please try again.",
@@ -75,7 +75,7 @@ export default function Profile() {
   // ========================================
 
   if (!user) {
-    return <p>Loading...</p>;
+    return <p>{t("common.loading")}</p>;
   }
 
   const profileFields = [

@@ -76,4 +76,10 @@ async function notifyMany(userIds = [], payload) {
   );
 }
 
-module.exports = { notify, notifyMany, getHRRecipientIds, getProductionRecipientIds };
+/** Everyone who works purchase requests: admins + purchasing department. */
+async function getPurchasingRecipientIds(company, excludeUserId) {
+  const users = await User.find({ $or: [{ role: "admin" }, { department: "purchasing" }] }).select("_id");
+  return users.map((u) => u._id.toString()).filter((id) => id !== String(excludeUserId || ""));
+}
+
+module.exports = { notify, notifyMany, getHRRecipientIds, getProductionRecipientIds, getPurchasingRecipientIds };

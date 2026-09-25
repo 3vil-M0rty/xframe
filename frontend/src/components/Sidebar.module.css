@@ -951,3 +951,17 @@
     max-width: 145px;
   }
 }
+
+/* count badge on a sidebar link, e.g. "Demandes d'achat (N)" */
+.subBadge {
+    min-width: 18px;
+    margin-left: auto;
+    padding: 1px 6px;
+    font-size: 0.68rem;
+    font-weight: 700;
+    line-height: 16px;
+    text-align: center;
+    color: #fff;
+    background: #ef4444;
+    border-radius: 999px;
+}

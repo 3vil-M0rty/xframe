@@ -1,19 +1,6 @@
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import {
-  User,
-  Wallet,
-  CalendarOff,
-  HandCoins,
-  Clock,
-  Play,
-  Square,
-  Plus,
-  X,
-  Download,
-  ClipboardList,
-  ShieldAlert,
-} from "lucide-react";
+import { User, Wallet, CalendarOff, HandCoins, Clock, Play, Square, Plus, X, Download, ClipboardList, ShieldAlert, Check } from "lucide-react";
 
 import { useI18n } from "../../hooks/useI18n";
 
@@ -209,7 +196,12 @@ function ProfileTab({ t }) {
 }
 
 function TeamRequestsList({ t, teamRequests, setTeamRequests }) {
+  const [busyId, setBusyId] = useState(null);
+  const [error, setError] = useState("");
+
   const handleReview = async (kind, id, status) => {
+    setBusyId(id);
+    setError("");
     try {
       if (kind === "absence") {
         await reviewAbsence(id, { status });
@@ -218,29 +210,59 @@ function TeamRequestsList({ t, teamRequests, setTeamRequests }) {
         await reviewAdvance(id, { status });
         setTeamRequests((prev) => ({ ...prev, advances: prev.advances.filter((a) => a._id !== id) }));
       }
-    } catch (error) {
-      console.error("Failed to review team request:", error);
+    } catch (err) {
+      // Was only logged to the console, so a refused review (e.g. HR
+      // must approve first) looked like the button did nothing.
+      setError(err.response?.data?.message || t("mySpace.teamRequests.reviewFailed"));
+    } finally {
+      setBusyId(null);
     }
   };
 
+  const dayCount = (a) => {
+    if (!a.startDate || !a.endDate) return null;
+    return Math.round((new Date(a.endDate) - new Date(a.startDate)) / 86400000) + 1;
+  };
+
+  // Real text buttons (the table's square icon-button style made the
+  // words overflow their box).
+  const actions = (kind, id) => (
+    <div className={styles.teamRowActions}>
+      <button type="button" className={styles.teamAccept} disabled={busyId === id} onClick={() => handleReview(kind, id, "accepted")}>
+        <Check size={14} /> {t(`${kind === "absence" ? "absences" : "advances"}.actions.accept`)}
+      </button>
+      <button type="button" className={styles.teamReject} disabled={busyId === id} onClick={() => handleReview(kind, id, "rejected")}>
+        <X size={14} /> {t(`${kind === "absence" ? "absences" : "advances"}.actions.reject`)}
+      </button>
+    </div>
+  );
+
   return (
     <div className={styles.teamList}>
+      {error && <div className="errorMessage">{error}</div>}
       {teamRequests.absences.map((a) => (
         <div key={a._id} className={styles.teamRow}>
-          <span>{a.employee?.firstName} {a.employee?.lastName} — {t(`absences.types.${a.type}`)} ({formatDate(a.startDate)} - {formatDate(a.endDate)})</span>
-          <div className={styles.teamRowActions}>
-            <button type="button" className="tableActionBtn tableActionBtnAccept" onClick={() => handleReview("absence", a._id, "accepted")}>{t("absences.actions.accept")}</button>
-            <button type="button" className="tableActionBtn tableActionBtnReject" onClick={() => handleReview("absence", a._id, "rejected")}>{t("absences.actions.reject")}</button>
+          <div className={styles.teamRowInfo}>
+            <strong className={styles.teamRowName}>{a.employee?.firstName} {a.employee?.lastName}</strong>
+            <span className={styles.teamRowMeta}>
+              <span className={styles.teamRowType}>{t(`absences.types.${a.type}`)}</span>
+              {formatDate(a.startDate)} → {formatDate(a.endDate)}
+              {dayCount(a) && ` · ${t("mySpace.teamRequests.days").replace("{count}", dayCount(a))}`}
+            </span>
           </div>
+          {actions("absence", a._id)}
         </div>
       ))}
       {teamRequests.advances.map((a) => (
         <div key={a._id} className={styles.teamRow}>
-          <span>{a.employee?.firstName} {a.employee?.lastName} — {formatAmount(a.amount, a.currency)}</span>
-          <div className={styles.teamRowActions}>
-            <button type="button" className="tableActionBtn tableActionBtnAccept" onClick={() => handleReview("advance", a._id, "accepted")}>{t("advances.actions.accept")}</button>
-            <button type="button" className="tableActionBtn tableActionBtnReject" onClick={() => handleReview("advance", a._id, "rejected")}>{t("advances.actions.reject")}</button>
+          <div className={styles.teamRowInfo}>
+            <strong className={styles.teamRowName}>{a.employee?.firstName} {a.employee?.lastName}</strong>
+            <span className={styles.teamRowMeta}>
+              <span className={styles.teamRowType}>{t("mySpace.teamRequests.advance")}</span>
+              {formatAmount(a.amount, a.currency)}
+            </span>
           </div>
+          {actions("advance", a._id)}
         </div>
       ))}
     </div>

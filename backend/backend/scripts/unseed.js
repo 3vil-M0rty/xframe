@@ -46,6 +46,9 @@ const PurchaseRequest = require("../models/PurchaseRequest");
 const PerformanceReview = require("../models/PerformanceReview");
 const DisciplinaryAction = require("../models/DisciplinaryAction");
 const PublicHoliday = require("../models/PublicHoliday");
+const Supplier = require("../models/Supplier");
+const PurchaseOrder = require("../models/PurchaseOrder");
+const PriceRequest = require("../models/PriceRequest");
 
 const SEED_COMPANY_NAME = "Atlas Industries";
 const SEED_OWNER_EMAIL = "owner@frame.test";
@@ -96,6 +99,9 @@ async function run() {
     { deletedCount: disciplinaryDeleted },
     { deletedCount: auditLogsDeleted },
     { deletedCount: holidaysDeleted },
+    { deletedCount: suppliersDeleted },
+    { deletedCount: purchaseOrdersDeleted },
+    { deletedCount: priceRequestsDeleted },
   ] = await Promise.all([
     Employee.deleteMany({ company: companyId }),
     Department.deleteMany({ company: companyId }),
@@ -115,6 +121,9 @@ async function run() {
     DisciplinaryAction.deleteMany({ company: companyId }),
     AuditLog.deleteMany({ company: companyId }),
     PublicHoliday.deleteMany({ company: companyId }),
+    Supplier.deleteMany({ company: companyId }),
+    PurchaseOrder.deleteMany({ company: companyId }),
+    PriceRequest.deleteMany({ company: companyId }),
   ]);
 
   // Users: matched by email domain, not by company — a User
@@ -159,6 +168,9 @@ async function run() {
   console.log(`  Notifications:        ${notificationsDeleted}`);
   console.log(`  Audit log entries:    ${auditLogsDeleted}`);
   console.log(`  Public holidays:      ${holidaysDeleted}`);
+  console.log(`  Suppliers:            ${suppliersDeleted}`);
+  console.log(`  Purchase orders:      ${purchaseOrdersDeleted}`);
+  console.log(`  Price requests:       ${priceRequestsDeleted}`);
   console.log("============================================================");
   console.log("Everything else in the database was left untouched.");
   console.log("============================================================\n");

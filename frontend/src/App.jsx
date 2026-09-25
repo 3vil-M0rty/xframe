@@ -4,7 +4,7 @@ import { I18nProvider } from './context/i18nContext'
 import { AuthProvider } from './context/AuthContext'
 import ProtectedRoute from './components/ProtectedRoute'
 import Layout from './components/Layout'
-import { canAccessHR, canSelfService, canManageCompanySettings, canAccessProduction, canOverseeDepartments } from './utils/permissions'
+import { canAccessHR, canSelfService, canManageCompanySettings, canAccessProduction, canOverseeDepartments, canAccessPurchasing } from './utils/permissions'
 import './styles/global.css';
 
 // LoginPage stays a normal (eager) import: it's the very first
@@ -20,6 +20,7 @@ import './styles/global.css';
 // loads the moment its route is actually visited, and the browser
 // caches it after that.
 import LoginPage from './pages/LoginPage'
+import { useI18n } from './hooks/useI18n'
 const Profile = lazy(() => import('./pages/Profile'))
 const Company = lazy(() => import('./pages/owner/Company'))
 const WorkSchedule = lazy(() => import('./pages/owner/WorkSchedule'))
@@ -40,6 +41,16 @@ const PerformanceReviews = lazy(() => import('./pages/hr/PerformanceReviews'))
 const DisciplinaryActions = lazy(() => import('./pages/hr/DisciplinaryActions'))
 const LeaveCalendar = lazy(() => import('./pages/hr/LeaveCalendar'))
 const Holidays = lazy(() => import('./pages/hr/Holidays'))
+const PurchaseRequestsQueue = lazy(() => import('./pages/purchasing/PurchaseRequestsQueue'))
+const PurchaseOrders = lazy(() => import('./pages/purchasing/PurchaseOrders'))
+const PurchaseOrderForm = lazy(() => import('./pages/purchasing/PurchaseOrderForm'))
+const PurchaseOrderDetail = lazy(() => import('./pages/purchasing/PurchaseOrderDetail'))
+const PriceRequests = lazy(() => import('./pages/purchasing/PriceRequests'))
+const Suppliers = lazy(() => import('./pages/purchasing/Suppliers'))
+const ArticleHistory = lazy(() => import('./pages/purchasing/ArticleHistory'))
+const SupplierInvoices = lazy(() => import('./pages/purchasing/SupplierInvoices'))
+const PurchasingReports = lazy(() => import('./pages/purchasing/PurchasingReports'))
+const Restock = lazy(() => import('./pages/purchasing/Restock'))
 const MySpace = lazy(() => import('./pages/me/MySpace'))
 const Inventory = lazy(() => import('./pages/production/Inventory'))
 const InventorySettings = lazy(() => import('./pages/production/InventorySettings'))
@@ -59,6 +70,11 @@ function hrRoute(element) {
 // of role/department.
 function selfServiceRoute(element) {
   return <ProtectedRoute permission={canSelfService}>{element}</ProtectedRoute>
+}
+
+// Purchasing module (service achats) — admins and the "purchasing" department.
+function purchasingRoute(element) {
+  return <ProtectedRoute permission={canAccessPurchasing}>{element}</ProtectedRoute>
 }
 
 // Production module — admins and the "production" department only.
@@ -173,6 +189,20 @@ export default function App() {
                   }
                 />
 
+                {/* Purchasing module (service achats) */}
+                <Route path="/purchasing/requests" element={purchasingRoute(<PurchaseRequestsQueue />)} />
+                <Route path="/purchasing/orders" element={purchasingRoute(<PurchaseOrders />)} />
+                <Route path="/purchasing/orders/new" element={purchasingRoute(<PurchaseOrderForm />)} />
+                <Route path="/purchasing/orders/:id" element={purchasingRoute(<PurchaseOrderDetail />)} />
+                <Route path="/purchasing/orders/:id/edit" element={purchasingRoute(<PurchaseOrderForm />)} />
+                <Route path="/purchasing/invoices" element={purchasingRoute(<SupplierInvoices />)} />
+                <Route path="/purchasing/reports" element={purchasingRoute(<PurchasingReports />)} />
+                <Route path="/purchasing/restock" element={purchasingRoute(<Restock />)} />
+                <Route path="/purchasing/price-requests" element={purchasingRoute(<PriceRequests />)} />
+                <Route path="/purchasing/suppliers" element={purchasingRoute(<Suppliers />)} />
+                <Route path="/purchasing/inventory" element={purchasingRoute(<Inventory readOnly />)} />
+                <Route path="/purchasing/article-history" element={purchasingRoute(<ArticleHistory />)} />
+
                 {/* Production module */}
                 <Route path="/production/inventory" element={productionRoute(<Inventory />)} />
                 <Route path="/production/purchase-requests" element={productionRoute(<PurchaseRequests />)} />
@@ -192,11 +222,12 @@ export default function App() {
 }
 
 function NotFound() {
+  const { t } = useI18n()
   return (
     <div className="pageShell">
       <div className="emptyStateBlock">
-        <h2>Page not found</h2>
-        <p>This section hasn't been built yet.</p>
+        <h2>{t("common.pageNotFound")}</h2>
+        <p>{t("common.pageNotFoundHint")}</p>
       </div>
     </div>
   )

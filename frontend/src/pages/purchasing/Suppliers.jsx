@@ -24,7 +24,7 @@ const FIELDS = [
   // days until an invoice is due (Loi 69-21: 60 by default, 120 max by agreement)
   { key: "paymentDays", type: "number" },
 ];
-const EMPTY = Object.fromEntries([...FIELDS.map((f) => [f.key, ""]), ["paymentDays", 60], ["notes", ""], ["isActive", true]]);
+const EMPTY = Object.fromEntries([...FIELDS.map((f) => [f.key, ""]), ["notes", ""], ["isActive", true]]);
 
 /** Fournisseurs. A supplier with orders is deactivated, never deleted. */
 export default function Suppliers() {
@@ -120,7 +120,11 @@ export default function Suppliers() {
               <label key={f.key} className={styles.field}>
                 <span>{t(`purchasing.suppliers.fields.${f.key}`)}{f.required && " *"}</span>
                 <input className={styles.input} type={f.type || "text"} min={f.type === "number" ? 0 : undefined}
+                  placeholder={f.key === "paymentDays" ? "60" : undefined}
                   value={form[f.key] ?? ""} onChange={(e) => setForm({ ...form, [f.key]: f.type === "number" && e.target.value !== "" ? Number(e.target.value) : e.target.value })} />
+                {f.key === "paymentDays" && (form.paymentDays === "" || form.paymentDays === null || form.paymentDays === undefined) && (
+                  <small className={styles.muted}>{t("purchasing.dueDate.supplierFieldHint")}</small>
+                )}
                 {f.key === "paymentDays" && Number(form.paymentDays) > 60 && (
                   <small className={Number(form.paymentDays) > 120 ? styles.amountDue : styles.muted}>
                     {Number(form.paymentDays) > 120 ? t("purchasing.legal.over_maxHint") : t("purchasing.legal.needs_agreementHint")}

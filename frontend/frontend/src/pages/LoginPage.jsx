@@ -5,13 +5,18 @@ import styles from './LoginPage.module.css'
 import ShinyText from '../components/useful/ShinyText'
 import { ShieldCheck } from 'lucide-react'
 import { useI18n } from "../hooks/useI18n";
+import { isPlatformAdmin } from '../utils/permissions'
+
+// Where someone lands after logging in: the platform operator goes
+// straight to the client list, everyone else to their profile.
+const homeFor = (user) => (isPlatformAdmin(user) ? '/platform/clients' : '/profile')
 
 export default function LoginPage() {
   const { t } = useI18n();
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
-  const { login, verifyTwoFactorLogin, loading, token } = useAuth()
+  const { login, verifyTwoFactorLogin, loading, token, user } = useAuth()
   const navigate = useNavigate()
 
   // 'credentials' is the normal email/password form. An account
@@ -29,16 +34,16 @@ export default function LoginPage() {
   // before the stored token has been verified.
   useEffect(() => {
     if (token && !loading) {
-      navigate('/profile', { replace: true })
+      navigate(homeFor(user), { replace: true })
     }
-  }, [token, loading, navigate])
+  }, [token, loading, navigate, user])
 
   const handleSubmit = async (e) => {
     e.preventDefault()
     setError('')
     const result = await login(email, password)
     if (result.success) {
-      navigate('/profile')
+      navigate(homeFor(result.user))
       return
     }
     if (result.requires2FA) {
@@ -54,7 +59,7 @@ export default function LoginPage() {
     setError('')
     const result = await verifyTwoFactorLogin(challengeToken, code)
     if (result.success) {
-      navigate('/profile')
+      navigate(homeFor(result.user))
       return
     }
     setError(result.error || t("login.invalidCode"))

@@ -1,3 +1,5 @@
+// Must load before the schema is compiled — registers the client-isolation plugin.
+require("../services/tenantScope");
 const mongoose = require("mongoose");
 
 /**
@@ -20,7 +22,10 @@ const supplierSchema = new mongoose.Schema(
     paymentTerms: { type: String, trim: true, maxlength: 150 },
     // Payment delay in days, used to set an invoice's due date. Loi
     // 69-21: 60 days by default, up to 120 only by written agreement.
-    paymentDays: { type: Number, default: 60, min: 0, max: 365 },
+    // null = not entered: invoices then fall back to the legal 60 days
+    // AND the app says so. (It used to default to 60, which made "not
+    // entered" indistinguishable from "60 days agreed".)
+    paymentDays: { type: Number, default: null, min: 0, max: 365 },
     notes: { type: String, trim: true, maxlength: 2000 },
     isActive: { type: Boolean, default: true },
     // Supplier compliance documents, with expiry alerts (daily check —
@@ -35,7 +40,7 @@ const supplierSchema = new mongoose.Schema(
       number: { type: String, trim: true, maxlength: 100 },
       issueDate: { type: Date, default: null },
       expiryDate: { type: Date, default: null },
-      file: { url: String, publicId: String, originalName: String },
+      file: { url: String, publicId: String, originalName: String, private: Boolean, resourceType: String, format: String },
       expiryNotifiedAt: { type: Date, default: null },
       uploadedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
       uploadedAt: { type: Date, default: Date.now },

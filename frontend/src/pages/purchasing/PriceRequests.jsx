@@ -13,6 +13,7 @@ import {
 import LinesEditor, { emptyLine } from "./LinesEditor";
 import { useCompanyPicker, useCompanyProducts, formatDate, formatMoney, lineTotals, PILL } from "./shared";
 import styles from "./Purchasing.module.css";
+import FileLink from "../../components/useful/FileLink";
 
 const toPayloadLines = (lines) => lines.map((l) => ({
   product: l.product?._id || l.product || null,
@@ -240,11 +241,9 @@ export default function PriceRequests() {
                   </>
                 )}
 
-                {doc.quoteFile?.url && (
-                  <a className={styles.fileLink} href={doc.quoteFile.url} target="_blank" rel="noopener noreferrer">
-                    <Paperclip size={13} /> {doc.quoteFile.originalName || t("purchasing.priceRequests.quote")}
-                  </a>
-                )}
+                <FileLink kind="price-request-quote" id={doc._id} file={doc.quoteFile} className={styles.fileLink}>
+                  {doc.quoteFile?.originalName || t("purchasing.priceRequests.quote")}
+                </FileLink>
                 {doc.notes && <p className={styles.muted}>{doc.notes}</p>}
 
                 {!closed(doc) && (

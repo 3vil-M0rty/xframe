@@ -171,3 +171,20 @@
 .docOk { font-size: 0.78rem; color: #4cc38a; }
 .docBtn_expired { color: #f87171 !important; border-color: rgba(248, 113, 113, 0.5) !important; }
 .docBtn_expiring { color: #e8b93f !important; border-color: rgba(232, 185, 63, 0.5) !important; }
+
+/* received but not invoiced */
+.amountWarn { color: #e8b93f; }
+.summaryCardButton { text-align: left; cursor: pointer; font: inherit; color: inherit; transition: border-color 0.15s ease; }
+.summaryCardButton:hover { border-color: #e8b93f; }
+.noInvoiceBadge {
+  display: inline-block;
+  margin-top: 4px;
+  padding: 1px 7px;
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: #e8b93f;
+  background: rgba(232, 185, 63, 0.1);
+  border: 1px solid rgba(232, 185, 63, 0.3);
+  border-radius: 999px;
+  white-space: nowrap;
+}

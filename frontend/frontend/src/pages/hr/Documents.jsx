@@ -36,6 +36,7 @@ import { getCompanies } from "../../services/companyService";
 import { buildEmployeeSearchOptions } from "../../utils/employeeSearch";
 
 import styles from "./Documents.module.css";
+import FileLink from "../../components/useful/FileLink";
 
 function employeeName(employee) {
   if (!employee) return "—";
@@ -521,10 +522,10 @@ export default function Documents() {
                         </span>
                         <span className={styles.extensionBadge}>{getFileExtension(doc)}</span>
                         <span className="dataTableCellMuted">{doc.expiryDate ? formatDate(doc.expiryDate) : "—"}</span>
-                        <a href={doc.file?.url} target="_blank" rel="noopener noreferrer" className={styles.viewLink}>
+                        <FileLink kind="employee-document" id={doc._id} file={doc.file} className={styles.viewLink} showIcon={false}>
                           <FileText size={14} />
                           {t("documents.actions.view")}
-                        </a>
+                        </FileLink>
                         <div className="dataTableActions">
                           <button type="button" className="tableActionBtn" title={t("contentTranslation.editButton")} onClick={() => setTranslatingDoc(doc)}>
                             <Languages size={14} />

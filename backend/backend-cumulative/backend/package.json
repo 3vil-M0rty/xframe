@@ -11,7 +11,11 @@
     "unseed": "node scripts/unseed.js",
     "test": "vitest run",
     "test:watch": "vitest",
-    "seed:achats": "node scripts/seedAchats.js"
+    "seed:achats": "node scripts/seedAchats.js",
+    "migrate:tenants": "node scripts/migrateTenants.js",
+    "create:platform-admin": "node scripts/createPlatformAdmin.js",
+    "backup": "node scripts/backup.js",
+    "restore": "node scripts/restore.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
@@ -34,6 +38,7 @@
     "streamifier": "^0.1.1"
   },
   "devDependencies": {
+    "mingo": "^7.2.4",
     "nodemon": "^2.0.20",
     "supertest": "^7.2.2",
     "vitest": "^5.0.1"

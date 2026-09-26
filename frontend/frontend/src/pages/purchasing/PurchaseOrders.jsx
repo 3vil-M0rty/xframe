@@ -41,7 +41,9 @@ export default function PurchaseOrders() {
     setError("");
     try {
       // "late" isn't a stored status: ordered, not delivered, expected date passed
-      const params = filters.status === "late" ? { ...filters, status: "", late: "true" } : filters;
+      const params = filters.status === "late" ? { ...filters, status: "", late: "true" }
+        : filters.status === "missing_invoice" ? { ...filters, status: "", missingInvoice: "true" }
+          : filters;
       const { orders: list, pagination: p } = await getOrders({ companyId, ...params, page, limit: 20 });
       setOrders(list);
       setPagination(p);
@@ -84,6 +86,11 @@ export default function PurchaseOrders() {
           <div className={styles.summaryCard}><span>{t("purchasing.summary.totalPaid")}</span><strong>{formatMoney(summary.totalPaid)}</strong></div>
           <div className={styles.summaryCard}><span>{t("purchasing.summary.remaining")}</span><strong className={summary.remainingToPay > 0 ? styles.amountDue : ""}>{formatMoney(summary.remainingToPay)}</strong></div>
           <div className={styles.summaryCard}><span>{t("purchasing.summary.overdue")}</span><strong className={summary.overdueOrders ? styles.amountDue : ""}>{summary.overdueOrders}</strong></div>
+          {/* goods received, no supplier invoice yet — click to list them */}
+          <button type="button" className={`${styles.summaryCard} ${styles.summaryCardButton}`} onClick={() => setFilter("status", "missing_invoice")}>
+            <span>{t("purchasing.summary.missingInvoice")}</span>
+            <strong className={summary.missingInvoice ? styles.amountWarn : ""}>{summary.missingInvoice || 0}</strong>
+          </button>
           <div className={styles.summaryCard}>
             <span>{t("purchasing.summary.byStatus")}</span>
             <div className={styles.statusCounts}>
@@ -104,7 +111,8 @@ export default function PurchaseOrders() {
           <label>{t("purchasing.columns.status")}</label>
           <CustomSelect value={filters.status} onSelect={(v) => setFilter("status", v)}
             options={[{ value: "", label: t("purchasing.filters.all") }, ...STATUSES.map((s) => ({ value: s, label: t(`purchasing.orderStatus.${s}`) })),
-              { value: "late", label: t("purchasing.filters.late") }]} />
+              { value: "late", label: t("purchasing.filters.late") },
+              { value: "missing_invoice", label: t("purchasing.filters.missingInvoice") }]} />
         </div>
         <div className="filterGroup">
           <label>{t("purchasing.columns.payment")}</label>
@@ -155,7 +163,12 @@ export default function PurchaseOrders() {
               <span><strong>{o.number}</strong></span>
               <span className="dataTableCellMuted">{formatDate(o.date)}</span>
               <span>{o.supplier?.name || "—"}</span>
-              <span><StatusPill status={PILL[o.status]} label={t(`purchasing.orderStatus.${o.status}`)} /></span>
+              <span>
+                <StatusPill status={PILL[o.status]} label={t(`purchasing.orderStatus.${o.status}`)} />
+                {["partially_received", "received"].includes(o.status) && !(o.invoices || []).some((i) => i.type !== "credit_note") && (
+                  <span className={styles.noInvoiceBadge}>{t("purchasing.missingInvoice.badge")}</span>
+                )}
+              </span>
               <span>{formatMoney(o.totalTTC)}</span>
               <span className="dataTableCellMuted">{formatMoney(o.amountPaid)}</span>
               <span><StatusPill status={PILL[o.paymentStatus]} label={t(`purchasing.paymentStatus.${o.paymentStatus}`)} /></span>

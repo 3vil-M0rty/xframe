@@ -113,3 +113,84 @@ describe("payments without an invoice (why the TVA listing can look empty)", () 
     expect(R.paymentsWithoutInvoice([order({ payments: [{ date: "2026-05-05", amount: 1200, method: "cheque" }] })])).toHaveLength(0);
   });
 });
+
+describe("exact VAT per invoice (mixed rates)", () => {
+  // goods 1 000 HT at 20% + transport 500 HT at 10% = 1 200 + 550 = 1 750 TTC
+  const mixed = (extra = {}) => order({
+    lines: [
+      { description: "Tôle", quantity: 100, unitPrice: 10, vatRate: 20, product: { category: { accountingAccount: "6121" } } },
+      { description: "Transport", quantity: 1, unitPrice: 500, vatRate: 10 },
+    ],
+    totalHT: 1500, totalVAT: 250, totalTTC: 1750,
+    invoices: [{ _id: "i1", type: "invoice", number: "F-9", date: "2026-05-02", amountTTC: 1750,
+      vatBreakdown: [{ rate: 20, baseHT: 1000, vat: 200 }, { rate: 10, baseHT: 500, vat: 50 }] }],
+    payments: [{ date: "2026-05-10", amount: 1750, method: "virement" }],
+    ...extra,
+  });
+
+  it("the TVA listing has one row per rate with the invoice's exact amounts", () => {
+    const rows = R.vatDeductionRows([mixed()]);
+    expect(rows.map((r) => [r.vatRate, r.amountHT, r.vatAmount, r.exactVat])).toEqual([[20, 1000, 200, true], [10, 500, 50, true]]);
+  });
+
+  it("a partial payment is shared across the rates in proportion (and stays exact to the cent)", () => {
+    const rows = R.vatDeductionRows([mixed({ payments: [{ date: "2026-05-10", amount: 875, method: "virement" }] })]);
+    expect(rows.map((r) => [r.vatRate, r.amountHT, r.vatAmount])).toEqual([[20, 500, 100], [10, 250, 25]]);
+    expect(Math.round(rows.reduce((s, r) => s + r.amountTTC, 0) * 100) / 100).toBe(875);
+  });
+
+  it("the old proportional estimate would have been wrong here (why this matters)", () => {
+    const old = R.vatDeductionRows([mixed({ invoices: [{ _id: "i1", type: "invoice", number: "F-9", date: "2026-05-02", amountTTC: 1750 }] })]);
+    expect(old).toHaveLength(1);
+    expect(old[0].exactVat).toBe(false); // flagged as estimated, single main rate
+  });
+
+  it("accounting: goods to the category's account 6121, transport to the default; VAT per rate; balanced", () => {
+    const entries = R.accountingEntries([mixed({ payments: [] })], { accounts: { purchases: "6125" } });
+    const debit = (acc) => entries.filter((e) => e.account === acc).reduce((s, e) => s + e.debit, 0);
+    expect(debit("6121")).toBe(1000);
+    expect(debit("6125")).toBe(500);
+    expect(debit("34552")).toBe(250);
+    const d = entries.reduce((s, e) => s + e.debit, 0);
+    const c = entries.reduce((s, e) => s + e.credit, 0);
+    expect(Math.round(d * 100)).toBe(Math.round(c * 100));
+  });
+
+  it("a fixed-asset category books its VAT on 34551", () => {
+    const o = order({
+      lines: [{ description: "Compresseur", quantity: 1, unitPrice: 10000, vatRate: 20, product: { category: { accountingAccount: "2332", isFixedAsset: true } } }],
+      totalHT: 10000, totalVAT: 2000, totalTTC: 12000,
+      invoices: [{ type: "invoice", number: "F-IM", date: "2026-05-02", amountTTC: 12000, vatBreakdown: [{ rate: 20, baseHT: 10000, vat: 2000 }] }],
+    });
+    const entries = R.accountingEntries([o]);
+    expect(entries.find((e) => e.account === "2332").debit).toBe(10000);
+    expect(entries.find((e) => e.account === "34551").debit).toBe(2000);
+    expect(entries.some((e) => e.account === "34552")).toBe(false);
+  });
+});
+
+describe("payments tied to a specific invoice", () => {
+  const C = require("./purchaseOrderCalc");
+  const two = (payments) => ({
+    invoices: [
+      { _id: "old", type: "invoice", number: "F-OLD", date: "2026-01-01", amountTTC: 1000 },
+      { _id: "new", type: "invoice", number: "F-NEW", date: "2026-03-01", amountTTC: 500 },
+    ],
+    payments,
+  });
+
+  it("without a target, the oldest invoice is settled first", () => {
+    const rows = C.allocateInvoices(two([{ date: "2026-04-01", amount: 500 }]));
+    expect(rows.map((r) => [r.invoice.number, r.status])).toEqual([["F-OLD", "partially_paid"], ["F-NEW", "unpaid"]]);
+  });
+
+  it("a payment naming its invoice settles THAT invoice", () => {
+    const rows = C.allocateInvoices(two([{ date: "2026-04-01", amount: 500, invoiceId: "new" }]));
+    expect(rows.map((r) => [r.invoice.number, r.status])).toEqual([["F-OLD", "unpaid"], ["F-NEW", "paid"]]);
+  });
+
+  it("the excess of a targeted payment spills to the other invoices", () => {
+    const rows = C.allocateInvoices(two([{ date: "2026-04-01", amount: 700, invoiceId: "new" }]));
+    expect(rows.find((r) => r.invoice.number === "F-OLD").paid).toBe(200);
+  });
+});

@@ -21,7 +21,7 @@ const User = require("../models/User");
 const EmailOutbox = require("../models/EmailOutbox");
 const ordersRouter = require("./purchaseOrders");
 const priceRouter = require("./priceRequests");
-const { checkLateDeliveries } = require("../services/purchasingScheduledChecks");
+const { checkLateDeliveries, checkMissingInvoices } = require("../services/purchasingScheduledChecks");
 
 const ID = "507f1f77bcf86cd799439401";
 const COMPANY = "507f1f77bcf86cd799439201";
@@ -157,5 +157,19 @@ describe("quote comparison across suppliers", () => {
     expect(res.status).toBe(200);
     expect(res.body.data.lines[0].quotes.find((q) => q.best).supplier).toBe("Incomplet"); // cheapest on that line
     expect(res.body.data.cheapestId).toBe("a"); // 12.5*10+30*10=425 < 119+320=439 ; "c" incomplete excluded
+  });
+});
+
+describe("missing supplier invoice alert", () => {
+  it("goods received 7+ days ago with no invoice -> purchasing alerted once", async () => {
+    const o = { number: "BC-7", company: COMPANY, supplier: { name: "AcierPlus" }, missingInvoiceNotifiedAt: null, save: vi.fn() };
+    let query;
+    vi.spyOn(PurchaseOrder, "find").mockImplementation((q) => { query = q; return { populate: async () => [o] }; });
+    expect(await checkMissingInvoices(new Date("2026-03-20"))).toBe(1);
+    expect(o.missingInvoiceNotifiedAt).toBeInstanceOf(Date);
+    expect(notified.at(-1)).toMatchObject({ ids: ["buyer"], title: "Supplier invoice missing" });
+    // only orders not alerted yet, received at least 7 days before "now"
+    expect(query.missingInvoiceNotifiedAt).toBeNull();
+    expect(query.receptions.$elemMatch.date.$lte.toISOString().slice(0, 10)).toBe("2026-03-13");
   });
 });

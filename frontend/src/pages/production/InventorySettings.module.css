@@ -137,3 +137,6 @@
         grid-template-columns: 1fr;
     }
 }
+
+.fieldHint { font-size: 0.72rem; line-height: 1.4; color: var(--color-text-tertiary); }
+.inlineSwitch { display: inline-flex; align-items: center; gap: 8px; font-size: 0.82rem; color: var(--color-text-secondary); cursor: pointer; }

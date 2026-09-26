@@ -117,33 +117,79 @@ function matchOrder(order) {
 const DAY = 24 * 60 * 60 * 1000;
 
 /**
- * Per-invoice payment state. Payments on an order aren't tied to a
- * specific invoice, so they (plus any credit notes) are applied to the
- * invoices oldest first — the usual convention. Returns one row per
- * invoice with paid / remaining / overdue / days late, and the payment
- * term vs the legal limits (Loi 69-21: 60 days by default, 120 days
- * maximum by written agreement).
+ * Which payment (or credit note) settles which invoice.
+ *   1. A payment that names its invoice (payment.invoiceId) goes to
+ *      that invoice first — any excess joins the general pool.
+ *   2. Everything else (payments without an invoice, excesses, and —
+ *      when includeCredits — credit notes) is applied to the remaining
+ *      invoice balances oldest invoice first, in date order.
+ * Returns { invoices (sorted), pairs: [{ payment, invoice, amount, credit }],
+ *           remaining: Map(invoiceId -> balance), uncovered: Map(payment -> amount) }
  */
-function allocateInvoices(order, now = new Date()) {
+function allocatePayments(order, { includeCredits = true } = {}) {
   const invoices = (order.invoices || []).filter((i) => i.type !== "credit_note")
     .slice().sort((a, b) => new Date(a.date) - new Date(b.date));
-  const { creditedTTC } = invoiceTotals(order);
-  let pool = round2((order.payments || []).reduce((s, p) => s + (Number(p.amount) || 0), 0) + creditedTTC);
+  const key = (inv) => String(inv._id ?? inv.number);
+  const remaining = new Map(invoices.map((inv) => [key(inv), round2(inv.amountTTC)]));
+  const byId = new Map(invoices.filter((inv) => inv._id).map((inv) => [String(inv._id), inv]));
+  const pairs = [];
+  const uncovered = new Map();
 
+  const apply = (source, invoice, amount, credit) => {
+    const k = key(invoice);
+    const applied = round2(Math.min(amount, remaining.get(k)));
+    if (applied <= 0) return 0;
+    remaining.set(k, round2(remaining.get(k) - applied));
+    pairs.push({ payment: source, invoice, amount: applied, credit });
+    return applied;
+  };
+
+  const payments = (order.payments || []).slice().sort((a, b) => new Date(a.date) - new Date(b.date));
+  const pool = [];
+  for (const p of payments) {
+    let left = round2(p.amount);
+    const target = p.invoiceId ? byId.get(String(p.invoiceId)) : null;
+    if (target) left = round2(left - apply(p, target, left, false));
+    if (left > 0.005) pool.push({ source: p, left, credit: false, date: p.date });
+  }
+  if (includeCredits) {
+    for (const c of (order.invoices || []).filter((i) => i.type === "credit_note")) {
+      pool.push({ source: c, left: round2(c.amountTTC), credit: true, date: c.date });
+    }
+  }
+  pool.sort((a, b) => new Date(a.date) - new Date(b.date));
+
+  for (const item of pool) {
+    for (const inv of invoices) {
+      if (item.left <= 0.005) break;
+      item.left = round2(item.left - apply(item.source, inv, item.left, item.credit));
+    }
+    if (!item.credit && item.left > 0.005) uncovered.set(item.source, round2((uncovered.get(item.source) || 0) + item.left));
+  }
+  return { invoices, pairs, remaining, uncovered };
+}
+
+/**
+ * Per-invoice payment state (built on allocatePayments). Returns one
+ * row per invoice with paid / remaining / overdue / days late, and the
+ * payment term vs the legal limits (Loi 69-21: 60 days by default,
+ * 120 days maximum by written agreement).
+ */
+function allocateInvoices(order, now = new Date()) {
+  const { invoices, remaining } = allocatePayments(order, { includeCredits: true });
   return invoices.map((inv) => {
     const amount = round2(inv.amountTTC);
-    const applied = round2(Math.min(pool, amount));
-    pool = round2(pool - applied);
-    const remaining = round2(amount - applied);
-    const status = remaining <= 0.005 ? "paid" : applied > 0 ? "partially_paid" : "unpaid";
+    const left = remaining.get(String(inv._id ?? inv.number));
+    const paid = round2(amount - left);
+    const status = left <= 0.005 ? "paid" : paid > 0 ? "partially_paid" : "unpaid";
     const due = inv.dueDate ? new Date(inv.dueDate) : null;
     const overdue = status !== "paid" && due && due < now;
     const termDays = due && inv.date ? Math.round((due - new Date(inv.date)) / DAY) : null;
     return {
       invoice: inv,
       amount,
-      paid: applied,
-      remaining: status === "paid" ? 0 : remaining,
+      paid,
+      remaining: status === "paid" ? 0 : left,
       status,
       overdue: !!overdue,
       daysOverdue: overdue ? Math.floor((now - due) / DAY) : 0,
@@ -198,6 +244,7 @@ function applyReceptionToLines(order, type, entries) {
 }
 
 module.exports = {
+  allocatePayments,
   invoiceTotals,
   matchOrder,
   allocateInvoices,

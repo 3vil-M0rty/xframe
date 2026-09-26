@@ -82,3 +82,24 @@ describe("closing a line short and paying against invoices", () => {
     expect(order.amountDue).toBe(8280);
   });
 });
+
+describe("invoice due date source", () => {
+  it("supplier WITHOUT payment days -> legal 60 days, reported as legal_default", async () => {
+    const PurchaseOrder = require("../models/PurchaseOrder");
+    const Supplier = require("../models/Supplier");
+    const order = new PurchaseOrder({ company: "507f1f77bcf86cd799439201", number: "BC-1", supplier: "507f1f77bcf86cd799439601", status: "sent",
+      lines: [{ description: "X", quantity: 1, unitPrice: 100, vatRate: 20 }] });
+    vi.spyOn(order, "save").mockResolvedValue(order);
+    vi.spyOn(PurchaseOrder, "findById").mockImplementation(() => { const q = Promise.resolve(order); q.populate = () => Promise.resolve(order); return q; });
+    vi.spyOn(Supplier, "findById").mockReturnValue({ select: async () => ({ paymentDays: null }) });
+    const res = await request(app()).post(`/api/purchase-orders/${order._id}/invoices`).field("number", "F-9").field("date", "2026-09-01").field("amountTTC", "120");
+    expect(res.status).toBe(201);
+    expect(res.body.dueDateInfo).toEqual({ source: "legal_default", days: 60 });
+    expect(new Date(res.body.dueDate).toISOString().slice(0, 10)).toBe("2026-10-31");
+  });
+
+  it("the supplier model no longer pretends 60 days were agreed", () => {
+    const Supplier = require("../models/Supplier");
+    expect(new Supplier({ company: "507f1f77bcf86cd799439201", name: "Nouveau" }).paymentDays).toBeNull();
+  });
+});

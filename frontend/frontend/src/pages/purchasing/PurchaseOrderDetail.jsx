@@ -19,8 +19,42 @@ import { getInventoryCategories } from "../../services/inventoryCategoryService"
 import { formatMoney, formatDate, todayInput, PILL, PAYMENT_METHODS, lineOutstanding } from "./shared";
 import styles from "./Purchasing.module.css";
 import d from "./PurchaseOrderDetail.module.css";
+import FileLink from "../../components/useful/FileLink";
 
 const net = (l) => (l.receivedQuantity || 0) - (l.returnedQuantity || 0);
+const r2 = (n) => Math.round((Number(n) || 0) * 100) / 100;
+const VAT_RATES = [20, 14, 10, 7, 0];
+
+/**
+ * VAT lines to pre-fill an invoice / credit note, one per rate, from
+ * the order: goods kept (or ordered if nothing arrived yet) for an
+ * invoice — scaled to what's still to invoice — or goods returned for
+ * a credit note. The user then matches them to the supplier's paper.
+ */
+function suggestedVatLines(order, type, targetTTC) {
+  const byRate = new Map();
+  for (const l of order.lines) {
+    const kept = (l.receivedQuantity || 0) - (l.returnedQuantity || 0);
+    const qty = type === "credit_note" ? (l.returnedQuantity || 0) : (kept > 0 ? kept : l.quantity);
+    const ht = qty * (l.unitPrice || 0);
+    if (ht > 0) byRate.set(l.vatRate ?? 20, (byRate.get(l.vatRate ?? 20) || 0) + ht);
+  }
+  let rows = [...byRate.entries()].sort((a, b) => b[0] - a[0]).map(([rate, ht]) => ({ rate, baseHT: r2(ht), vat: r2(ht * rate / 100) }));
+  const fullTTC = rows.reduce((s, x) => s + x.baseHT + x.vat, 0);
+  if (targetTTC > 0 && fullTTC > 0 && Math.abs(fullTTC - targetTTC) > 0.01) {
+    const k = targetTTC / fullTTC;
+    rows = rows.map((x) => ({ rate: x.rate, baseHT: r2(x.baseHT * k), vat: r2(x.vat * k) }));
+  }
+  return rows.length ? rows : [{ rate: 20, baseHT: "", vat: "" }];
+}
+
+// "YYYY-MM-DD" + n days, in local time (no UTC shift)
+const addDays = (ymd, days) => {
+  if (!ymd) return "";
+  const d = new Date(`${ymd}T00:00:00`);
+  d.setDate(d.getDate() + days);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+};
 const pct = (part, total) => (total > 0 ? Math.max(0, Math.min(Math.round((part / total) * 100), 100)) : 0);
 
 /** A section card: title with count, action on the right, content below. */
@@ -68,8 +102,9 @@ export default function PurchaseOrderDetail() {
   // invoice / payment forms
   const [showInvoice, setShowInvoice] = useState(false);
   const [inv, setInv] = useState({ type: "invoice", number: "", date: todayInput(), dueDate: "", amountTTC: "", file: null });
+  const [dueAuto, setDueAuto] = useState(true); // due date follows the invoice date until edited by hand
   const [showPayment, setShowPayment] = useState(false);
-  const [pay, setPay] = useState({ date: todayInput(), amount: "", method: "virement", reference: "" });
+  const [pay, setPay] = useState({ date: todayInput(), amount: "", method: "virement", reference: "", invoiceId: "" });
 
   // dialogs
   const [cancelOpen, setCancelOpen] = useState(false);
@@ -111,6 +146,8 @@ export default function PurchaseOrderDetail() {
   // Shown to admins, owners and department managers; the backend makes
   // the real decision (purchasing department manager only, not one's own order).
   const canApprove = user?.role === "admin" || user?.role === "owner" || (user?.managedDepartments?.length || 0) > 0;
+  const supplierHasDays = Number.isFinite(order.supplier?.paymentDays);
+  const paymentDays = supplierHasDays ? order.supplier.paymentDays : 60; // Loi 69-21 default
   const match = order.analysis?.match || {};
   const invoiceState = new Map((order.analysis?.invoices || []).map((r) => [String(r.invoice), r]));
   const canReceive = ["sent", "partially_received", "received"].includes(order.status);
@@ -120,8 +157,11 @@ export default function PurchaseOrderDetail() {
 
   const name = (u) => (u ? `${u.firstName || ""} ${u.lastName || ""}`.trim() : "");
   const lineLabel = (lineId) => order.lines.find((l) => String(l._id) === String(lineId))?.description || "—";
-  const fileLink = (file) => file?.url && (
-    <a className={styles.fileLink} href={file.url} target="_blank" rel="noopener noreferrer"><Paperclip size={13} /> {file.originalName || t("purchasing.detail.file")}</a>
+  // Private files: opened through a short-lived link (FileLink).
+  const fileLink = (kind, entry) => (
+    <FileLink kind={kind} id={order._id} sub={entry._id} file={entry.file} className={styles.fileLink}>
+      {entry.file?.originalName || t("purchasing.detail.file")}
+    </FileLink>
   );
 
   // ---------- actions ----------
@@ -136,16 +176,31 @@ export default function PurchaseOrderDetail() {
   };
   const openInvoiceForm = (type) => {
     const suggested = type === "credit_note" ? match.creditExpected : (toInvoice || order.totalTTC);
-    setInv({ type, number: "", date: todayInput(), dueDate: "", amountTTC: suggested ? Math.round(suggested * 100) / 100 : "", file: null });
+    const date = todayInput();
+    setInv({ type, number: "", date, dueDate: type === "invoice" ? addDays(date, paymentDays) : "", file: null,
+      vatLines: suggestedVatLines(order, type, suggested ? r2(suggested) : 0) });
+    setDueAuto(true);
     setShowInvoice(true);
   };
+  const setInvoiceDate = (date) => setInv((prev) => ({ ...prev, date, dueDate: dueAuto && prev.type === "invoice" ? addDays(date, paymentDays) : prev.dueDate }));
   const submitInvoice = async () => {
-    if (await run(() => addInvoice(order._id, inv))) setShowInvoice(false);
+    const vatBreakdown = (inv.vatLines || [])
+      .map((x) => ({ rate: Number(x.rate), baseHT: r2(x.baseHT), vat: r2(x.vat) }))
+      .filter((x) => x.baseHT || x.vat);
+    const payload = { ...inv, vatBreakdown, amountTTC: r2(vatBreakdown.reduce((sum, x) => sum + x.baseHT + x.vat, 0)) };
+    const saved = { ...payload };
+    if (await run(() => addInvoice(order._id, payload))) {
+      setShowInvoice(false);
+      if (saved.type === "invoice") {
+        setNotice(t("purchasing.dueDate.savedNotice").replace("{number}", saved.number).replace("{date}", formatDate(saved.dueDate))
+          + (supplierHasDays ? "" : ` ${t("purchasing.dueDate.savedNoTerms")}`));
+      }
+    }
   };
   const submitPayment = async () => {
     if (await run(() => addPayment(order._id, { ...pay, amount: Number(pay.amount) }))) {
       setShowPayment(false);
-      setPay({ date: todayInput(), amount: "", method: "virement", reference: "" });
+      setPay({ date: todayInput(), amount: "", method: "virement", reference: "", invoiceId: "" });
     }
   };
   const openAddToInventory = async (line) => {
@@ -284,6 +339,16 @@ export default function PurchaseOrderDetail() {
         </div>
       </div>
 
+      {["partially_received", "received"].includes(order.status) && (match.receivedTTC || 0) > 0
+        && !order.invoices.some((i) => i.type !== "credit_note") && (
+        <div className={d.alertWarn}>
+          <Receipt size={15} />
+          {t("purchasing.missingInvoice.banner").replace("{amount}", formatMoney(match.receivedTTC))}
+          {order.status !== "cancelled" && !showInvoice && (
+            <button type="button" className={d.alertAction} onClick={() => openInvoiceForm("invoice")}>{t("purchasing.detail.addInvoice")}</button>
+          )}
+        </div>
+      )}
       {match.creditExpected > 0 && (
         <div className={d.alertWarn}><AlertTriangle size={15} /> {t("purchasing.match.creditExpected").replace("{amount}", formatMoney(match.creditExpected))}</div>
       )}
@@ -422,7 +487,7 @@ export default function PurchaseOrderDetail() {
                     {r.lines.map((x) => <span key={String(x.lineId)} className={d.chip}>{x.quantity} × {lineLabel(x.lineId)}</span>)}
                   </div>
                   {r.notes && <p className={d.muted}>{r.notes}</p>}
-                  {fileLink(r.file)}
+                  {fileLink("order-reception", r)}
                 </div>
               </li>
             ))}
@@ -449,18 +514,67 @@ export default function PurchaseOrderDetail() {
               <label className={styles.field}><span>{inv.type === "credit_note" ? t("purchasing.detail.creditNoteNumber") : t("purchasing.detail.invoiceNumber")} *</span>
                 <input className={styles.input} value={inv.number} onChange={(e) => setInv({ ...inv, number: e.target.value })} /></label>
               <label className={styles.field}><span>{t("purchasing.columns.date")} *</span>
-                <input type="date" className={styles.input} value={inv.date} onChange={(e) => setInv({ ...inv, date: e.target.value })} /></label>
+                <input type="date" className={styles.input} value={inv.date} onChange={(e) => setInvoiceDate(e.target.value)} /></label>
               {inv.type === "invoice" && (
                 <label className={styles.field}><span>{t("purchasing.detail.dueDate")}</span>
-                  <input type="date" className={styles.input} value={inv.dueDate} onChange={(e) => setInv({ ...inv, dueDate: e.target.value })} />
-                  <small className={d.muted}>{t("purchasing.detail.dueDateAuto").replace("{days}", order.supplier?.paymentDays ?? 60)}</small></label>
+                  <input type="date" className={styles.input} value={inv.dueDate}
+                    onChange={(e) => { setDueAuto(false); setInv({ ...inv, dueDate: e.target.value }); }} />
+                  {dueAuto && supplierHasDays && (
+                    <small className={d.dueOk}>{t("purchasing.dueDate.fromSupplier").replace("{days}", paymentDays).replace("{supplier}", order.supplier?.name || "")}</small>
+                  )}
+                  {dueAuto && !supplierHasDays && (
+                    <small className={d.dueWarn}>{t("purchasing.dueDate.noSupplierTerms").replace("{supplier}", order.supplier?.name || "")}</small>
+                  )}
+                  {!dueAuto && <small className={d.muted}>{t("purchasing.dueDate.manual")}</small>}
+                </label>
               )}
-              <label className={styles.field}><span>{t("purchasing.detail.amountTTC")} *</span>
-                <input type="number" min="0" step="any" className={styles.input} value={inv.amountTTC} onChange={(e) => setInv({ ...inv, amountTTC: e.target.value })} />
-                {inv.type === "invoice" && toInvoice > 0 && <small className={d.muted}>{t("purchasing.detail.expectedFromReceptions").replace("{amount}", formatMoney(toInvoice))}</small>}
-              </label>
+
               <label className={styles.field}><span>{t("purchasing.detail.file")}</span>
                 <input type="file" accept=".pdf,image/*" className={styles.input} onChange={(e) => setInv({ ...inv, file: e.target.files?.[0] || null })} /></label>
+            </div>
+
+            {/* Exact VAT, rate by rate, as printed on the supplier's paper */}
+            <div className={d.vatEditor}>
+              <div className={d.vatHead}>
+                <span>{t("purchasing.lines.vat")}</span><span>{t("purchasing.totals.ht")}</span><span>{t("purchasing.invoiceVat.vatAmount")}</span><span>{t("purchasing.totals.ttc")}</span><span />
+              </div>
+              {(inv.vatLines || []).map((row, i) => {
+                const setRow = (patch, recalcVat) => setInv((prev) => ({
+                  ...prev,
+                  vatLines: prev.vatLines.map((x, k) => {
+                    if (k !== i) return x;
+                    const next = { ...x, ...patch };
+                    return recalcVat ? { ...next, vat: next.baseHT === "" ? "" : r2(Number(next.baseHT) * Number(next.rate) / 100) } : next;
+                  }),
+                }));
+                return (
+                  // eslint-disable-next-line react/no-array-index-key
+                  <div key={i} className={d.vatRow}>
+                    <CustomSelect value={String(row.rate)} onSelect={(v) => setRow({ rate: Number(v) }, true)}
+                      options={VAT_RATES.map((rate) => ({ value: String(rate), label: `${rate}%` }))} />
+                    <input type="number" step="any" className={styles.input} value={row.baseHT} onChange={(e) => setRow({ baseHT: e.target.value }, true)} />
+                    <input type="number" step="any" className={styles.input} value={row.vat} onChange={(e) => setRow({ vat: e.target.value }, false)} />
+                    <span className={d.vatTtc}>{formatMoney(r2(Number(row.baseHT) + Number(row.vat)))}</span>
+                    <button type="button" className="tableActionBtn tableActionBtnDanger" title={t("common.delete")} disabled={(inv.vatLines || []).length === 1}
+                      onClick={() => setInv((prev) => ({ ...prev, vatLines: prev.vatLines.filter((_, k) => k !== i) }))}><Trash2 size={13} /></button>
+                  </div>
+                );
+              })}
+              <div className={d.vatFooter}>
+                {(inv.vatLines || []).length < VAT_RATES.length && (
+                  <button type="button" className={styles.linkButton} onClick={() => setInv((prev) => {
+                    const used = new Set(prev.vatLines.map((x) => Number(x.rate)));
+                    const rate = VAT_RATES.find((x) => !used.has(x)) ?? 0;
+                    return { ...prev, vatLines: [...prev.vatLines, { rate, baseHT: "", vat: "" }] };
+                  })}>+ {t("purchasing.invoiceVat.addRate")}</button>
+                )}
+                <strong>{t("purchasing.totals.ttc")} : {formatMoney(r2((inv.vatLines || []).reduce((sum, x) => sum + (Number(x.baseHT) || 0) + (Number(x.vat) || 0), 0)))}</strong>
+              </div>
+              <small className={d.muted}>
+                {inv.type === "invoice"
+                  ? t("purchasing.invoiceVat.hintInvoice").replace("{amount}", formatMoney(toInvoice || order.totalTTC))
+                  : t("purchasing.invoiceVat.hintCredit")}
+              </small>
             </div>
             <div className={styles.formActions}>
               <button type="button" className="btnCancel" onClick={() => setShowInvoice(false)}>{t("common.cancel")}</button>
@@ -486,7 +600,7 @@ export default function PurchaseOrderDetail() {
               return (
                 <div key={i._id} className="dataTableRow" style={{ gridTemplateColumns: "90px 1.2fr 95px 1.1fr 1fr 1.3fr 40px" }}>
                   <span><span className={`${d.badge} ${isCredit ? d.badgeWarn : d.badgeNeutral}`}>{t(`purchasing.invoices.types.${isCredit ? "credit_note" : "invoice"}`)}</span></span>
-                  <span><strong>{i.number}</strong> {fileLink(i.file)}</span>
+                  <span><strong>{i.number}</strong> {fileLink("order-invoice", i)}</span>
                   <span className="dataTableCellMuted">{formatDate(i.date)}</span>
                   <span className="dataTableCellMuted">
                     {isCredit ? "—" : formatDate(i.dueDate)}
@@ -496,7 +610,14 @@ export default function PurchaseOrderDetail() {
                       </span>
                     )}
                   </span>
-                  <span className={isCredit ? d.creditAmount : ""}><strong>{isCredit ? "− " : ""}{formatMoney(i.amountTTC)}</strong></span>
+                  <span className={isCredit ? d.creditAmount : ""}>
+                    <strong>{isCredit ? "− " : ""}{formatMoney(i.amountTTC)}</strong>
+                    <small className={d.muted} style={{ display: "block" }}>
+                      {i.vatBreakdown?.length
+                        ? i.vatBreakdown.map((x) => `${x.rate}% : ${formatMoney(x.vat)}`).join(" · ")
+                        : t("purchasing.invoiceVat.estimated")}
+                    </small>
+                  </span>
                   <span>{isCredit ? <span className={d.muted}>{t("purchasing.invoices.applied")}</span> : invoiceStatusPill(row)}
                     {row && row.status === "partially_paid" && <small className={d.muted}> {t("purchasing.summary.remaining")} : {formatMoney(row.remaining)}</small>}
                   </span>
@@ -530,6 +651,16 @@ export default function PurchaseOrderDetail() {
                   options={PAYMENT_METHODS.map((m) => ({ value: m, label: t(`purchasing.paymentMethods.${m}`) }))} /></label>
               <label className={styles.field}><span>{t("purchasing.detail.paymentReference")}</span>
                 <input className={styles.input} value={pay.reference} placeholder={t("purchasing.detail.paymentReferencePlaceholder")} onChange={(e) => setPay({ ...pay, reference: e.target.value })} /></label>
+              {order.invoices.some((i) => i.type !== "credit_note") && (
+                <label className={styles.field}><span>{t("purchasing.invoiceVat.settlesInvoice")}</span>
+                  <CustomSelect value={pay.invoiceId} onSelect={(v) => {
+                    const row = invoiceState.get(String(v));
+                    setPay({ ...pay, invoiceId: v, amount: row ? row.remaining : pay.amount });
+                  }}
+                    options={[{ value: "", label: t("purchasing.invoiceVat.oldestFirst") },
+                      ...order.invoices.filter((i) => i.type !== "credit_note" && (invoiceState.get(String(i._id))?.remaining || 0) > 0)
+                        .map((i) => ({ value: String(i._id), label: `${i.number} — ${formatMoney(invoiceState.get(String(i._id))?.remaining || 0)}` }))]} /></label>
+              )}
             </div>
             <div className={styles.formActions}>
               <button type="button" className="btnCancel" onClick={() => setShowPayment(false)}>{t("common.cancel")}</button>

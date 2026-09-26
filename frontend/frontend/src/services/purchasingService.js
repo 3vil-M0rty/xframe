@@ -52,9 +52,11 @@ export const addReception = async (id, { type, reference, date, notes, lines, fi
   if (file) form.append("file", file);
   return (await api.post(`/purchase-orders/${id}/receptions`, form)).data.data;
 };
-export const addInvoice = async (id, { type = "invoice", number, date, dueDate, amountTTC, notes, file }) => {
+export const addInvoice = async (id, { type = "invoice", number, date, dueDate, amountTTC, vatBreakdown, notes, file }) => {
   const form = new FormData();
   form.append("type", type);
+  // exact VAT per rate, as printed on the supplier's invoice
+  if (Array.isArray(vatBreakdown) && vatBreakdown.length) form.append("vatBreakdown", JSON.stringify(vatBreakdown));
   form.append("number", number);
   form.append("date", date);
   if (dueDate) form.append("dueDate", dueDate);
@@ -176,3 +178,7 @@ export const addSupplierDocument = async (id, { type, label, number, issueDate, 
   return (await api.post(`/suppliers/${id}/documents`, form)).data.data;
 };
 export const deleteSupplierDocument = async (id, docId) => (await api.delete(`/suppliers/${id}/documents/${docId}`)).data.data;
+
+// One transfer / cheque settling several invoices (possibly on several orders)
+// allocations: [{ orderId, invoiceId, amount }]
+export const createSupplierPayment = async (data) => (await api.post("/purchase-orders/supplier-payments", data)).data.data;

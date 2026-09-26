@@ -16,7 +16,7 @@ const auth = require("../middleware/auth");
 const { requirePurchasingAccess } = require("../middleware/permissionMiddleware");
 const { logAudit } = require("../services/auditLogger");
 const { applyMovement } = require("../services/inventoryService");
-const { uploadFile, deleteFile } = require("../services/cloudinaryService");
+const { uploadPrivateFile, deleteFile } = require("../services/cloudinaryService");
 const { createWithNumber } = require("../services/documentNumberService");
 const { notify, notifyMany, getProductionRecipientIds } = require("../services/notificationService");
 const Department = require("../models/Department");
@@ -58,6 +58,13 @@ const withUpload = (req, res, next) =>
 
 const bad = (res, message, status = 400) => res.status(status).json({ success: false, message });
 const isId = (v) => mongoose.Types.ObjectId.isValid(v);
+// Goods received (fully or partly) but no supplier invoice recorded yet
+// — credit notes don't count as an invoice.
+const MISSING_INVOICE_QUERY = {
+  status: { $in: ["partially_received", "received"] },
+  invoices: { $not: { $elemMatch: { type: { $ne: "credit_note" } } } },
+};
+
 const escapeRegex = (s) => String(s).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 // ---------- purchase order approval ----------
@@ -117,12 +124,12 @@ async function requestApproval(order, company, userId) {
 
 async function storeFile(file, companyId) {
   if (!file) return undefined;
-  const result = await uploadFile(file.buffer, `purchasing/${companyId}`, file.originalname, file.mimetype);
-  return { url: result.secure_url, publicId: result.public_id, originalName: file.originalname };
+  // Private: opened only through a short-lived link (routes/files.js).
+  return uploadPrivateFile(file.buffer, `purchasing/${companyId}`, file.originalname, file.mimetype);
 }
 
 const DETAIL_POPULATE = [
-  { path: "supplier", select: "name contactName phone email paymentTerms" },
+  { path: "supplier", select: "name contactName phone email paymentTerms paymentDays" },
   { path: "lines.product", select: "name internalReference unit quantity" },
   { path: "purchaseRequests", select: "requestedQuantity status product", populate: { path: "product", select: "name" } },
   { path: "receptions.by", select: "firstName lastName" },
@@ -199,11 +206,13 @@ async function updateLinkedRequests(order, requestIds, status, note, actorId, on
 // ======================================================
 router.get("/", async (req, res) => {
   try {
-    const { companyId, status, paymentStatus, supplier, search, from, to, late, page = 1, limit = 20 } = req.query;
+    const { companyId, status, paymentStatus, supplier, search, from, to, late, missingInvoice, page = 1, limit = 20 } = req.query;
     if (!companyId || !isId(companyId)) return bad(res, "A valid companyId is required");
 
     const filter = { company: companyId };
     if (status) filter.status = { $in: String(status).split(",") };
+    // received but not invoiced yet
+    if (missingInvoice === "true") Object.assign(filter, MISSING_INVOICE_QUERY);
     // late = ordered, not fully received, expected delivery date passed
     if (late === "true") {
       filter.status = { $in: ["sent", "partially_received"] };
@@ -222,7 +231,7 @@ router.get("/", async (req, res) => {
     const currentLimit = Math.min(Math.max(Number(limit) || 20, 1), 100);
     const [orders, total] = await Promise.all([
       PurchaseOrder.find(filter)
-        .select("number supplier date expectedDate status totalHT totalTTC amountPaid paymentStatus lines.quantity lines.receivedQuantity lines.returnedQuantity invoices.number")
+        .select("number supplier date expectedDate status totalHT totalTTC amountPaid paymentStatus lines.quantity lines.receivedQuantity lines.returnedQuantity invoices.number invoices.type")
         .populate("supplier", "name")
         .sort({ date: -1, number: -1 })
         .skip((currentPage - 1) * currentLimit)
@@ -260,9 +269,11 @@ router.get("/summary", async (req, res) => {
       totalPaid += o.amountPaid || 0;
       if (allocateInvoices(o, now).some((r) => r.overdue)) overdueOrders += 1;
     }
+    const missingInvoice = await PurchaseOrder.countDocuments({ company: companyId, ...MISSING_INVOICE_QUERY });
     res.json({
       success: true,
       data: {
+        missingInvoice,
         byStatus,
         totalOrdered: round2(totalOrdered),
         totalPaid: round2(totalPaid),
@@ -291,6 +302,8 @@ async function loadReportOrders(companyId) {
   return PurchaseOrder.find({ company: companyId, status: { $ne: "cancelled" } })
     .select("number status supplier lines totalHT totalVAT totalTTC invoices payments")
     .populate("supplier", "name identifiantFiscal ice")
+    // each line's article category carries its accounting account
+    .populate({ path: "lines.product", select: "category", populate: { path: "category", select: "accountingAccount isFixedAsset" } })
     .lean();
 }
 
@@ -316,8 +329,10 @@ router.get("/reports/accounting", async (req, res) => {
   try {
     const { companyId, from, to } = req.query;
     if (!companyId || !isId(companyId)) return bad(res, "A valid companyId is required");
-    const entries = reports.accountingEntries(await loadReportOrders(companyId), { from, to });
-    const company = await Company.findById(companyId).select("name");
+    const company = await Company.findById(companyId).select("name settings");
+    const entries = reports.accountingEntries(await loadReportOrders(companyId), {
+      from, to, accounts: { purchases: company?.settings?.purchaseDefaultAccount },
+    });
     sendXlsx(res, await exportsXlsx.accountingXlsx(entries, { company, from, to }), `journal-achats${from ? `-${from}` : ""}.xlsx`);
   } catch (error) {
     console.error("GET accounting export error:", error);
@@ -935,29 +950,58 @@ router.post("/:id/invoices", withUpload, async (req, res) => {
 
     const type = req.body.type === "credit_note" ? "credit_note" : "invoice";
     const number = String(req.body.number || "").trim();
-    const amountTTC = Number(req.body.amountTTC);
+
+    // Exact VAT as printed on the invoice: [{ rate, baseHT, vat }] (sent
+    // as JSON in the multipart form). When given, it must add up to the
+    // invoice total; the total can also be left to be computed from it.
+    let vatBreakdown = [];
+    if (req.body.vatBreakdown) {
+      try {
+        vatBreakdown = typeof req.body.vatBreakdown === "string" ? JSON.parse(req.body.vatBreakdown) : req.body.vatBreakdown;
+      } catch {
+        return bad(res, "Invalid VAT breakdown");
+      }
+      if (!Array.isArray(vatBreakdown)) return bad(res, "Invalid VAT breakdown");
+      vatBreakdown = vatBreakdown
+        .map((r) => ({ rate: Number(r.rate), baseHT: round2(Number(r.baseHT)), vat: round2(Number(r.vat)) }))
+        .filter((r) => r.baseHT || r.vat);
+      if (vatBreakdown.some((r) => !Number.isFinite(r.rate) || r.rate < 0 || r.rate > 100 || !Number.isFinite(r.baseHT) || !Number.isFinite(r.vat))) {
+        return bad(res, "Each VAT line needs a rate, an amount excl. VAT and a VAT amount");
+      }
+      if (new Set(vatBreakdown.map((r) => r.rate)).size !== vatBreakdown.length) return bad(res, "The same VAT rate appears twice");
+    }
+    const breakdownTTC = round2(vatBreakdown.reduce((sum, r) => sum + r.baseHT + r.vat, 0));
+    const amountTTC = req.body.amountTTC !== undefined && req.body.amountTTC !== "" ? Number(req.body.amountTTC) : breakdownTTC;
+    if (vatBreakdown.length && Math.abs(breakdownTTC - amountTTC) > 0.05) {
+      return bad(res, `The VAT lines add up to ${breakdownTTC} TTC, not ${amountTTC}`);
+    }
     if (!number) return bad(res, type === "credit_note" ? "Enter the credit note number" : "Enter the invoice number");
     if (!req.body.date) return bad(res, "Enter the date");
     if (!Number.isFinite(amountTTC) || amountTTC <= 0) return bad(res, "Enter an amount greater than zero");
 
     // Due date: as entered, else invoice date + the supplier's payment
-    // days (60 by default — Loi 69-21). Credit notes have none.
+    // days — or the legal 60 days (Loi 69-21) when the supplier has
+    // none, reported back so the UI can say so. Credit notes have none.
     let dueDate = null;
+    let dueDateInfo = null;
     if (type === "invoice") {
       if (req.body.dueDate) {
         dueDate = req.body.dueDate;
+        dueDateInfo = { source: "manual" };
       } else {
         const supplierDoc = await Supplier.findById(order.supplier).select("paymentDays");
-        const days = Number.isFinite(supplierDoc?.paymentDays) ? supplierDoc.paymentDays : 60;
+        const hasDays = Number.isFinite(supplierDoc?.paymentDays);
+        const days = hasDays ? supplierDoc.paymentDays : 60;
         dueDate = new Date(new Date(req.body.date).getTime() + days * 24 * 60 * 60 * 1000);
+        dueDateInfo = { source: hasDays ? "supplier" : "legal_default", days };
       }
     }
 
     const file = await storeFile(req.file, order.company);
-    order.invoices.push({ type, number, date: req.body.date, dueDate, amountTTC, notes: req.body.notes, file, by: req.user.id });
+    order.invoices.push({ type, number, date: req.body.date, dueDate, amountTTC, vatBreakdown, notes: req.body.notes, file, by: req.user.id });
     order.updatedBy = req.user.id;
     await order.save();
-    res.status(201).json({ success: true, data: await PurchaseOrder.findById(order._id).populate(DETAIL_POPULATE) });
+    res.status(201).json({ success: true, dueDate, dueDateInfo, data: await PurchaseOrder.findById(order._id).populate(DETAIL_POPULATE) });
   } catch (error) {
     console.error("POST invoice error:", error);
     res.status(500).json({ success: false, message: "Error adding the invoice", error: error.message });
@@ -996,8 +1040,14 @@ router.post("/:id/payments", async (req, res) => {
     if (!req.body.date) return bad(res, "Enter the payment date");
     const { amountDue } = derivePaymentStatus(order);
     if (amount > amountDue + 0.01) return bad(res, `This is more than what's left to pay (${amountDue})`);
+    let invoiceId = null;
+    if (req.body.invoiceId) {
+      const inv = order.invoices.id(req.body.invoiceId);
+      if (!inv || inv.type === "credit_note") return bad(res, "That invoice isn't on this order");
+      invoiceId = inv._id;
+    }
 
-    order.payments.push({ date: req.body.date, amount, method: req.body.method, reference: req.body.reference, notes: req.body.notes, by: req.user.id });
+    order.payments.push({ date: req.body.date, amount, method: req.body.method, reference: req.body.reference, notes: req.body.notes, invoiceId, by: req.user.id });
     order.updatedBy = req.user.id;
     await order.save();
     res.status(201).json({ success: true, data: await PurchaseOrder.findById(order._id).populate(DETAIL_POPULATE) });
@@ -1018,6 +1068,75 @@ router.delete("/:id/payments/:paymentId", async (req, res) => {
     res.json({ success: true, data: await PurchaseOrder.findById(order._id).populate(DETAIL_POPULATE) });
   } catch (error) {
     res.status(500).json({ success: false, message: "Error deleting the payment", error: error.message });
+  }
+});
+
+// ======================================================
+// SUPPLIER PAYMENT  POST /api/purchase-orders/supplier-payments
+// One transfer / cheque settling several invoices, possibly on several
+// orders of the same supplier.
+// body: { company, supplier, date, method, reference?, notes?,
+//         allocations: [{ orderId, invoiceId, amount }] }
+// Everything is validated BEFORE anything is saved, so a bad line
+// can't leave a half-recorded payment.
+// ======================================================
+router.post("/supplier-payments", async (req, res) => {
+  try {
+    const { company, supplier, date, method, reference, notes, allocations } = req.body;
+    if (!company || !isId(company)) return bad(res, "A valid company is required");
+    if (!supplier || !isId(supplier)) return bad(res, "Choose a supplier");
+    if (!date) return bad(res, "Enter the payment date");
+    if (!PurchaseOrder.PAYMENT_METHODS.includes(method)) return bad(res, "Choose a payment method");
+    if (!Array.isArray(allocations) || allocations.length === 0) return bad(res, "Choose at least one invoice to settle");
+
+    const orders = new Map();
+    const plan = [];
+    for (const a of allocations) {
+      const amount = round2(Number(a.amount));
+      if (!Number.isFinite(amount) || amount <= 0) return bad(res, "Every amount must be greater than zero");
+      if (!isId(a.orderId)) return bad(res, "Invalid purchase order");
+      let order = orders.get(String(a.orderId));
+      if (!order) {
+        // eslint-disable-next-line no-await-in-loop
+        order = await PurchaseOrder.findById(a.orderId);
+        if (!order || String(order.company) !== String(company) || String(order.supplier) !== String(supplier)) {
+          return bad(res, "An invoice doesn't belong to this supplier");
+        }
+        if (order.status === "cancelled") return bad(res, `${order.number} was cancelled`);
+        orders.set(String(a.orderId), order);
+      }
+      const inv = order.invoices.id(a.invoiceId);
+      if (!inv || inv.type === "credit_note") return bad(res, `Invoice not found on ${order.number}`);
+      plan.push({ order, inv, amount });
+    }
+
+    // amounts vs what's left on each invoice (several lines may target the same invoice)
+    const wanted = new Map();
+    for (const p of plan) wanted.set(String(p.inv._id), round2((wanted.get(String(p.inv._id)) || 0) + p.amount));
+    for (const order of orders.values()) {
+      for (const row of allocateInvoices(order)) {
+        const w = wanted.get(String(row.invoice._id));
+        if (w && w > row.remaining + 0.01) return bad(res, `Invoice ${row.invoice.number}: only ${row.remaining} left to pay`);
+      }
+    }
+
+    const batchRef = String(reference || "").trim() || `REG-${Date.now().toString(36).toUpperCase()}`;
+    for (const p of plan) {
+      p.order.payments.push({ date, amount: p.amount, method, reference: String(reference || "").trim() || undefined,
+        notes, invoiceId: p.inv._id, batchRef, by: req.user.id });
+    }
+    for (const order of orders.values()) {
+      order.updatedBy = req.user.id;
+      // eslint-disable-next-line no-await-in-loop
+      await order.save();
+    }
+    const total = round2(plan.reduce((sum, p) => sum + p.amount, 0));
+    await logAudit(req, { company, action: "create", resourceType: "PurchaseOrder", resourceId: [...orders.values()][0]._id,
+      resourceLabel: `Règlement fournisseur ${batchRef} — ${total} MAD sur ${plan.length} facture(s)` });
+    res.status(201).json({ success: true, data: { batchRef, total, invoices: plan.length, orders: orders.size } });
+  } catch (error) {
+    console.error("POST supplier payment error:", error);
+    res.status(500).json({ success: false, message: "Error recording the supplier payment", error: error.message });
   }
 });
 

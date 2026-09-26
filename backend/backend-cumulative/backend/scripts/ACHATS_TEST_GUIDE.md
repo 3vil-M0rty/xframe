@@ -55,7 +55,10 @@ Le seuil se règle dans **Organisation → Entreprise → Circuit de validation*
 - [ ] « FACTURÉ EN TROP » : bandeau rouge « 300,00 MAD de plus que ce qui a été reçu ».
 - [ ] « RETOUR 500 vis » (MetalSud, délai 90 j) : badge **90 j** orange sur l'échéance (accord écrit requis, Loi 69-21).
 - [ ] Achats → **Factures fournisseurs** : les factures échues sont en rouge, « En retard de X j » ; les totaux « Reste à payer / En retard / À payer sous 30 j » sont renseignés.
-- [ ] Ajouter une facture sans échéance → échéance calculée automatiquement (date + délai du fournisseur).
+- [ ] *Ajouter une facture* sur un BC AcierPlus → l'échéance est **déjà remplie** (date + 60 j) avec la note verte « selon les conditions de AcierPlus ». Changer la date de facture → l'échéance suit. Modifier l'échéance à la main → elle ne bouge plus.
+- [ ] Fournisseurs → vider le **délai de paiement** d'un fournisseur → sur une nouvelle facture, note **orange** « Aucun délai de paiement renseigné… 60 jours (Loi 69-21) ». Après enregistrement : « Facture … enregistrée — échéance le … (délai légal par défaut…) ».
+- [ ] **Reçus sans facture** : le BC « RÉCEPTION 69/70 » porte le badge **Sans facture** dans la liste ; la carte « Reçus sans facture » du récapitulatif le compte (cliquer = filtre) ; sur le BC, bandeau orange avec le bouton *Ajouter une facture*.
+- [ ] Au redémarrage du backend, notification « Supplier invoice missing » pour les BC reçus depuis 7 jours ou plus sans facture (une seule fois par BC).
 - [ ] Enregistrer un paiement supérieur au reste à payer → refusé.
 
 ## 5. Demandes de prix et comparaison
@@ -88,3 +91,14 @@ Le seuil se règle dans **Organisation → Entreprise → Circuit de validation*
 - [ ] Le badge **Demandes d'achat (N)** compte la demande en attente et la demande retardée.
 - [ ] **Production** → Inventaire → 🛒 sur un article → nouvelle demande → l'acheteur est notifié.
 - [ ] **Acheteur** → répondre (commandée / retardée avec motif / refusée avec motif / note) → la production est notifiée.
+
+## 10. TVA exacte, règlements multi-factures, comptes comptables
+
+- [ ] Sur un BC reçu → *Ajouter une facture* : les lignes de TVA sont **pré-remplies par taux** (HT, TVA, TTC). Recopier les montants de la facture papier ; le total TTC se calcule. Des lignes qui ne tombent pas juste, ou un même taux en double → refus avec message.
+- [ ] Dans la liste des factures du BC : les taux saisis s'affichent (« 20 % : … · 10 % : … ») ; les anciennes factures indiquent « TVA estimée ».
+- [ ] Rapports → **Relevé TVA** du mois : la facture **F-EN-2026-061** (BC « FACTURE MULTI-TAUX ») donne **2 lignes exactes** : 20 % (1 800 HT / 360 TVA) et 10 % (400 HT / 40 TVA).
+- [ ] Factures fournisseurs → choisir le fournisseur **AcierPlus** → cocher 2 factures de BC différents → *Régler la sélection* → montant par facture (pré-rempli avec le reste dû), date, mode, référence → *Enregistrer le règlement*. Les deux factures passent **Payée**, chacune sur son BC, avec la même référence.
+- [ ] Sur un BC avec plusieurs factures → *Enregistrer un paiement* → champ **Facture réglée** : choisir la plus récente → c'est elle qui est payée (et non la plus ancienne).
+- [ ] Production → Paramètres d'inventaire → modifier une catégorie : **Compte comptable** (ex. 6122) et **Immobilisation**. La catégorie de démo « Équipements (démo) » est en 2332 / immobilisation.
+- [ ] Organisation → Entreprise → **Compte d'achat par défaut** (6111) : utilisé pour les lignes saisies et les catégories sans compte.
+- [ ] Rapports → **Export comptable** du mois : la facture du **compresseur** est débitée en **2332** avec la TVA en **34551** ; la tôle en **6121** ; le transport en compte par défaut ; Débit = Crédit.

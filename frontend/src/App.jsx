@@ -4,7 +4,7 @@ import { I18nProvider } from './context/i18nContext'
 import { AuthProvider } from './context/AuthContext'
 import ProtectedRoute from './components/ProtectedRoute'
 import Layout from './components/Layout'
-import { canAccessHR, canSelfService, canManageCompanySettings, canAccessProduction, canOverseeDepartments, canAccessPurchasing } from './utils/permissions'
+import { canAccessHR, canSelfService, canManageCompanySettings, canAccessProduction, canOverseeDepartments, canAccessPurchasing, isPlatformAdmin } from './utils/permissions'
 import './styles/global.css';
 
 // LoginPage stays a normal (eager) import: it's the very first
@@ -56,6 +56,7 @@ const Inventory = lazy(() => import('./pages/production/Inventory'))
 const InventorySettings = lazy(() => import('./pages/production/InventorySettings'))
 const PurchaseRequests = lazy(() => import('./pages/production/PurchaseRequests'))
 const MyDepartment = lazy(() => import('./pages/me/MyDepartment'))
+const PlatformClients = lazy(() => import('./pages/platform/Clients'))
 
 // Every HR page needs the same two things: logged in (outer
 // ProtectedRoute wrapping <Layout />) AND canAccessHR (admin/owner/
@@ -111,6 +112,15 @@ export default function App() {
                 }
               >
                 <Route path="/profile" element={<Profile />} />
+                {/* Platform operator only (role platform_admin) */}
+                <Route
+                  path="/platform/clients"
+                  element={
+                    <ProtectedRoute permission={isPlatformAdmin}>
+                      <PlatformClients />
+                    </ProtectedRoute>
+                  }
+                />
                 <Route
                   path="/organization/company"
                   element={

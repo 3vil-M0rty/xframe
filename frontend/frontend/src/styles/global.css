@@ -1110,3 +1110,11 @@ input[type="file"]:disabled::file-selector-button {
   opacity: 0.55;
   cursor: wait;
 }
+
+/* Small spinning icon (e.g. a file link while its signed URL loads). */
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+.spin {
+    animation: spin 0.9s linear infinite;
+}

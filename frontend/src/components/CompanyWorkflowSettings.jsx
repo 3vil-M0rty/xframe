@@ -21,6 +21,8 @@ export default function CompanyWorkflowSettings({ company }) {
   const [error, setError] = useState("");
   const [threshold, setThreshold] = useState(String(company?.settings?.purchaseApprovalThreshold ?? 0));
   const [thresholdSaved, setThresholdSaved] = useState(false);
+  const [account, setAccount] = useState(company?.settings?.purchaseDefaultAccount || "6111");
+  const [accountSaved, setAccountSaved] = useState(false);
 
   // Keep in sync if the parent switches to a different company.
   useEffect(() => {
@@ -63,6 +65,25 @@ export default function CompanyWorkflowSettings({ company }) {
     }
   };
 
+  // Default purchase account (accounting export) for categories without one
+  const saveAccount = async () => {
+    const value = String(account || "").trim();
+    if (value === (company?.settings?.purchaseDefaultAccount || "6111")) return;
+    if (!/^\d{4,10}$/.test(value)) { setError(t("company.workflow.accountInvalid")); return; }
+    setSaving(true);
+    setError("");
+    try {
+      const saved = await updateCompanySettings(company._id, { purchaseDefaultAccount: value });
+      setAccount(saved?.purchaseDefaultAccount || value);
+      setAccountSaved(true);
+      setTimeout(() => setAccountSaved(false), 2000);
+    } catch (err) {
+      setError(err.response?.data?.message || t("company.workflow.saveFailed"));
+    } finally {
+      setSaving(false);
+    }
+  };
+
   if (!company?._id) return null;
 
   return (
@@ -97,6 +118,19 @@ export default function CompanyWorkflowSettings({ company }) {
             onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()} />
           <span>MAD</span>
           {thresholdSaved && <span className={styles.saved}>✓</span>}
+        </div>
+      </div>
+
+      <div className={styles.row} style={{ marginTop: 14, cursor: "default" }}>
+        <div className={styles.text}>
+          <span className={styles.label}>{t("company.workflow.purchaseAccount")}</span>
+          <span className={styles.hint}>{t("company.workflow.purchaseAccountHint")}</span>
+        </div>
+        <div className={styles.thresholdField}>
+          <input type="text" inputMode="numeric" value={account} disabled={saving}
+            onChange={(e) => setAccount(e.target.value.replace(/[^0-9]/g, "").slice(0, 10))} onBlur={saveAccount}
+            onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()} />
+          {accountSaved && <span className={styles.saved}>✓</span>}
         </div>
       </div>
 

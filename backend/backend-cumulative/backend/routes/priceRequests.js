@@ -14,7 +14,7 @@ const { sendMail, pdfToBuffer, isEmail } = require("../services/mailService");
 const crypto = require("crypto");
 const auth = require("../middleware/auth");
 const { requirePurchasingAccess } = require("../middleware/permissionMiddleware");
-const { uploadFile, deleteFile } = require("../services/cloudinaryService");
+const { uploadPrivateFile, deleteFile } = require("../services/cloudinaryService");
 const { createWithNumber } = require("../services/documentNumberService");
 
 /**
@@ -245,8 +245,8 @@ router.post("/:id/quote-file", (req, res, next) =>
     if (!doc) return bad(res, "Price request not found", 404);
     if (!req.file) return bad(res, "No file uploaded");
     if (doc.quoteFile?.publicId) await deleteFile(doc.quoteFile.publicId).catch(() => {});
-    const result = await uploadFile(req.file.buffer, `purchasing/${doc.company}`, req.file.originalname, req.file.mimetype);
-    doc.quoteFile = { url: result.secure_url, publicId: result.public_id, originalName: req.file.originalname };
+    // Private: opened only through a short-lived link (routes/files.js).
+    doc.quoteFile = await uploadPrivateFile(req.file.buffer, `purchasing/${doc.company}`, req.file.originalname, req.file.mimetype);
     if (doc.status === "sent" || doc.status === "draft") doc.status = "answered";
     doc.updatedBy = req.user.id;
     await doc.save();

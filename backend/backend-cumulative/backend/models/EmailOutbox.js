@@ -9,6 +9,8 @@ const mongoose = require("mongoose");
 const emailOutboxSchema = new mongoose.Schema(
   {
     company: { type: mongoose.Schema.Types.ObjectId, ref: "Company", default: null, index: true },
+    // Client this entry belongs to (set automatically — see services/tenantScope.js).
+    tenant: { type: mongoose.Schema.Types.ObjectId, ref: "Tenant", default: null, index: true },
     to: { type: String, required: true },
     cc: String,
     subject: { type: String, required: true },

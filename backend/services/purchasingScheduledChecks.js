@@ -37,6 +37,37 @@ async function checkLateDeliveries(now = new Date()) {
   return late.length;
 }
 
+/**
+ * Goods received at least 7 days ago, still no supplier invoice — the
+ * invoice is needed for the TVA deduction and the payment schedule.
+ */
+const MISSING_INVOICE_DAYS = 7;
+async function checkMissingInvoices(now = new Date()) {
+  const cutoff = new Date(now.getTime() - MISSING_INVOICE_DAYS * 86400000);
+  const orders = await PurchaseOrder.find({
+    status: { $in: ["partially_received", "received"] },
+    invoices: { $not: { $elemMatch: { type: { $ne: "credit_note" } } } },
+    missingInvoiceNotifiedAt: null,
+    receptions: { $elemMatch: { type: "reception", date: { $lte: cutoff } } },
+  }).populate("supplier", "name");
+
+  for (const order of orders) {
+    // eslint-disable-next-line no-await-in-loop
+    const recipients = await getPurchasingRecipientIds(order.company);
+    // eslint-disable-next-line no-await-in-loop
+    await notifyMany(recipients, {
+      type: "purchase_request_pending",
+      title: "Supplier invoice missing",
+      message: `${order.number} — ${order.supplier?.name || ""}: goods received, no invoice recorded`,
+      link: `/purchasing/orders/${order._id}`,
+    });
+    order.missingInvoiceNotifiedAt = now;
+    // eslint-disable-next-line no-await-in-loop
+    await order.save();
+  }
+  return orders.length;
+}
+
 /** Supplier documents expiring within 30 days (or already expired). */
 async function checkSupplierDocuments(now = new Date()) {
   const limit = new Date(now.getTime() + DOC_WARNING_DAYS * 86400000);
@@ -71,11 +102,11 @@ async function checkSupplierDocuments(now = new Date()) {
 async function runDailyPurchasingChecks() {
   try {
     const now = new Date();
-    const [late, docs] = await Promise.all([checkLateDeliveries(now), checkSupplierDocuments(now)]);
-    console.log(`[scheduledNotifications] Daily purchasing check complete — ${late} late order(s), ${docs} supplier document(s) notified.`);
+    const [late, docs, missing] = await Promise.all([checkLateDeliveries(now), checkSupplierDocuments(now), checkMissingInvoices(now)]);
+    console.log(`[scheduledNotifications] Daily purchasing check complete — ${late} late order(s), ${docs} supplier document(s), ${missing} missing invoice(s) notified.`);
   } catch (error) {
     console.error("[scheduledNotifications] Daily purchasing check failed:", error);
   }
 }
 
-module.exports = { runDailyPurchasingChecks, checkLateDeliveries, checkSupplierDocuments, DOC_WARNING_DAYS };
+module.exports = { runDailyPurchasingChecks, checkLateDeliveries, checkSupplierDocuments, checkMissingInvoices, DOC_WARNING_DAYS, MISSING_INVOICE_DAYS };

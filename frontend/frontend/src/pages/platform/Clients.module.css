@@ -1,0 +1,250 @@
+.notice {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 14px;
+    padding: 10px 14px;
+    font-size: 0.82rem;
+    color: #4cc38a;
+    background: rgba(76, 195, 138, 0.08);
+    border: 1px solid rgba(76, 195, 138, 0.25);
+    border-radius: 8px;
+}
+
+.hint {
+    margin: 0 0 12px;
+    max-width: 820px;
+    font-size: 0.8rem;
+    line-height: 1.5;
+    color: var(--color-text-secondary);
+}
+
+.muted {
+    color: var(--color-text-tertiary);
+    font-size: 0.8rem;
+}
+
+.card {
+    margin-bottom: 20px;
+    padding: 18px;
+    border: 1px solid var(--color-border);
+    border-radius: 12px;
+    background: var(--color-bg-secondary);
+}
+
+.cardTitle {
+    margin: 0 0 14px;
+    font-size: 1rem;
+}
+
+.subTitle {
+    margin: 18px 0 4px;
+    font-size: 0.9rem;
+}
+
+.grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 12px;
+}
+
+.field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    font-size: 0.8rem;
+    color: var(--color-text-secondary);
+}
+
+.field input {
+    width: 100%;
+    padding: 9px 11px;
+}
+
+.field small {
+    color: var(--color-text-tertiary);
+    font-size: 0.72rem;
+}
+
+.actions {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 8px;
+    margin-top: 16px;
+}
+
+.actions button,
+.rowActions button {
+    margin: 0;
+}
+
+.clientBlock {
+    border-bottom: 1px solid var(--color-border-light);
+}
+
+.clientBlock:last-child {
+    border-bottom: none;
+}
+
+.expandBtn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    padding: 0;
+    color: var(--color-text-secondary);
+    background: transparent;
+    border-radius: 6px;
+}
+
+.expandBtn:hover {
+    color: var(--color-text-primary);
+    background: var(--color-bg-hover);
+}
+
+.rowActions {
+    display: flex;
+    justify-content: flex-end;
+}
+
+.rowActions button {
+    min-height: 32px;
+    padding: 0.35rem 0.7rem;
+    font-size: 0.78rem;
+    white-space: nowrap;
+}
+
+.detail {
+    margin: 0 0 14px 40px;
+    padding: 14px;
+    border: 1px solid var(--color-border);
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.02);
+}
+
+.detailHead {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+}
+
+.detailHead h4 {
+    margin: 0;
+    font-size: 0.85rem;
+}
+
+.detailHead button {
+    min-height: 32px;
+    padding: 0.35rem 0.7rem;
+    font-size: 0.78rem;
+}
+
+.adminRow {
+    display: grid;
+    grid-template-columns: 1.2fr 1.6fr 0.8fr 0.8fr;
+    gap: 10px;
+    padding: 7px 0;
+    font-size: 0.82rem;
+    border-bottom: 1px dashed var(--color-border-light);
+}
+
+.inlineForm {
+    margin-top: 12px;
+}
+
+.privacy {
+    margin: 12px 0 0;
+    font-size: 0.74rem;
+    color: var(--color-text-tertiary);
+}
+
+.orphans {
+    margin-bottom: 20px;
+    padding: 14px;
+    border: 1px solid rgba(245, 158, 11, 0.45);
+    border-radius: 12px;
+    background: rgba(245, 158, 11, 0.05);
+}
+
+.orphansHead {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 6px;
+    color: #f5b544;
+}
+
+.orphanLists {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 16px;
+    margin-bottom: 12px;
+}
+
+.orphanLists h4 {
+    margin: 0 0 6px;
+    font-size: 0.8rem;
+    color: var(--color-text-secondary);
+}
+
+.checkRow {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 0;
+    font-size: 0.82rem;
+}
+
+.checkRow input {
+    padding: 0;
+}
+
+.assignRow {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+}
+
+.assignSelect {
+    width: 260px;
+}
+
+@media (max-width: 900px) {
+    .detail {
+        margin-left: 0;
+    }
+    .adminRow {
+        grid-template-columns: 1fr;
+        gap: 2px;
+    }
+}
+
+.renameRow {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 14px;
+}
+
+.renameRow input {
+    flex: 1 1 240px;
+    padding: 8px 10px;
+}
+
+.renameRow button,
+.renameBtn {
+    margin: 0 0 14px;
+    min-height: 32px;
+    padding: 0.35rem 0.7rem;
+    font-size: 0.78rem;
+}
+
+.renameRow button {
+    margin: 0;
+}

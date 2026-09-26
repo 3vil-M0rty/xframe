@@ -13,13 +13,14 @@ import {
   IdCardLanyard,
   Factory,
   ShoppingBag,
+  Building2,
 } from "lucide-react";
 
 import { useI18n } from "../hooks/useI18n";
 import { useAuth } from "../hooks/useAuth";
 import styles from "./Sidebar.module.css";
 import LanguageSwitcher from "./useful/LanguageSwitcher";
-import { canAccessHR, canSelfService, canAccessProduction, canManageCompanySettings, isDepartmentManager, canAccessPurchasing } from "../utils/permissions";
+import { canAccessHR, canSelfService, canAccessProduction, canManageCompanySettings, isDepartmentManager, canAccessPurchasing, isPlatformAdmin } from "../utils/permissions";
 import { getOpenRequestCount } from "../services/purchasingService";
 
 export default function Sidebar() {
@@ -66,6 +67,18 @@ export default function Sidebar() {
   }, [purchasingUser]);
 
   const menuItems = [
+    {
+      // Platform operator only: the platform's clients. A platform
+      // admin passes none of the other sections' checks.
+      id: "platform",
+      label: t("sidebar.platform"),
+      icon: Building2,
+      permission: isPlatformAdmin,
+      subsections: [
+        { label: t("sidebar.clients"), href: "/platform/clients" },
+      ],
+    },
+
     {
       id: "organization",
       label: t("sidebar.organization"),

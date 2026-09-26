@@ -27,6 +27,10 @@ const TOP_LEVEL_ROLES = [ROLES.ADMIN, ROLES.OWNER];
 export const ALLOW_DEPARTMENT_SCOPED_USER_MANAGEMENT = false;
 
 export const isAdmin = (actor) => actor?.role === ROLES.ADMIN;
+
+// The platform operator: belongs to no client, only manages clients
+// (Platform > Clients). Sees no client business data.
+export const isPlatformAdmin = (actor) => actor?.role === "platform_admin";
 const isOwner = (actor) => actor?.role === ROLES.OWNER;
 const isPlainUser = (actor) => actor?.role === ROLES.USER;
 

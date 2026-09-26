@@ -12,6 +12,7 @@
  * see scripts/ACHATS_TEST_GUIDE.md.
  * ============================================================
  */
+require("../services/tenantScope"); // client-isolation plugin, before models
 const path = require("path");
 require("dotenv").config({ path: path.join(__dirname, "..", ".env") });
 const mongoose = require("mongoose");
@@ -45,6 +46,7 @@ async function cleanup(company) {
     PurchaseRequest.deleteMany({ company: company._id, notes: tagRx }),
     Supplier.deleteMany({ company: company._id, notes: tagRx }),
     Product.deleteMany({ company: company._id, internalReference: /^DEMO-/ }),
+    InventoryCategory.deleteMany({ company: company._id, description: tagRx }),
   ]);
   const dept = await Department.findOne({ company: company._id, description: tagRx });
   if (dept) {
@@ -96,6 +98,7 @@ async function run() {
   await User.create({
     firstName: "Samira", lastName: "Bennani", email: MANAGER_EMAIL, password: MANAGER_PASSWORD,
     role: "user", department: "purchasing", employee: managerEmployee._id,
+    tenant: company.tenant, // same client as the company
   });
   console.log(`✓ Approval threshold 20 000 MAD TTC; purchasing manager ${MANAGER_EMAIL}`);
 
@@ -136,8 +139,14 @@ async function run() {
   // ---------------------------------------------------------------
   // 3. Articles with supplier prices (some below their minimum)
   // ---------------------------------------------------------------
-  const category = await InventoryCategory.findOne({ company: company._id });
+  const category = await InventoryCategory.findOne({ company: company._id, description: { $not: /^\[DEMO ACHATS\]/ } });
   if (!category) throw new Error("No inventory category — run `npm run seed` first.");
+  category.accountingAccount = "6121"; // matières premières
+  await category.save();
+  const assetsCategory = await InventoryCategory.create({
+    company: company._id, name: "Équipements (démo)", icon: "Wrench", description: `${TAG} catégorie d'immobilisations`,
+    accountingAccount: "2332", isFixedAsset: true, createdBy: actor, updatedBy: actor,
+  });
   const steel = await Product.findOne({ company: company._id, internalReference: "RM-STEEL-2MM" });
   if (steel) {
     steel.prices = [
@@ -153,6 +162,8 @@ async function run() {
     prices: [{ supplierName: "MetalSud", price: 95 }, { supplierName: "AcierPlus", price: 99 }] });
   const box = await mkProduct({ name: "Carton 60x40", internalReference: "DEMO-CARTON", unit: "pièce", quantity: 20, threshold: 200,
     prices: [{ supplierName: "Emballages du Nord", price: 4.5 }] });
+  const compressor = await mkProduct({ name: "Compresseur 500 L", internalReference: "DEMO-COMPRESSEUR", unit: "pièce", quantity: 1, threshold: 0,
+    category: assetsCategory._id, prices: [{ supplierName: "MetalSud", price: 18000 }] });
   const screws = await mkProduct({ name: "Vis M8 inox", internalReference: "DEMO-VIS", unit: "pièce", quantity: 3000, threshold: 500,
     prices: [{ supplierName: "MetalSud", price: 0.8 }] });
   console.log("✓ Articles with supplier prices (gloves, oil below minimum)");
@@ -190,7 +201,7 @@ async function run() {
     o.receptions.push({ type: "reception", reference: ref, date, by: actor, lines: o.lines.map((l) => ({ lineId: l._id, quantity: qtyFor(l) })) });
     o.status = deriveReceptionStatus({ ...o.toObject(), status: "sent" });
   };
-  const invoice = (o, number, date, amountTTC, dueDate, type = "invoice") => o.invoices.push({ type, number, date, dueDate, amountTTC, by: actor });
+  const invoice = (o, number, date, amountTTC, dueDate, type = "invoice", vatBreakdown = []) => o.invoices.push({ type, number, date, dueDate, amountTTC, vatBreakdown, by: actor });
   const pay = (o, amount, method, date, reference) => o.payments.push({ amount, method, date, reference, by: actor });
 
   console.log("✓ Purchase orders:");
@@ -246,7 +257,8 @@ async function run() {
     supplier: acier._id, date: daysAgo(30),
     lines: [line({ product: steel?._id, description: "Tôle acier 2mm", quantity: 400, unit: "kg", unitPrice: 12.5 })],
   }, async (o) => {
-    o.status = "sent"; receiveAll(o, "BL-AP-3100", daysAgo(27)); invoice(o, "F-AP-2026-230", daysAgo(25), 6000, daysFromNow(35));
+    o.status = "sent"; receiveAll(o, "BL-AP-3100", daysAgo(27));
+    invoice(o, "F-AP-2026-230", daysAgo(25), 6000, daysFromNow(35), "invoice", [{ rate: 20, baseHT: 5000, vat: 1000 }]);
     pay(o, 3000, "virement", new Date(), "VIR-DEMO-0101"); pay(o, 3000, "cheque", new Date(), "CHQ-0045123");
   });
   await order("PAYÉE CE MOIS en espèces — fournisseur SANS IF/ICE (signalé dans le relevé)", {
@@ -255,6 +267,24 @@ async function run() {
   }, async (o) => {
     o.status = "sent"; receiveAll(o, "BL-EQ-151", daysAgo(10)); invoice(o, "F-EQ-2026-031", daysAgo(10), 2160, daysFromNow(20));
     pay(o, 2160, "especes", new Date(), "");
+  });
+  await order("FACTURE MULTI-TAUX (20 % + transport 10 %) saisie au détail, payée ce mois — relevé TVA exact", {
+    supplier: embal._id, date: daysAgo(14),
+    lines: [
+      line({ product: box._id, description: "Carton 60x40", quantity: 400, unit: "pièce", unitPrice: 4.5 }),
+      line({ description: "Transport", quantity: 1, unit: "forfait", unitPrice: 400, vatRate: 10 }),
+    ],
+  }, async (o) => {
+    o.status = "sent"; receiveAll(o, "BL-EN-801", daysAgo(12));
+    invoice(o, "F-EN-2026-061", daysAgo(11), 2600, daysFromNow(49), "invoice", [{ rate: 20, baseHT: 1800, vat: 360 }, { rate: 10, baseHT: 400, vat: 40 }]);
+    pay(o, 2600, "virement", new Date(), "VIR-DEMO-0120");
+  });
+  await order("IMMOBILISATION (compresseur) — export comptable : compte 2332, TVA en 34551", {
+    supplier: metal._id, date: daysAgo(9),
+    lines: [line({ product: compressor._id, description: "Compresseur 500 L", quantity: 1, unit: "pièce", unitPrice: 18000 })],
+  }, async (o) => {
+    o.status = "sent"; receiveAll(o, "BL-MS-6010", daysAgo(8));
+    invoice(o, "F-MS-2026-140", new Date(), 21600, daysFromNow(90), "invoice", [{ rate: 20, baseHT: 18000, vat: 3600 }]);
   });
   await order("ANNULÉ", {
     supplier: embal._id, date: daysAgo(18), lines: [line({ product: box._id, description: "Carton 60x40", quantity: 300, unit: "pièce", unitPrice: 4.5 })],
@@ -286,7 +316,7 @@ async function run() {
   console.log(`  Purchasing manager  ${MANAGER_EMAIL} / ${MANAGER_PASSWORD}  (approves)`);
   console.log("  Owner               owner@frame.test           / Owner@123         (approves)");
   console.log("  Production          manager@frame.test         / Manager@123");
-  console.log("Restart the backend to run today's alerts (late delivery, supplier documents).");
+  console.log("Restart the backend to run today's alerts (late delivery, supplier documents, missing invoices).");
   console.log("============================================================");
   await mongoose.disconnect();
 }

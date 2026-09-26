@@ -1,3 +1,6 @@
+// FIRST: client-isolation plugin + request context. Must be loaded
+// before any model (see services/tenantScope.js).
+const tenantScope = require('./services/tenantScope');
 const path = require('path');
 const express = require('express');
 const mongoose = require('mongoose');
@@ -64,6 +67,15 @@ const holidayRoutes = require("./routes/holidays");
 const supplierRoutes = require("./routes/suppliers");
 const purchaseOrderRoutes = require("./routes/purchaseOrders");
 const priceRequestRoutes = require("./routes/priceRequests");
+const platformRoutes = require("./routes/platform");
+const fileRoutes = require("./routes/files");
+const { migrateLegacyDataToTenants } = require("./services/tenantService");
+
+// Every model holding client data must carry the isolation plugin;
+// refuse to start otherwise. From here on, a database query that runs
+// with NO client context is treated as a bug and throws.
+tenantScope.assertAllModelsScoped();
+tenantScope.enableStrictMode(true);
 
 const app = express();
 
@@ -76,6 +88,11 @@ const app = express();
 // output, not just the API routes below.
 app.use(compression());
 app.use(express.json());
+
+// Requests start in the "system" context (login, 2FA, health check).
+// middleware/auth.js replaces it with the caller's client context
+// for every authenticated route.
+app.use((req, res, next) => tenantScope.bindRequest(req, tenantScope.SYSTEM, next));
 
 // ------------------------------------------------------------
 // SCHEDULED JOBS
@@ -91,10 +108,18 @@ const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 
 const { runDailyPurchasingChecks } = require('./services/purchasingScheduledChecks');
 
+// Background jobs see every client (system context); each one picks
+// the right people per company itself (services/notificationService.js).
+function runDailyJobs() {
+  return tenantScope.runAsSystem(async () => {
+    await runDailyHRChecks();
+    await runDailyPurchasingChecks();
+  }).catch((err) => console.error('Daily jobs failed:', err));
+}
+
 function startScheduledJobs() {
-  runDailyHRChecks();
-  runDailyPurchasingChecks();
-  setInterval(() => { runDailyHRChecks(); runDailyPurchasingChecks(); }, ONE_DAY_MS);
+  runDailyJobs();
+  setInterval(runDailyJobs, ONE_DAY_MS);
 }
 
 // Connect to MongoDB
@@ -102,7 +127,12 @@ mongoose
   .connect(process.env.MONGODB_URI)
   .then(async () => {
     console.log('✓ Connected to MongoDB');
-    await syncEmployeeIndexes();
+    await tenantScope.runAsSystem(async () => {
+      // Attaches data created before client isolation to a client
+      // (no-op once done) — see services/tenantService.js.
+      await migrateLegacyDataToTenants();
+      await syncEmployeeIndexes();
+    });
     startScheduledJobs();
   })
   .catch(err => console.error('MongoDB connection error:', err));
@@ -176,6 +206,10 @@ app.use("/api/holidays", holidayRoutes);
 app.use("/api/suppliers", supplierRoutes);
 app.use("/api/purchase-orders", purchaseOrderRoutes);
 app.use("/api/price-requests", priceRequestRoutes);
+// Short-lived links to private documents.
+app.use("/api/files", fileRoutes);
+// Platform operator (client management) — platform_admin only.
+app.use("/api/platform", platformRoutes);
 
 // Health check
 app.get('/health', (req, res) => {

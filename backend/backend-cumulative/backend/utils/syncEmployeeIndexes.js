@@ -13,6 +13,7 @@ const Product = require("../models/Product");
  * Scoped to Employee only, deliberately.
  */
 async function syncEmployeeIndexes() {
+  await dropStaleIndexes();
   try {
     const dropped = await Employee.syncIndexes();
     if (dropped && dropped.length) {
@@ -34,4 +35,38 @@ async function syncEmployeeIndexes() {
   }
 }
 
-module.exports = { syncEmployeeIndexes };
+/**
+ * Drops indexes left behind by fields that no longer exist in the
+ * schemas — e.g. an old UNIQUE index on companies.slug: every new
+ * company has no slug (null), so the second company ever created
+ * fails with "E11000 duplicate key ... slug: null". Only indexes on a
+ * field the model doesn't declare at all are dropped; anything the
+ * schema still defines is left alone.
+ */
+async function dropStaleIndexes() {
+  const mongoose = require("mongoose");
+  for (const Model of Object.values(mongoose.models)) {
+    let indexes;
+    try {
+      indexes = await Model.collection.indexes();
+    } catch {
+      continue; // collection doesn't exist yet
+    }
+    for (const idx of indexes) {
+      if (idx.name === "_id_" || idx.textIndexVersion) continue;
+      const stale = Object.keys(idx.key || {}).some((field) => {
+        const top = field.split(".")[0];
+        return !Model.schema.path(top) && Model.schema.pathType(top) === "adhocOrUndefined";
+      });
+      if (!stale) continue;
+      try {
+        await Model.collection.dropIndex(idx.name);
+        console.log(`✓ Dropped obsolete index ${Model.collection.name}.${idx.name}`);
+      } catch (error) {
+        console.error(`Could not drop obsolete index ${Model.collection.name}.${idx.name}:`, error.message);
+      }
+    }
+  }
+}
+
+module.exports = { syncEmployeeIndexes, dropStaleIndexes };

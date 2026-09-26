@@ -6,7 +6,7 @@ const Supplier = require("../models/Supplier");
 const PurchaseOrder = require("../models/PurchaseOrder");
 const Company = require("../models/Company");
 const multer = require("multer");
-const { uploadFile, deleteFile } = require("../services/cloudinaryService");
+const { uploadPrivateFile, deleteFile } = require("../services/cloudinaryService");
 const { supplierStatement } = require("../services/purchasingReports");
 const { statementXlsx } = require("../services/purchasingExports");
 const auth = require("../middleware/auth");
@@ -129,8 +129,8 @@ router.post("/:id/documents", requirePurchasingAccess, (req, res, next) =>
     if (!DOC_TYPES.includes(type)) return res.status(400).json({ success: false, message: "Choose a document type" });
     let file;
     if (req.file) {
-      const up = await uploadFile(req.file.buffer, `purchasing/${supplier.company}/suppliers`, req.file.originalname, req.file.mimetype);
-      file = { url: up.secure_url, publicId: up.public_id, originalName: req.file.originalname };
+      // Private: opened only through a short-lived link (routes/files.js).
+      file = await uploadPrivateFile(req.file.buffer, `purchasing/${supplier.company}/suppliers`, req.file.originalname, req.file.mimetype);
     }
     supplier.documents.push({ type, label, number, issueDate: issueDate || null, expiryDate: expiryDate || null, file, uploadedBy: req.user.id });
     supplier.updatedBy = req.user.id;

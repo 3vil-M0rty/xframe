@@ -5,8 +5,11 @@
  * Single source of truth for role-based access control (RBAC).
  *
  * Roles (User.role):
- *   - admin  : platform-wide super user. Manages every company
- *              and every user, everywhere.
+ *   - admin  : the client's super user. Manages every company
+ *              and every user OF ITS CLIENT (tenant) — never
+ *              another client's; that boundary is enforced for
+ *              every query by services/tenantScope.js, so the
+ *              checks below never need to repeat it.
  *   - owner  : manages the company/companies they own, and the
  *              users that belong to that company.
  *   - user   : a normal employee. Cannot manage companies.
@@ -18,6 +21,10 @@
  *              (see canCreateUser / canManageUser) so turning it
  *              on later is just a matter of flipping the flag
  *              below — no logic needs to change.
+ *
+ *   - platform_admin (not in ROLES on purpose): the platform
+ *              operator. Belongs to no client, passes none of the
+ *              checks below, and only uses routes/platform.js.
  * ============================================================
  */
 

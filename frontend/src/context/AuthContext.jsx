@@ -72,7 +72,7 @@ export const AuthProvider = ({ children }) => {
       localStorage.setItem('token', newToken);
       api.defaults.headers.common['Authorization'] = `Bearer ${newToken}`;
 
-      return { success: true };
+      return { success: true, user: userData };
     } catch (error) {
       return { success: false, error: error.response?.data?.message };
     } finally {
@@ -94,7 +94,7 @@ export const AuthProvider = ({ children }) => {
       localStorage.setItem('token', newToken);
       api.defaults.headers.common['Authorization'] = `Bearer ${newToken}`;
 
-      return { success: true, usedBackupCode };
+      return { success: true, usedBackupCode, user: userData };
     } catch (error) {
       return { success: false, error: error.response?.data?.message };
     } finally {

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { Download, Paperclip, Trash2, FileText, FolderOpen } from "lucide-react";
+import { Download, Trash2, FileText, FolderOpen } from "lucide-react";
 
 import { useI18n } from "../../hooks/useI18n";
 import CustomSelect from "../../components/useful/CustomSelect";
@@ -8,6 +8,7 @@ import {
 } from "../../services/purchasingService";
 import { formatMoney, formatDate } from "./shared";
 import styles from "./Purchasing.module.css";
+import FileLink from "../../components/useful/FileLink";
 
 export const DOC_TYPES = ["attestation_fiscale", "rc", "cnss", "rib", "patente", "other"];
 const DAY = 86400000;
@@ -151,7 +152,9 @@ export function SupplierDocumentsModal({ supplier, onClose, onChanged }) {
                 <span><strong>{doc.label || t(`purchasing.supplierDocs.types.${doc.type}`)}</strong></span>
                 <span className="dataTableCellMuted">{doc.number || "—"}</span>
                 <span>{stateBadge(doc)}</span>
-                <span>{doc.file?.url ? <a className={styles.fileLink} href={doc.file.url} target="_blank" rel="noopener noreferrer"><Paperclip size={12} /> {t("purchasing.detail.file")}</a> : "—"}</span>
+                <span>{doc.file?.url || doc.file?.publicId
+                  ? <FileLink kind="supplier-document" id={current._id} sub={doc._id} file={doc.file} className={styles.fileLink} iconSize={12}>{t("purchasing.detail.file")}</FileLink>
+                  : "—"}</span>
                 <span><button type="button" className="tableActionBtn tableActionBtnDanger" title={t("common.delete")} onClick={() => remove(doc)}><Trash2 size={13} /></button></span>
               </div>
             ))}

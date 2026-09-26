@@ -1,3 +1,5 @@
+// Must load before the schema is compiled — registers the client-isolation plugin.
+require("../services/tenantScope");
 const mongoose = require("mongoose");
 
 /**
@@ -37,7 +39,7 @@ const priceRequestSchema = new mongoose.Schema(
       }],
       validate: [(v) => v.length > 0, "A price request needs at least one line"],
     },
-    quoteFile: { url: String, publicId: String, originalName: String },
+    quoteFile: { url: String, publicId: String, originalName: String, private: Boolean, resourceType: String, format: String },
     notes: { type: String, trim: true, maxlength: 2000 },
     purchaseOrder: { type: mongoose.Schema.Types.ObjectId, ref: "PurchaseOrder", default: null },
     purchaseRequests: [{ type: mongoose.Schema.Types.ObjectId, ref: "PurchaseRequest" }],

@@ -187,7 +187,7 @@ router.post("/", auth, requireAdminOrOwner, async (req, res) => {
 // each known key via its own dotted path instead, so only what's
 // actually sent changes. Unknown keys are ignored rather than
 // persisted.
-const ALLOWED_SETTINGS = { requireSequentialApproval: "boolean", purchaseApprovalThreshold: "number" };
+const ALLOWED_SETTINGS = { requireSequentialApproval: "boolean", purchaseApprovalThreshold: "number", purchaseDefaultAccount: "string" };
 
 router.patch("/:id/settings", auth, requireAdminOrOwner, async (req, res) => {
   try {
@@ -202,7 +202,8 @@ router.patch("/:id/settings", auth, requireAdminOrOwner, async (req, res) => {
     const update = {};
     for (const [key, type] of Object.entries(ALLOWED_SETTINGS)) {
       if (req.body[key] === undefined) continue;
-      if (typeof req.body[key] !== type || (type === "number" && (!Number.isFinite(req.body[key]) || req.body[key] < 0))) {
+      if (typeof req.body[key] !== type || (type === "number" && (!Number.isFinite(req.body[key]) || req.body[key] < 0))
+        || (key === "purchaseDefaultAccount" && !/^\d{4,10}$/.test(req.body[key].trim()))) {
         return res.status(400).json({ success: false, message: `${key} must be a ${type === "number" ? "positive number" : type}` });
       }
       update[`settings.${key}`] = req.body[key];

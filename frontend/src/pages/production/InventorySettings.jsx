@@ -81,6 +81,9 @@ export default function InventorySettings() {
   const [formName, setFormName] = useState("");
   const [formIcon, setFormIcon] = useState("Package");
   const [formDescription, setFormDescription] = useState("");
+  // accounting: purchase account of this category + fixed-asset flag
+  const [formAccount, setFormAccount] = useState("");
+  const [formFixedAsset, setFormFixedAsset] = useState(false);
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState("");
 
@@ -89,6 +92,8 @@ export default function InventorySettings() {
     setFormName("");
     setFormIcon("Package");
     setFormDescription("");
+    setFormAccount("");
+    setFormFixedAsset(false);
     setFormError("");
     setShowForm(true);
   };
@@ -98,6 +103,8 @@ export default function InventorySettings() {
     setFormName(category.name);
     setFormIcon(category.icon || "Package");
     setFormDescription(category.description || "");
+    setFormAccount(category.accountingAccount || "");
+    setFormFixedAsset(!!category.isFixedAsset);
     setFormError("");
     setShowForm(true);
   };
@@ -132,11 +139,11 @@ export default function InventorySettings() {
     try {
       if (editingCategory) {
         await updateInventoryCategory(editingCategory._id, {
-          name: formName, icon: formIcon, description: formDescription,
+          name: formName, icon: formIcon, description: formDescription, accountingAccount: formAccount.trim(), isFixedAsset: formFixedAsset,
         });
       } else {
         await createInventoryCategory({
-          company: selectedCompanyId, name: formName, icon: formIcon, description: formDescription,
+          company: selectedCompanyId, name: formName, icon: formIcon, description: formDescription, accountingAccount: formAccount.trim(), isFixedAsset: formFixedAsset,
         });
       }
       closeForm();
@@ -223,6 +230,20 @@ export default function InventorySettings() {
             <div className={styles.formField} style={{ gridColumn: "1 / -1" }}>
               <label>{t("inventorySettings.fields.description")}</label>
               <input type="text" className={styles.textInput} value={formDescription} onChange={(e) => setFormDescription(e.target.value)} placeholder={t("inventorySettings.fields.descriptionPlaceholder")} />
+            </div>
+            {/* Where purchases of this category go in the accounting export */}
+            <div className={styles.formField}>
+              <label>{t("inventorySettings.fields.accountingAccount")}</label>
+              <input type="text" inputMode="numeric" className={styles.textInput} value={formAccount} placeholder="6121"
+                onChange={(e) => setFormAccount(e.target.value.replace(/[^0-9]/g, "").slice(0, 10))} />
+              <small className={styles.fieldHint}>{t("inventorySettings.fields.accountingAccountHint")}</small>
+            </div>
+            <div className={styles.formField}>
+              <label>{t("inventorySettings.fields.fixedAsset")}</label>
+              <label className={styles.inlineSwitch}>
+                <input type="checkbox" className="switchToggle" checked={formFixedAsset} onChange={(e) => setFormFixedAsset(e.target.checked)} />
+                <span>{formFixedAsset ? t("inventorySettings.fields.fixedAssetOn") : t("inventorySettings.fields.fixedAssetOff")}</span>
+              </label>
             </div>
           </div>
 

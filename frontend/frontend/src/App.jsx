@@ -4,7 +4,7 @@ import { I18nProvider } from './context/i18nContext'
 import { AuthProvider } from './context/AuthContext'
 import ProtectedRoute from './components/ProtectedRoute'
 import Layout from './components/Layout'
-import { canAccessHR, canSelfService, canManageCompanySettings, canAccessProduction, canOverseeDepartments, canAccessPurchasing, isPlatformAdmin } from './utils/permissions'
+import { canAccessHR, canSelfService, canManageCompanySettings, canAccessProduction, canOverseeDepartments, canAccessPurchasing, isPlatformAdmin, canAccessSales, canViewProjects, canUseWorkshops, canAccessLogistics, can, canViewCatalog, canConfigureProduction, canManageInventory, canManageTeamPermissions } from './utils/permissions'
 import './styles/global.css';
 
 // LoginPage stays a normal (eager) import: it's the very first
@@ -41,6 +41,8 @@ const PerformanceReviews = lazy(() => import('./pages/hr/PerformanceReviews'))
 const DisciplinaryActions = lazy(() => import('./pages/hr/DisciplinaryActions'))
 const LeaveCalendar = lazy(() => import('./pages/hr/LeaveCalendar'))
 const Holidays = lazy(() => import('./pages/hr/Holidays'))
+const Declarations = lazy(() => import('./pages/hr/Declarations'))
+const LeaveBalances = lazy(() => import('./pages/hr/LeaveBalances'))
 const PurchaseRequestsQueue = lazy(() => import('./pages/purchasing/PurchaseRequestsQueue'))
 const PurchaseOrders = lazy(() => import('./pages/purchasing/PurchaseOrders'))
 const PurchaseOrderForm = lazy(() => import('./pages/purchasing/PurchaseOrderForm'))
@@ -56,7 +58,27 @@ const Inventory = lazy(() => import('./pages/production/Inventory'))
 const InventorySettings = lazy(() => import('./pages/production/InventorySettings'))
 const PurchaseRequests = lazy(() => import('./pages/production/PurchaseRequests'))
 const MyDepartment = lazy(() => import('./pages/me/MyDepartment'))
+const TeamPermissions = lazy(() => import('./pages/owner/TeamPermissions'))
 const PlatformClients = lazy(() => import('./pages/platform/Clients'))
+const Customers = lazy(() => import('./pages/sales/Customers'))
+const Quotes = lazy(() => import('./pages/sales/Quotes'))
+const QuoteDetail = lazy(() => import('./pages/sales/QuoteDetail'))
+const SalesDocForm = lazy(() => import('./pages/sales/SalesDocForm'))
+const SalesInvoices = lazy(() => import('./pages/sales/Invoices'))
+const InvoiceDetail = lazy(() => import('./pages/sales/InvoiceDetail'))
+const Receivables = lazy(() => import('./pages/sales/Receivables'))
+const Projects = lazy(() => import('./pages/production/Projects'))
+const ProjectDetail = lazy(() => import('./pages/production/ProjectDetail'))
+const Planning = lazy(() => import('./pages/production/Planning'))
+const Workshops = lazy(() => import('./pages/production/Workshops'))
+const WorkOrderDetail = lazy(() => import('./pages/production/WorkOrderDetail'))
+const Catalog = lazy(() => import('./pages/production/Catalog'))
+const ChassisModelEditor = lazy(() => import('./pages/production/ChassisModelEditor'))
+const ProductionConfig = lazy(() => import('./pages/production/ProductionConfig'))
+const TrackingOverview = lazy(() => import('./pages/logistics/TrackingOverview'))
+const ToDeliver = lazy(() => import('./pages/logistics/ToDeliver'))
+const DeliveryNotes = lazy(() => import('./pages/logistics/DeliveryNotes'))
+const DeliveryNoteForm = lazy(() => import('./pages/logistics/DeliveryNoteForm'))
 
 // Every HR page needs the same two things: logged in (outer
 // ProtectedRoute wrapping <Layout />) AND canAccessHR (admin/owner/
@@ -79,9 +101,22 @@ function purchasingRoute(element) {
 }
 
 // Production module — admins and the "production" department only.
-function productionRoute(element) {
-  return <ProtectedRoute permission={canAccessProduction}>{element}</ProtectedRoute>
+function salesRoute(element) {
+  return <ProtectedRoute permission={canAccessSales}>{element}</ProtectedRoute>
 }
+
+function projectsRoute(element) {
+  return <ProtectedRoute permission={canViewProjects}>{element}</ProtectedRoute>
+}
+
+function workshopsRoute(element) {
+  return <ProtectedRoute permission={canUseWorkshops}>{element}</ProtectedRoute>
+}
+
+function logisticsRoute(element) {
+  return <ProtectedRoute permission={canAccessLogistics}>{element}</ProtectedRoute>
+}
+
 
 // Shown for the brief moment a lazy page's chunk is downloading —
 // deliberately minimal (no spinner animation, no layout shift) since
@@ -140,7 +175,7 @@ export default function App() {
                 <Route
                   path="/organization/work-schedule"
                   element={
-                    <ProtectedRoute permission={canManageCompanySettings}>
+                    <ProtectedRoute permission={(u) => canManageCompanySettings(u) || can(u, "organization.schedule.edit")}>
                       <WorkSchedule />
                     </ProtectedRoute>
                   }
@@ -158,7 +193,7 @@ export default function App() {
                 <Route
                   path="/organization/departments"
                   element={
-                    <ProtectedRoute permission={canManageCompanySettings}>
+                    <ProtectedRoute permission={(u) => canManageCompanySettings(u) || can(u, "organization.departments.view")}>
                       <Departments />
                     </ProtectedRoute>
                   }
@@ -180,6 +215,36 @@ export default function App() {
                 <Route path="/hr/disciplinary-actions" element={hrRoute(<DisciplinaryActions />)} />
                 <Route path="/hr/leave-calendar" element={hrRoute(<LeaveCalendar />)} />
                 <Route path="/hr/holidays" element={hrRoute(<Holidays />)} />
+                <Route path="/hr/declarations" element={hrRoute(<Declarations />)} />
+                {/* Sales (ventes) */}
+                <Route path="/sales/customers" element={salesRoute(<Customers />)} />
+                <Route path="/sales/quotes" element={salesRoute(<Quotes />)} />
+                <Route path="/sales/quotes/new" element={salesRoute(<SalesDocForm kind="quote" />)} />
+                <Route path="/sales/quotes/:id" element={salesRoute(<QuoteDetail />)} />
+                <Route path="/sales/quotes/:id/edit" element={salesRoute(<SalesDocForm kind="quote" />)} />
+                <Route path="/sales/invoices" element={salesRoute(<SalesInvoices />)} />
+                <Route path="/sales/invoices/new" element={salesRoute(<SalesDocForm kind="invoice" />)} />
+                <Route path="/sales/invoices/:id" element={salesRoute(<InvoiceDetail />)} />
+                <Route path="/sales/invoices/:id/edit" element={salesRoute(<SalesDocForm kind="invoice" />)} />
+                <Route path="/sales/receivables" element={salesRoute(<Receivables />)} />
+                {/* Projects (production) */}
+                <Route path="/production/projects" element={projectsRoute(<Projects />)} />
+                <Route path="/production/projects/:id" element={projectsRoute(<ProjectDetail />)} />
+                <Route path="/production/planning" element={projectsRoute(<Planning />)} />
+                <Route path="/production/workshops" element={workshopsRoute(<Workshops />)} />
+                <Route path="/production/orders/:id" element={workshopsRoute(<WorkOrderDetail />)} />
+                <Route path="/production/catalog" element={<ProtectedRoute permission={canViewCatalog}><Catalog /></ProtectedRoute>} />
+                <Route path="/production/catalog/models/:id" element={<ProtectedRoute permission={canViewCatalog}><ChassisModelEditor /></ProtectedRoute>} />
+                <Route path="/production/configuration" element={<ProtectedRoute permission={canConfigureProduction}><ProductionConfig /></ProtectedRoute>} />
+                <Route path="/production/tracking" element={<ProtectedRoute permission={(u) => can(u, "production.tracking.view") || canViewProjects(u)}><TrackingOverview /></ProtectedRoute>} />
+                <Route path="/logistics/to-deliver" element={logisticsRoute(<ToDeliver />)} />
+                <Route path="/logistics/delivery-notes" element={logisticsRoute(<DeliveryNotes />)} />
+                <Route path="/logistics/delivery-notes/new" element={logisticsRoute(<DeliveryNoteForm />)} />
+                <Route path="/logistics/delivery-notes/:id" element={logisticsRoute(<DeliveryNoteForm />)} />
+                <Route path="/logistics/tracking" element={<ProtectedRoute permission={(u) => can(u, "logistics.tracking.view") || canAccessLogistics(u)}><TrackingOverview /></ProtectedRoute>} />
+                <Route path="/me/team-permissions" element={<ProtectedRoute permission={canManageTeamPermissions}><TeamPermissions /></ProtectedRoute>} />
+                <Route path="/organization/roles-permissions" element={<ProtectedRoute permission={canManageTeamPermissions}><TeamPermissions /></ProtectedRoute>} />
+                <Route path="/hr/leave-balances" element={hrRoute(<LeaveBalances />)} />
 
                 {/* My Space (self-service) — one tabbed page, several
                     paths so each tab is directly linkable/bookmarkable
@@ -214,9 +279,9 @@ export default function App() {
                 <Route path="/purchasing/article-history" element={purchasingRoute(<ArticleHistory />)} />
 
                 {/* Production module */}
-                <Route path="/production/inventory" element={productionRoute(<Inventory />)} />
-                <Route path="/production/purchase-requests" element={productionRoute(<PurchaseRequests />)} />
-                <Route path="/production/settings" element={productionRoute(<InventorySettings />)} />
+                <Route path="/production/inventory" element={<ProtectedRoute permission={(u) => can(u, "inventory.articles.view") || canAccessProduction(u)}><Inventory /></ProtectedRoute>} />
+                <Route path="/production/purchase-requests" element={<ProtectedRoute permission={(u) => can(u, "inventory.requests.view") || canAccessProduction(u)}><PurchaseRequests /></ProtectedRoute>} />
+                <Route path="/production/settings" element={<ProtectedRoute permission={canManageInventory}><InventorySettings /></ProtectedRoute>} />
 
                 {/* Unmatched routes (including the organization sidebar's
                     not-yet-built placeholder links — Departments, Job

@@ -96,6 +96,17 @@ export default function NotificationBell() {
     }
   };
 
+  // Notifications with a `key` are shown in the reader's language
+  // (notificationEvents.<key>.title / .message with {params});
+  // older ones (and unknown keys) keep their stored text.
+  const render = (n, field) => {
+    if (!n.key) return n[field];
+    const path = `notificationEvents.${n.key}.${field}`;
+    const text = t(path, null);
+    if (!text) return n[field];
+    return text.replace(/\{(\w+)\}/g, (_, k) => (n.params?.[k] ?? ""));
+  };
+
   const locale = {
     now: t("notifications.now"),
     minutesShort: t("notifications.minutesShort"),
@@ -152,11 +163,11 @@ export default function NotificationBell() {
                   {!notification.read && <span className={styles.dot} />}
                   <div className={styles.itemBody}>
                     <span className={styles.itemTitle}>
-                      {notification.title}
+                      {render(notification, "title")}
                     </span>
-                    {notification.message && (
+                    {render(notification, "message") && (
                       <span className={styles.itemMessage}>
-                        {notification.message}
+                        {render(notification, "message")}
                       </span>
                     )}
                     <span className={styles.itemTime}>

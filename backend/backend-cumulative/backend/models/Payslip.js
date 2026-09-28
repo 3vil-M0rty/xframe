@@ -60,6 +60,11 @@ const payslipSchema = new mongoose.Schema(
     holidayAmount: { type: Number, default: 0 },
     holidayHours: { type: Number, default: 0 },
     unpaidDeduction: { type: Number, default: 0 },
+    // Unpaid days (unpaid leave, unjustified absence) and the days
+    // declared to CNSS for the month (26 for a full month, fewer for
+    // a mid-month hire or unpaid days) — see services/damancomService.js.
+    unpaidDays: { type: Number, default: 0 },
+    declaredDays: { type: Number, default: null },
     grossSalary: { type: Number, required: true },
 
     // ----- Statutory deductions -----

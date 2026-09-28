@@ -13,6 +13,8 @@ const { generatePriceRequestPdf } = require("../services/purchasingPdfService");
 const { sendMail, pdfToBuffer, isEmail } = require("../services/mailService");
 const crypto = require("crypto");
 const auth = require("../middleware/auth");
+const { guard } = require("../middleware/permissionGuard");
+const { ROUTE_PERMISSIONS } = require("../config/routePermissions");
 const { requirePurchasingAccess } = require("../middleware/permissionMiddleware");
 const { uploadPrivateFile, deleteFile } = require("../services/cloudinaryService");
 const { createWithNumber } = require("../services/documentNumberService");
@@ -21,6 +23,8 @@ const { createWithNumber } = require("../services/documentNumberService");
  * PRICE REQUESTS (demandes de prix) — purchasing module.
  *   draft -> sent -> answered -> accepted (converted to a BC) | rejected
  */
+// Fine-grained permissions of every endpoint: config/routePermissions.js
+router.use(auth, guard(ROUTE_PERMISSIONS.priceRequests));
 router.use(auth, requirePurchasingAccess);
 
 const uploadQuote = multer({

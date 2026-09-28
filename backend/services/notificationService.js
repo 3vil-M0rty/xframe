@@ -61,7 +61,7 @@ async function getProductionRecipientIds(company, excludeUserId) {
  * routes through this function already, so nothing else needs to
  * change when that's added.
  */
-async function notify(userId, { type, title, message, link }) {
+async function notify(userId, { type, title, message, link, key, params }) {
   if (!userId) return null;
 
   try {
@@ -71,6 +71,7 @@ async function notify(userId, { type, title, message, link }) {
       title,
       message,
       link,
+      ...(key ? { key, params } : {}),
     });
   } catch (error) {
     console.error("Notification create failed:", error);
@@ -97,4 +98,23 @@ async function getPurchasingRecipientIds(company, excludeUserId) {
   return users.map((u) => u._id.toString()).filter((id) => id !== String(excludeUserId || ""));
 }
 
-module.exports = { notify, notifyMany, getHRRecipientIds, getProductionRecipientIds, getPurchasingRecipientIds };
+/** Admins + users of a department ("sales", "production"…) of the company's client. */
+async function getDepartmentRecipientIds(company, department, excludeUserId) {
+  const users = await User.find(
+    await forCompanyClient(company, { $or: [{ role: "admin" }, { department }] })
+  ).select("_id");
+  return users.map((u) => u._id.toString()).filter((id) => id !== String(excludeUserId || ""));
+}
+
+/** Login accounts linked to these employees (workshop managers/members, project managers). */
+async function getUserIdsForEmployees(employeeIds = [], excludeUserId) {
+  const ids = [...new Set(employeeIds.filter(Boolean).map(String))];
+  if (!ids.length) return [];
+  const users = await User.find({ employee: { $in: ids }, status: { $nin: ["inactive", "suspended"] } }).select("_id");
+  return users.map((u) => u._id.toString()).filter((id) => id !== String(excludeUserId || ""));
+}
+
+module.exports = {
+  notify, notifyMany, getHRRecipientIds, getProductionRecipientIds, getPurchasingRecipientIds,
+  getDepartmentRecipientIds, getUserIdsForEmployees,
+};

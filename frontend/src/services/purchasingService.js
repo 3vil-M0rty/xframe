@@ -182,3 +182,6 @@ export const deleteSupplierDocument = async (id, docId) => (await api.delete(`/s
 // One transfer / cheque settling several invoices (possibly on several orders)
 // allocations: [{ orderId, invoiceId, amount }]
 export const createSupplierPayment = async (data) => (await api.post("/purchase-orders/supplier-payments", data)).data.data;
+
+/** Links a purchase order to a client project (or null to unlink). */
+export const setOrderProject = async (id, project) => (await api.patch(`/purchase-orders/${id}/project`, { project })).data.data;

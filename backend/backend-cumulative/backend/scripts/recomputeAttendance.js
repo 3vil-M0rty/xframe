@@ -58,10 +58,12 @@ async function main() {
   await mongoose.connect(process.env.MONGODB_URI);
   console.log(`✓ Connected — ${apply ? "APPLYING changes" : "DRY RUN (nothing is written; add --apply to save)"}`);
 
+  // Each employee's schedule: their department's, else the company default.
+  const { scheduleForEmployee } = require("../services/scheduleResolver");
   const schedules = new Map();
-  const scheduleFor = async (companyId) => {
-    const key = String(companyId);
-    if (!schedules.has(key)) schedules.set(key, await WorkSchedule.findOne({ company: companyId }));
+  const scheduleFor = async (companyId, employeeId) => {
+    const key = `${companyId}:${employeeId}`;
+    if (!schedules.has(key)) schedules.set(key, await scheduleForEmployee(employeeId, companyId));
     return schedules.get(key);
   };
 
@@ -69,7 +71,7 @@ async function main() {
   let changed = 0;
   for (const record of records) {
     // eslint-disable-next-line no-await-in-loop
-    const ws = await scheduleFor(record.company);
+    const ws = await scheduleFor(record.company, record.employee);
     const dayConfig = ws ? ws.getDayConfig(new Date(record.date)) : undefined;
     // eslint-disable-next-line no-await-in-loop
     const holiday = await PublicHoliday.findOne({ company: record.company, day: PublicHoliday.dayKey(record.date) }).lean();

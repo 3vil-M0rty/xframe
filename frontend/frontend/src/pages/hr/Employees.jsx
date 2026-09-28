@@ -52,7 +52,7 @@ import {
   downloadEmployeeDocumentPdf,
   exportEmployeesCsv,
 } from "../../services/employeeService";
-import { getCompanies } from "../../services/companyService";
+import { getCompanies, getCompanyQuota } from "../../services/companyService";
 import { getDepartments } from "../../services/departmentService";
 import { buildEmployeeSearchOptions } from "../../utils/employeeSearch";
 import { getJobPositions } from "../../services/jobPositionService";
@@ -249,6 +249,13 @@ export default function Employees() {
      ========================================================== */
 
   const [employees, setEmployees] = useState([]);
+  // Employee quota of the client (set by the platform) — refreshed
+  // whenever the list reloads (after a creation, import, termination…).
+  const [quota, setQuota] = useState(null);
+  useEffect(() => {
+    getCompanyQuota().then(setQuota).catch(() => setQuota(null));
+  }, [employees]);
+  const seatsFull = quota?.maxEmployees != null && quota.employees >= quota.maxEmployees;
   const [companies, setCompanies] = useState([]);
 
   const [selectedEmployee, setSelectedEmployee] =
@@ -3139,9 +3146,18 @@ export default function Employees() {
               {exporting ? t("common.loading") : t("employees.bulkImport.exportButton")}
             </button>
 
+            {quota?.maxEmployees != null && (
+              <span className={`${styles.quotaPill} ${seatsFull ? styles.quotaPillFull : ""}`}
+                title={seatsFull ? t("quota.employeesFull") : t("quota.employeesHint")}>
+                <Users size={14} /> {quota.employees} / {quota.maxEmployees}
+              </span>
+            )}
+
             <button
               type="button"
               className="btnEdit"
+              disabled={seatsFull}
+              title={seatsFull ? t("quota.employeesFull") : ""}
               onClick={() => setShowBulkImport(true)}
             >
               <Upload size={16} />
@@ -3153,6 +3169,8 @@ export default function Employees() {
               className={
                 "btnPrimary"
               }
+              disabled={seatsFull}
+              title={seatsFull ? t("quota.employeesFull") : ""}
               onClick={
                 openCreateForm
               }
@@ -3165,6 +3183,10 @@ export default function Employees() {
           </div>
         )}
       </div>
+
+      {seatsFull && !showCreateForm && (
+        <div className={styles.quotaBanner}>{t("quota.employeesFull")}</div>
+      )}
 
       {/* ERROR */}
       {error && (

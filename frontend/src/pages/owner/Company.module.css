@@ -85,3 +85,46 @@
   font-size: 1.25rem;
   font-weight: 600;
 }
+
+/* ---- several companies per client + quota ---- */
+.companyBar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 18px;
+}
+
+.companyChip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 12px;
+    border: 1px solid var(--color-border);
+    border-radius: 999px;
+    background: var(--color-bg-primary);
+    color: var(--color-text-secondary);
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.companyChipActive {
+    border-color: var(--color-primary, #2563eb);
+    background: var(--color-primary-light, rgba(37, 99, 235, 0.1));
+    color: var(--color-primary, #2563eb);
+}
+
+.quotaBadge {
+    margin-left: 4px;
+    padding: 1px 7px;
+    border-radius: 999px;
+    background: var(--color-bg-secondary);
+    color: var(--color-text-tertiary);
+    font-size: 0.72rem;
+}
+
+.quotaLine {
+    color: var(--color-text-tertiary);
+    font-size: 0.8rem;
+}

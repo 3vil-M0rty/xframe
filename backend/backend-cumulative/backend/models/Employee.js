@@ -371,6 +371,20 @@ const employeeSchema = new mongoose.Schema(
         },
 
         // =========================================================
+        // PAID LEAVE — OPENING BALANCE
+        // =========================================================
+        // Days the employee still had on `asOf` when the company
+        // started using the app (from the previous system/paper).
+        // Leave then accrues from `asOf` instead of the hire date;
+        // seniority still counts from the hire date. Empty = accrue
+        // from the hire date. See services/leaveBalanceService.js.
+        leaveOpeningBalance: {
+            days: { type: Number, default: null },
+            asOf: { type: Date, default: null },
+            note: { type: String, trim: true, maxlength: 300 },
+        },
+
+        // =========================================================
         // BANKING
         // =========================================================
 

@@ -69,6 +69,17 @@ const purchaseOrderRoutes = require("./routes/purchaseOrders");
 const priceRequestRoutes = require("./routes/priceRequests");
 const platformRoutes = require("./routes/platform");
 const fileRoutes = require("./routes/files");
+const leaveRoutes = require("./routes/leave");
+const declarationRoutes = require("./routes/declarations");
+const customerRoutes = require("./routes/customers");
+const quoteRoutes = require("./routes/quotes");
+const salesInvoiceRoutes = require("./routes/salesInvoices");
+const projectRoutes = require("./routes/projects");
+const productionConfigRoutes = require("./routes/productionConfig");
+const productionOrderRoutes = require("./routes/productionOrders");
+const trackingRoutes = require("./routes/tracking");
+const logisticsRoutes = require("./routes/logistics");
+const permissionRoutes = require('./routes/permissions');
 const { migrateLegacyDataToTenants } = require("./services/tenantService");
 
 // Every model holding client data must carry the isolation plugin;
@@ -107,6 +118,7 @@ app.use((req, res, next) => tenantScope.bindRequest(req, tenantScope.SYSTEM, nex
 const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 
 const { runDailyPurchasingChecks } = require('./services/purchasingScheduledChecks');
+const { runDailyBusinessChecks } = require('./services/businessNotifications');
 
 // Background jobs see every client (system context); each one picks
 // the right people per company itself (services/notificationService.js).
@@ -114,6 +126,7 @@ function runDailyJobs() {
   return tenantScope.runAsSystem(async () => {
     await runDailyHRChecks();
     await runDailyPurchasingChecks();
+    await runDailyBusinessChecks();
   }).catch((err) => console.error('Daily jobs failed:', err));
 }
 
@@ -208,6 +221,20 @@ app.use("/api/purchase-orders", purchaseOrderRoutes);
 app.use("/api/price-requests", priceRequestRoutes);
 // Short-lived links to private documents.
 app.use("/api/files", fileRoutes);
+// Paid-leave balances (Code du travail).
+app.use("/api/leave", leaveRoutes);
+// Payroll declarations: Damancom (CNSS), bank transfer, Simpl-IR (DGI).
+app.use("/api/declarations", declarationRoutes);
+// Sales (ventes) and projects (production).
+app.use("/api/customers", customerRoutes);
+app.use("/api/quotes", quoteRoutes);
+app.use("/api/sales-invoices", salesInvoiceRoutes);
+app.use("/api/projects", projectRoutes);
+app.use("/api/production", productionConfigRoutes);
+app.use("/api/production-orders", productionOrderRoutes);
+app.use("/api/tracking", trackingRoutes);
+app.use("/api/logistics", logisticsRoutes);
+app.use("/api/permissions", permissionRoutes);
 // Platform operator (client management) — platform_admin only.
 app.use("/api/platform", platformRoutes);
 

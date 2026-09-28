@@ -67,6 +67,32 @@ const inventoryMovementSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
     },
+
+    // Material taken out for a client project (Production → Projects),
+    // with its unit cost at that moment — the project's material cost.
+    project: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Project",
+      default: null,
+      index: true,
+    },
+    unitCost: {
+      type: Number,
+      default: null,
+      min: 0,
+    },
+    // Consumption / output booked by a workshop on a work order.
+    productionOrder: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "ProductionOrder",
+      default: null,
+      index: true,
+    },
+    workshop: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Workshop",
+      default: null,
+    },
   },
   { timestamps: true }
 );

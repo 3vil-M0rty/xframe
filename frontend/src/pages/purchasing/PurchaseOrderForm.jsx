@@ -6,6 +6,8 @@ import { useI18n } from "../../hooks/useI18n";
 import Breadcrumbs from "../../components/useful/Breadcrumbs";
 import CustomSelect from "../../components/useful/CustomSelect";
 import { getSuppliers, getOrder, createOrder, updateOrder } from "../../services/purchasingService";
+import { getProjects } from "../../services/projectService";
+import { setOrderProject } from "../../services/purchasingService";
 import LinesEditor, { emptyLine } from "./LinesEditor";
 import { useCompanyProducts, todayInput, toInputDate } from "./shared";
 import styles from "./Purchasing.module.css";
@@ -29,6 +31,9 @@ export default function PurchaseOrderForm() {
   const [date, setDate] = useState(todayInput());
   const [expectedDate, setExpectedDate] = useState("");
   const [notes, setNotes] = useState("");
+  // Optional: the client project this order is for (its cost goes to the project).
+  const [project, setProject] = useState(state?.projectId || "");
+  const [projects, setProjects] = useState([]);
   const [lines, setLines] = useState([emptyLine()]);
   const [linkedRequests, setLinkedRequests] = useState(state?.requests || []);
   const [error, setError] = useState("");
@@ -69,6 +74,7 @@ export default function PurchaseOrderForm() {
         setDate(toInputDate(o.date));
         setExpectedDate(toInputDate(o.expectedDate));
         setNotes(o.notes || "");
+        setProject(o.project?._id || o.project || "");
         setLines(o.lines.map((l) => ({ ...l, product: l.product?._id || l.product || "", priceSource: "manual" })));
         setLinkedRequests([]);
       } catch (err) {
@@ -80,6 +86,7 @@ export default function PurchaseOrderForm() {
   useEffect(() => {
     if (!companyId) return;
     getSuppliers(companyId, { active: "true" }).then(setSuppliers).catch(() => setSuppliers([]));
+    getProjects({ companyId, status: "active" }).then(setProjects).catch(() => setProjects([]));
   }, [companyId]);
 
   const payloadLines = () => lines.map((l) => ({
@@ -99,7 +106,8 @@ export default function PurchaseOrderForm() {
       const body = { supplier, date, expectedDate: expectedDate || null, notes, lines: payloadLines() };
       const saved = editing
         ? await updateOrder(id, body)
-        : await createOrder({ ...body, company: companyId, send, purchaseRequestIds: linkedRequests.map((r) => r._id) });
+        : await createOrder({ ...body, project: project || null, company: companyId, send, purchaseRequestIds: linkedRequests.map((r) => r._id) });
+      if (editing) await setOrderProject(id, project || null);
       navigate(`/purchasing/orders/${saved._id}`, { replace: true });
     } catch (err) {
       setError(err.response?.data?.message || t("purchasing.errors.save"));
@@ -148,6 +156,13 @@ export default function PurchaseOrderForm() {
           <span>{t("purchasing.orders.form.expectedDate")}</span>
           <input type="date" className={styles.input} value={expectedDate} onChange={(e) => setExpectedDate(e.target.value)} />
         </label>
+        {(projects.length > 0 || project) && (
+          <label className={styles.field}>
+            <span>{t("projects.forProject")}</span>
+            <CustomSelect value={project} onSelect={setProject} placeholder={t("projects.noProject")}
+              options={[{ value: "", label: t("projects.noProject") }, ...projects.map((p) => ({ value: p._id, label: `${p.number} — ${p.name}` }))]} />
+          </label>
+        )}
       </div>
 
       <LinesEditor lines={lines} onChange={setLines} products={products}

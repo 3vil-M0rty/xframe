@@ -34,6 +34,39 @@ export const isPlatformAdmin = (actor) => actor?.role === "platform_admin";
 const isOwner = (actor) => actor?.role === ROLES.OWNER;
 const isPlainUser = (actor) => actor?.role === ROLES.USER;
 
+// ------------------------------------------------------------
+// FINE-GRAINED PERMISSIONS ("module.resource.action", see the
+// backend's config/permissionCatalog.js). /users/me sends the login's
+// effective list as `permissions`; every check below reads it. When it
+// isn't there yet (first render before /users/me), the old
+// department-based rules are used.
+// ------------------------------------------------------------
+const setCache = new WeakMap();
+function permSet(actor) {
+  if (!actor || !Array.isArray(actor.permissions)) return null;
+  let s = setCache.get(actor);
+  if (!s) { s = new Set(actor.permissions); setCache.set(actor, s); }
+  return s;
+}
+/** Can this login do `key` ("sales.quotes.create")? */
+export function can(actor, key) {
+  if (isAdmin(actor) || isOwner(actor)) return true;
+  const s = permSet(actor);
+  return !!s && s.has(key);
+}
+export function canAny(actor, keys) {
+  return keys.some((k) => can(actor, k));
+}
+/** Any permission of a module / resource ("hr", "sales.quotes"). */
+export function canModule(actor, prefix) {
+  if (isAdmin(actor) || isOwner(actor)) return true;
+  const s = permSet(actor);
+  if (!s) return false;
+  for (const k of s) if (k === prefix || k.startsWith(`${prefix}.`)) return true;
+  return false;
+}
+const hasList = (actor) => !!permSet(actor);
+
 const sameId = (a, b) => !!a && !!b && a.toString() === b.toString();
 
 // ------------------------------------------------------------
@@ -59,6 +92,7 @@ export const HR_DEPARTMENT = "hr";
 const isHRDepartment = (actor) => actor?.department === HR_DEPARTMENT;
 
 export function canAccessHR(actor) {
+  if (hasList(actor)) return canModule(actor, "hr");
   return isAdmin(actor) || isOwner(actor) || isHRDepartment(actor);
 }
 
@@ -71,17 +105,84 @@ export function canAccessHR(actor) {
 export const PRODUCTION_DEPARTMENT = "production";
 
 export function canAccessProduction(actor) {
+  if (hasList(actor)) return isAdmin(actor) || can(actor, "production.orders.edit");
   return isAdmin(actor) || actor?.department === PRODUCTION_DEPARTMENT;
 }
 
 /** Purchasing module (service achats) — mirrors the backend. */
 // Owners included: they approve large purchase orders.
 export function canAccessPurchasing(actor) {
+  if (hasList(actor)) return canModule(actor, "purchasing");
   return isAdmin(actor) || isOwner(actor) || actor?.department === "purchasing";
+}
+
+/** Sales (ventes): admins, owners and the "sales" department. */
+export function canAccessSales(actor) {
+  if (hasList(actor)) return canModule(actor, "sales");
+  return isAdmin(actor) || isOwner(actor) || actor?.department === "sales";
+}
+
+/** Projects: production and sales see them; production and owners run them. */
+export function canViewProjects(actor) {
+  if (hasList(actor)) return can(actor, "projects.projects.view");
+  return canAccessProduction(actor) || canAccessSales(actor) || canAccessPurchasing(actor) || actor?.department === "logistics";
+}
+/** Logistics: chassis to deliver, delivery notes — admins, owners, production, logistics department. */
+export function canAccessLogistics(actor) {
+  if (hasList(actor)) return canAny(actor, ["logistics.toDeliver.view", "logistics.notes.view"]);
+  return isAdmin(actor) || isOwner(actor) || actor?.department === "logistics";
+}
+/** Chassis tracking (made / ready / installed): same people as logistics. */
+export function canUpdateTracking(actor) {
+  if (hasList(actor)) return canAny(actor, ["production.tracking.update", "logistics.tracking.update"]);
+  return canAccessLogistics(actor);
+}
+/** Workshops (ateliers): production, or anyone who runs / works in one (sent by /users/me). */
+export function canUseWorkshops(actor) {
+  if (hasList(actor)) return can(actor, "production.orders.view");
+  return canAccessProduction(actor) || (Array.isArray(actor?.workshops) && actor.workshops.length > 0);
+}
+/** Chassis catalogue, colours, workshops set-up: production only. */
+export function canConfigureProduction(actor) {
+  if (hasList(actor)) return canAny(actor, ["production.config.view", "production.config.edit"]);
+  return canAccessProduction(actor);
+}
+/** Chassis catalogue page. */
+export function canViewCatalog(actor) {
+  if (hasList(actor)) return can(actor, "production.catalog.view");
+  return canAccessProduction(actor);
+}
+
+export function canManageProjects(actor) {
+  if (hasList(actor)) return can(actor, "projects.projects.edit");
+  return canAccessProduction(actor) || isOwner(actor);
+}
+/** Inventory pages (articles, categories, purchase requests). */
+export function canManageInventory(actor) {
+  if (hasList(actor)) return canAny(actor, ["inventory.articles.view", "inventory.categories.view"]);
+  return canAccessProduction(actor);
+}
+/** Hands out permissions to the people under them (managers) — or anyone (admins / owners). */
+export function canManageTeamPermissions(actor) {
+  return isAdmin(actor) || isOwner(actor) || can(actor, "team.permissions.manage");
+}
+
+/**
+ * Amounts (sale prices, project revenue / costs / margins, budgets, cost
+ * prices, hourly rates, pricing rules). Production, workshops and
+ * logistics don't see them unless the admin ticks "Voir les montants"
+ * on their account (showFinancials). Mirrors the backend — which also
+ * leaves the amounts out of its answers.
+ */
+export const FINANCIAL_DEPARTMENTS = ["sales", "finance", "accounting", "management"];
+export function canSeeFinancials(actor) {
+  if (hasList(actor)) return can(actor, "finance.amounts.view");
+  return isAdmin(actor) || isOwner(actor) || FINANCIAL_DEPARTMENTS.includes(actor?.department) || actor?.showFinancials === true;
 }
 
 /** Inventory is read by purchasing too; only production changes it. */
 export function canViewInventory(actor) {
+  if (hasList(actor)) return can(actor, "inventory.articles.view");
   return canAccessProduction(actor) || canAccessPurchasing(actor);
 }
 

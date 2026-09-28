@@ -5,6 +5,7 @@ import {
   deleteCompany,
   uploadCompanyLogo,
   downloadCompanyFichePdf,
+  getCompanyQuota,
 } from "../../services/companyService";
 
 import { useState, useEffect } from "react";
@@ -86,6 +87,11 @@ export default function Company() {
   // ========================================
 
   const [company, setCompany] = useState(null);
+  // A client can have several companies (up to the quota the platform
+  // gave it): the list, and the quota { maxCompanies, companies, … }.
+  const [companies, setCompanies] = useState([]);
+  const [quota, setQuota] = useState(null);
+  const refreshQuota = () => getCompanyQuota().then(setQuota).catch(() => setQuota(null));
 
   const [initialLoading, setInitialLoading] =
     useState(true);
@@ -139,9 +145,11 @@ export default function Company() {
   useEffect(() => {
     const loadCompany = async () => {
       try {
-        const companies = await getCompanies();
+        const list = await getCompanies();
 
-        setCompany(companies?.[0] || null);
+        setCompanies(list || []);
+        setCompany(list?.[0] || null);
+        refreshQuota();
       } catch (error) {
         console.error(
           "Failed to load company:",
@@ -473,6 +481,10 @@ export default function Company() {
       // ======================================
 
       setCompany(finalCompany);
+      setCompanies((list) => (mode === "create"
+        ? [...list, finalCompany]
+        : list.map((c) => (c._id === finalCompany._id ? finalCompany : c))));
+      if (mode === "create") refreshQuota();
 
       setMode(false);
 
@@ -556,7 +568,10 @@ export default function Company() {
       // REMOVE COMPANY FROM UI
       // ======================================
 
-      setCompany(null);
+      const remaining = companies.filter((c) => c._id !== company._id);
+      setCompanies(remaining);
+      setCompany(remaining[0] || null);
+      refreshQuota();
 
       // ======================================
       // CLEAR STATE
@@ -663,44 +678,49 @@ export default function Company() {
   // INITIAL FORM VALUES
   // ========================================
 
+  // Creating a new company starts from an empty form, not from the
+  // company currently shown.
+  const formSource = mode === "create" ? null : company;
+  const companyFull = quota?.maxCompanies != null && quota.companies >= quota.maxCompanies;
+
   const initialFormValues = {
-    name: company?.name || "",
+    name: formSource?.name || "",
 
     tradeName:
-      company?.tradeName || "",
+      formSource?.tradeName || "",
 
     legalForm:
-      company?.legalForm || "SARL",
+      formSource?.legalForm || "SARL",
 
     industry:
-      company?.industry || "",
+      formSource?.industry || "",
 
     ice:
-      company?.ice || "",
+      formSource?.ice || "",
 
     taxId:
-      company?.taxId || "",
+      formSource?.taxId || "",
 
     registrationNumber:
-      company?.registrationNumber || "",
+      formSource?.registrationNumber || "",
 
     email:
-      company?.email || "",
+      formSource?.email || "",
 
     phone:
-      company?.phone || "",
+      formSource?.phone || "",
 
     website:
-      company?.website || "",
+      formSource?.website || "",
 
     street:
-      company?.address?.street || "",
+      formSource?.address?.street || "",
 
     city:
-      company?.address?.city || "",
+      formSource?.address?.city || "",
 
     postalCode:
-      company?.address?.postalCode || "",
+      formSource?.address?.postalCode || "",
   };
 
   // ========================================
@@ -797,6 +817,36 @@ export default function Company() {
         )}
 
       </div>
+
+      {/* ==================================
+          COMPANIES OF THE CLIENT + QUOTA
+          ================================== */}
+
+      {companies.length > 0 && !mode && (
+        <div className={styles.companyBar}>
+          {companies.map((c) => (
+            <button key={c._id} type="button" onClick={() => setCompany(c)}
+              className={`${styles.companyChip} ${company?._id === c._id ? styles.companyChipActive : ""}`}>
+              <Building2 size={13} /> {c.name}
+            </button>
+          ))}
+          {canCreateCompany(user) && (
+            <button type="button" className="btnEdit" disabled={companyFull}
+              title={companyFull ? t("quota.companiesFull") : ""} onClick={() => setMode("create")}>
+              <Plus size={14} /> {t("quota.newCompany")}
+              {quota?.maxCompanies != null && <span className={styles.quotaBadge}>{quota.companies} / {quota.maxCompanies}</span>}
+            </button>
+          )}
+          {quota && (quota.maxCompanies != null || quota.maxEmployees != null) && (
+            <span className={styles.quotaLine}>
+              {t("quota.companies")} : {quota.companies}{quota.maxCompanies != null ? ` / ${quota.maxCompanies}` : ""}
+              {" · "}
+              {t("quota.employees")} : {quota.employees}{quota.maxEmployees != null ? ` / ${quota.maxEmployees}` : ""}
+            </span>
+          )}
+          {companyFull && <span className={styles.quotaLine}>{t("quota.companiesFull")}</span>}
+        </div>
+      )}
 
       {/* ==================================
           EMPTY STATE

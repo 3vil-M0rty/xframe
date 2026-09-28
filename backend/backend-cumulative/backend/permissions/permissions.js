@@ -56,10 +56,27 @@ const ALLOW_DEPARTMENT_SCOPED_USER_MANAGEMENT = false;
 // ------------------------------------------------------------
 
 const isAdmin = (actor) => actor?.role === ROLES.ADMIN;
+// Fine-grained permissions (config/permissionCatalog.js). Every module
+// check below reads the actor's permission set — the department's
+// default profile unless their manager customised it.
+const { has, hasAny, hasPrefix } = require("../services/permissionService");
 const isOwner = (actor) => actor?.role === ROLES.OWNER;
 const isPlainUser = (actor) => actor?.role === ROLES.USER;
 
 const sameId = (a, b) => !!a && !!b && a.toString() === b.toString();
+
+/**
+ * An owner runs every company of their client (a client can have
+ * several companies — a group with subsidiaries): the company they
+ * created, or any company of the same client (Company.tenant).
+ */
+function ownsCompany(actor, company) {
+  if (!actor || !company) return false;
+  const ownerId = company.owner?._id || company.owner;
+  if (sameId(ownerId, actor.id)) return true;
+  const tenantId = company.tenant?._id || company.tenant;
+  return !!actor.tenant && !!tenantId && sameId(tenantId, actor.tenant);
+}
 
 // ------------------------------------------------------------
 // HR MODULE (Employees, Salaries, Absences, Advances)
@@ -92,7 +109,7 @@ const isHRDepartment = (actor) => actor?.department === HR_DEPARTMENT;
  * (requireHRAccess) and for frontend nav/route gating.
  */
 function canAccessHR(actor) {
-  return isAdmin(actor) || isOwner(actor) || isHRDepartment(actor);
+  return isAdmin(actor) || isOwner(actor) || hasPrefix(actor, "hr");
 }
 
 /**
@@ -104,9 +121,8 @@ function canAccessHR(actor) {
 function canAccessHRForCompany(actor, company) {
   if (!actor || !company) return false;
   if (isAdmin(actor)) return true;
-  if (isOwner(actor)) return sameId(company.owner, actor.id);
-  if (isHRDepartment(actor)) return true;
-  return false;
+  if (isOwner(actor)) return ownsCompany(actor, company);
+  return hasPrefix(actor, "hr");
 }
 
 // ------------------------------------------------------------
@@ -179,7 +195,7 @@ function hasHRRoleAtLeast(actor, minRole) {
 
 /** Chargé(e) RH and above: create/edit employees, contracts, day-to-day HR records. */
 function canManageEmployeeRecords(actor) {
-  return hasHRRoleAtLeast(actor, HR_ROLES.OFFICER);
+  return isAdmin(actor) || isOwner(actor) || has(actor, "hr.employees.edit");
 }
 
 /**
@@ -194,21 +210,23 @@ function canManageEmployeeRecords(actor) {
  * hrRole (they likely don't have one at all — most managers aren't
  * in the HR department).
  */
-function canApproveHRRequests(actor) {
-  return hasHRRoleAtLeast(actor, HR_ROLES.MANAGER);
+function canApproveHRRequests(actor, kind = null) {
+  if (isAdmin(actor) || isOwner(actor)) return true;
+  if (kind) return has(actor, `hr.${kind}.approve`);
+  return hasAny(actor, ["hr.absences.approve", "hr.advances.approve"]);
 }
 
 function canManageSalaries(actor) {
-  return hasHRRoleAtLeast(actor, HR_ROLES.MANAGER);
+  return isAdmin(actor) || isOwner(actor) || has(actor, "hr.salaries.edit");
 }
 
 function canDeleteEmployee(actor) {
-  return hasHRRoleAtLeast(actor, HR_ROLES.MANAGER);
+  return isAdmin(actor) || isOwner(actor) || has(actor, "hr.employees.delete");
 }
 
 /** Directeur/Directrice RH only (plus admin/owner): who may assign or change another HR staffer's hrRole. */
 function canManageHRStaffRoles(actor) {
-  return hasHRRoleAtLeast(actor, HR_ROLES.DIRECTOR);
+  return isAdmin(actor) || isOwner(actor) || has(actor, "hr.staffRoles.manage");
 }
 
 // ------------------------------------------------------------
@@ -221,11 +239,13 @@ function canManageHRStaffRoles(actor) {
 // ------------------------------------------------------------
 
 const PRODUCTION_DEPARTMENT = "production";
+const LOGISTICS_DEPARTMENT = "logistics"; // eslint-disable-line no-unused-vars
 
 const isProductionDepartment = (actor) => actor?.department === PRODUCTION_DEPARTMENT;
 
+/** Production management (all workshops, manual orders…) — not just working in one workshop. */
 function canAccessProduction(actor) {
-  return isAdmin(actor) || isProductionDepartment(actor);
+  return isAdmin(actor) || has(actor, "production.orders.edit");
 }
 
 // ------------------------------------------------------------
@@ -242,12 +262,87 @@ const isPurchasingDepartment = (actor) => actor?.department === PURCHASING_DEPAR
 // routes/purchaseOrders.js — approval threshold), so they must be able
 // to open the module and the order they're asked to approve.
 function canAccessPurchasing(actor) {
-  return isAdmin(actor) || isOwner(actor) || isPurchasingDepartment(actor);
+  return isAdmin(actor) || isOwner(actor) || hasPrefix(actor, "purchasing");
 }
 
-/** Inventory is shared: production manages it, purchasing looks it up. */
+// ------------------------------------------------------------
+// SALES (ventes: clients, devis, factures, encaissements)
+// ------------------------------------------------------------
+// Admins, owners, and logins whose department resolves to "sales"
+// (a Department with permissionKey "sales").
+const SALES_DEPARTMENT = "sales"; // eslint-disable-line no-unused-vars
+function canAccessSales(actor) {
+  return isAdmin(actor) || isOwner(actor) || hasPrefix(actor, "sales");
+}
+
+// ------------------------------------------------------------
+// PROJECTS (production: affaires / chantiers)
+// ------------------------------------------------------------
+// Production runs projects; sales follows them (to invoice) and
+// purchasing links purchase orders to them. Owners see them too.
+function canViewProjects(actor) {
+  return isAdmin(actor) || isOwner(actor) || has(actor, "projects.projects.view");
+}
+function canManageProjects(actor) {
+  return isAdmin(actor) || isOwner(actor) || has(actor, "projects.projects.edit");
+}
+
+// ------------------------------------------------------------
+// LOGISTICS (logistique: chassis ready to deliver, delivery notes)
+// ------------------------------------------------------------
+// Admins, owners, production and the "logistics" department deliver.
+// Chassis tracking (made / ready / installed) is updated by production,
+// logistics and owners; everyone who sees projects can read it.
+// Production no longer sees logistics by default: marking elements
+// started / made / ready is "production.tracking.update"; delivery notes
+// and installed / accepted are the logistics department's.
+function canAccessLogistics(actor) {
+  return isAdmin(actor) || isOwner(actor) || hasAny(actor, ["logistics.toDeliver.view", "logistics.notes.view"]);
+}
+function canUpdateTracking(actor) {
+  return isAdmin(actor) || isOwner(actor) || hasAny(actor, ["production.tracking.update", "logistics.tracking.update"]);
+}
+
+// ------------------------------------------------------------
+// WORKSHOPS (ateliers: Laquage, Aluminium, Vitrage…) & CATALOGUE
+// ------------------------------------------------------------
+// Production configures everything (workshops, colours, series,
+// chassis models). A workshop's manager and members — who may sit in
+// any department — work their own workshop's orders (start, book
+// consumptions, complete). Sales reads the catalogue to price devis.
+const inWorkshop = (actor, workshopId) => (actor?.workshops || []).some((id) => String(id) === String(workshopId?._id || workshopId));
+
+function canConfigureProduction(actor) {
+  return isAdmin(actor) || hasAny(actor, ["production.config.edit", "production.catalog.edit"]);
+}
+function canUseWorkshops(actor) {
+  return isAdmin(actor) || isOwner(actor) || has(actor, "production.orders.view");
+}
+/** Production managers work every workshop; others only the ones they belong to. */
+function canWorkInWorkshop(actor, workshopId) {
+  return canAccessProduction(actor) || isOwner(actor) || inWorkshop(actor, workshopId);
+}
+function canViewCatalog(actor) {
+  return isAdmin(actor) || isOwner(actor) || hasAny(actor, ["production.catalog.view", "production.config.view", "production.orders.view", "projects.projects.view", "sales.quotes.view"]);
+}
+
+// ------------------------------------------------------------
+// AMOUNTS (prices, costs, margins, budgets)
+// ------------------------------------------------------------
+// Workshop staff, production and logistics run the chassis without
+// seeing money: sale prices, project revenue / costs / margins,
+// budgets, cost prices of articles, hourly rates, pricing rules.
+// Admins, owners, sales, finance, accounting and management see them —
+// and any other login the admin ticks "Voir les montants" for
+// (User.showFinancials, e.g. a production manager who follows costs).
+const FINANCIAL_DEPARTMENTS = ["sales", "finance", "accounting", "management"];
+function canSeeFinancials(actor) {
+  return isAdmin(actor) || isOwner(actor) || has(actor, "finance.amounts.view");
+}
+
+/** Inventory is shared: production manages it, purchasing and sales look it up (sales picks articles for devis). */
 function canViewInventory(actor) {
-  return canAccessProduction(actor) || canAccessPurchasing(actor);
+  return isAdmin(actor) || isOwner(actor) || has(actor, "inventory.articles.view");
 }
 
 // ------------------------------------------------------------
@@ -316,10 +411,10 @@ function isLineManagerOf(actor, requestingEmployee) {
   return !!requestingEmployee?.manager && sameId(actor.employee, requestingEmployee.manager);
 }
 
-function canReviewRequest(actor, company, requestingEmployee) {
+function canReviewRequest(actor, company, requestingEmployee, kind = null) {
   if (isAdmin(actor)) return true;
-  if (isOwner(actor)) return sameId(company?.owner, actor.id);
-  if (canApproveHRRequests(actor)) return true;
+  if (isOwner(actor)) return ownsCompany(actor, company);
+  if (canApproveHRRequests(actor, kind)) return true;
 
   if (canSelfService(actor)) {
     return isLineManagerOf(actor, requestingEmployee) || isDepartmentManagerOf(actor, requestingEmployee);
@@ -328,8 +423,8 @@ function canReviewRequest(actor, company, requestingEmployee) {
   return false;
 }
 
-const canReviewAbsence = canReviewRequest;
-const canReviewAdvance = canReviewRequest;
+const canReviewAbsence = (actor, company, emp) => canReviewRequest(actor, company, emp, "absences");
+const canReviewAdvance = (actor, company, emp) => canReviewRequest(actor, company, emp, "advances");
 
 /**
  * Distinguishes WHICH capacity a reviewer is acting in — canReviewRequest
@@ -344,10 +439,10 @@ const canReviewAdvance = canReviewRequest;
  * AND HR-tier-or-above, "hr" wins — the stronger authority takes
  * precedence rather than forcing them through the manager step first.
  */
-function reviewerRole(actor, company, requestingEmployee) {
+function reviewerRole(actor, company, requestingEmployee, kind = null) {
   if (isAdmin(actor)) return "hr";
-  if (isOwner(actor)) return sameId(company?.owner, actor.id) ? "hr" : null;
-  if (canApproveHRRequests(actor)) return "hr";
+  if (isOwner(actor)) return ownsCompany(actor, company) ? "hr" : null;
+  if (canApproveHRRequests(actor, kind)) return "hr";
 
   if (canSelfService(actor)) {
     return isLineManagerOf(actor, requestingEmployee) || isDepartmentManagerOf(actor, requestingEmployee)
@@ -378,7 +473,7 @@ function canCreateCompany(actor) {
 function canManageCompany(actor, company) {
   if (!actor || !company) return false;
   if (isAdmin(actor)) return true;
-  if (isOwner(actor)) return sameId(company.owner, actor.id);
+  if (isOwner(actor)) return ownsCompany(actor, company);
   return false;
 }
 
@@ -511,7 +606,21 @@ module.exports = {
   PURCHASING_DEPARTMENT,
   isPurchasingDepartment,
   canAccessPurchasing,
+  canAccessSales,
+  canViewProjects,
+  canManageProjects,
+  canSeeFinancials,
+  FINANCIAL_DEPARTMENTS,
+  has,
+  hasAny,
+  hasPrefix,
   canViewInventory,
+  canConfigureProduction,
+  canAccessLogistics,
+  canUpdateTracking,
+  canUseWorkshops,
+  canWorkInWorkshop,
+  canViewCatalog,
   canSelfService,
   isOwnEmployeeRecord,
   canReviewRequest,
@@ -521,6 +630,7 @@ module.exports = {
   isDepartmentManagerOf,
   canCreateCompany,
   canManageCompany,
+  ownsCompany,
   canDeleteCompany,
   canCreateUser,
   canManageUser,

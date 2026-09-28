@@ -61,8 +61,16 @@ const workScheduleSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "Company",
       required: true,
-      unique: true,
+      index: true,
     },
+
+    // A company can have several named schedules ("Bureaux — journée
+    // continue", "Atelier — horaire coupé", "Ramadan", "Mi-temps"…),
+    // each assigned to departments (Department.workSchedule). The
+    // default one applies to every department without a schedule of
+    // its own — see services/scheduleResolver.js.
+    name: { type: String, trim: true, maxlength: 80, default: "Horaire standard" },
+    isDefault: { type: Boolean, default: false },
 
     // Morocco's standard work week is Monday–Friday/Saturday
     // depending on the sector — Saturday defaults to a working day
@@ -155,4 +163,19 @@ workScheduleSchema.pre("validate", function deriveWorkHours(next) {
   next();
 });
 
-module.exports = mongoose.model("WorkSchedule", workScheduleSchema);
+// One name per company (schedules used to be one per company: that
+// unique { company } index is dropped once connected — see below).
+workScheduleSchema.index({ company: 1, name: 1 }, { unique: true });
+
+const WorkSchedule = mongoose.model("WorkSchedule", workScheduleSchema);
+
+function dropLegacyCompanyIndex() {
+  try {
+    const p = WorkSchedule.collection?.dropIndex?.("company_1");
+    if (p && typeof p.catch === "function") p.catch(() => {});
+  } catch { /* already gone / test database */ }
+}
+if (mongoose.connection.readyState === 1) dropLegacyCompanyIndex();
+else mongoose.connection.once("open", dropLegacyCompanyIndex);
+
+module.exports = WorkSchedule;

@@ -1,4 +1,6 @@
 const express = require("express");
+const { tenantUsage, companyQuotaError, quotaResponse } = require("../services/tenantLimits");
+const { listOf } = require("../services/permissionService");
 const router = express.Router();
 
 const Company = require("../models/Company");
@@ -49,9 +51,24 @@ router.get("/", auth, async (req, res) => {
       req.user.role === "admin" ||
       isHRDepartment(req.user) ||
       isProductionDepartment(req.user) ||
-      isPurchasingDepartment(req.user);
+      isPurchasingDepartment(req.user) ||
+      req.user.department === "sales" ||
+      req.user.department === "logistics" ||
+      // Anyone given module permissions by their manager (the client's
+      // companies — tenant isolation still applies). Owners keep "their" companies.
+      (req.user.role !== "owner" && req.user.permissionsMode === "custom" && listOf(req.user).length > 0) ||
+      (req.user.role !== "owner" && (req.user.managedDepartments || []).length > 0);
 
-    const filter = seesAllCompanies ? {} : { owner: req.user.id };
+    // Owners see every company of their client (a client can own several
+    // companies); the query is already limited to the client (tenant scope).
+    let filter = seesAllCompanies || req.user.role === "owner" ? {} : { owner: req.user.id };
+    // Workshop managers / members (any department) see the companies of
+    // their workshops, so the workshop screens have a company to show.
+    if (!seesAllCompanies && (req.user.workshops || []).length) {
+      const Workshop = require("../models/Workshop");
+      const ids = await Workshop.distinct("company", { _id: { $in: req.user.workshops } });
+      if (ids.length) filter = { $or: [{ owner: req.user.id }, { _id: { $in: ids } }] };
+    }
 
     const companies = await Company.find(filter)
       .sort({ createdAt: -1 });
@@ -90,6 +107,16 @@ router.get("/", auth, async (req, res) => {
 // ======================================================
 // GET SINGLE COMPANY
 // ======================================================
+
+// GET /api/companies/quota — the client's quotas and usage
+// { maxCompanies, maxEmployees, companies, employees } (null = unlimited)
+router.get("/quota", auth, async (req, res) => {
+  try {
+    res.json({ success: true, data: await tenantUsage(req.user.tenant) });
+  } catch (error) {
+    res.status(500).json({ success: false, message: "Error loading the quota" });
+  }
+});
 
 router.get("/:id", auth, async (req, res) => {
   try {
@@ -136,6 +163,11 @@ router.get("/:id", auth, async (req, res) => {
 
 router.post("/", auth, requireAdminOrOwner, async (req, res) => {
   try {
+    // Client quota (set by the platform): max companies.
+    const quotaMessage = await companyQuotaError(req.user.tenant);
+    if (quotaMessage) {
+      return quotaResponse(res, "COMPANY_QUOTA", quotaMessage);
+    }
     const company = await Company.create({
       ...req.body,
 
@@ -187,7 +219,7 @@ router.post("/", auth, requireAdminOrOwner, async (req, res) => {
 // each known key via its own dotted path instead, so only what's
 // actually sent changes. Unknown keys are ignored rather than
 // persisted.
-const ALLOWED_SETTINGS = { requireSequentialApproval: "boolean", purchaseApprovalThreshold: "number", purchaseDefaultAccount: "string" };
+const ALLOWED_SETTINGS = { requireSequentialApproval: "boolean", purchaseApprovalThreshold: "number", purchaseDefaultAccount: "string", extraLeaveDaysPerYear: "number" };
 
 router.patch("/:id/settings", auth, requireAdminOrOwner, async (req, res) => {
   try {

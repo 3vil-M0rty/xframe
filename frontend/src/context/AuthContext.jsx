@@ -68,11 +68,14 @@ export const AuthProvider = ({ children }) => {
       const { token: newToken, user: userData } = response.data.data;
 
       setToken(newToken);
-      setUser(userData);
       localStorage.setItem('token', newToken);
       api.defaults.headers.common['Authorization'] = `Bearer ${newToken}`;
+      // The full profile (managed departments, workshops…) comes from /users/me.
+      let fullUser = userData;
+      try { fullUser = { ...userData, ...(await getCurrentUser()) }; } catch { /* keep the login payload */ }
+      setUser(fullUser);
 
-      return { success: true, user: userData };
+      return { success: true, user: fullUser };
     } catch (error) {
       return { success: false, error: error.response?.data?.message };
     } finally {

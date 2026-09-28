@@ -22,6 +22,7 @@ import {
 } from "../../services/jobPositionService";
 import { getCompanies } from "../../services/companyService";
 import { getEmployees } from "../../services/employeeService";
+import { getWorkSchedules } from "../../services/workScheduleService";
 
 import styles from "./Departments.module.css";
 
@@ -115,11 +116,23 @@ export default function Departments() {
   const [deptPermissionKey, setDeptPermissionKey] = useState("");
   const [deptCategory, setDeptCategory] = useState("");
   const [deptManager, setDeptManager] = useState("");
+  const [deptSchedule, setDeptSchedule] = useState("");
 
   // Employees of the selected company — only used to offer a manager
   // for the department being edited (the backend requires the manager
   // to be an employee OF that department).
   const [companyEmployees, setCompanyEmployees] = useState([]);
+  // Named work schedules of the company (Organisation › Work schedule),
+  // offered for the department being edited.
+  const [companySchedules, setCompanySchedules] = useState([]);
+  useEffect(() => {
+    if (!selectedCompanyId) { setCompanySchedules([]); return; }
+    let cancelled = false;
+    getWorkSchedules(selectedCompanyId)
+      .then((data) => { if (!cancelled) setCompanySchedules(data?.schedules || []); })
+      .catch(() => { if (!cancelled) setCompanySchedules([]); });
+    return () => { cancelled = true; };
+  }, [selectedCompanyId]);
   useEffect(() => {
     if (!selectedCompanyId) { setCompanyEmployees([]); return; }
     let cancelled = false;
@@ -188,6 +201,7 @@ export default function Departments() {
   const openEditDept = (dept) => {
     setEditingDept(dept);
     setDeptName(dept.name); setDeptDescription(dept.description || ""); setDeptPermissionKey(dept.permissionKey || ""); setDeptCategory(dept.category || ""); setDeptManager(dept.manager?._id || dept.manager || "");
+    setDeptSchedule(dept.workSchedule?._id || dept.workSchedule || "");
     setDeptError("");
     setShowDeptForm(true);
   };
@@ -202,7 +216,7 @@ export default function Departments() {
     setDeptError("");
     try {
       if (editingDept) {
-        await updateDepartment(editingDept._id, { name: deptName, description: deptDescription, permissionKey: deptPermissionKey || null, category: deptCategory || null, manager: deptManager || null });
+        await updateDepartment(editingDept._id, { name: deptName, description: deptDescription, permissionKey: deptPermissionKey || null, category: deptCategory || null, manager: deptManager || null, workSchedule: deptSchedule || null });
       } else {
         await createDepartment({ company: selectedCompanyId, name: deptName, description: deptDescription, permissionKey: deptPermissionKey || null, category: deptCategory || null });
       }
@@ -406,6 +420,8 @@ export default function Departments() {
                 { value: "hr", label: t("departments.fields.hrAccess") },
                 { value: "production", label: t("departments.fields.productionAccess") },
                 { value: "purchasing", label: t("departments.fields.purchasingAccess") },
+                { value: "sales", label: t("departments.fields.salesAccess") },
+                { value: "logistics", label: t("departments.fields.logisticsAccess") },
               ]} />
             </div>
             <div className={styles.formField}>
@@ -429,6 +445,16 @@ export default function Departments() {
                     .map((e) => ({ value: e._id, label: `${e.firstName} ${e.lastName}${e.jobTitle ? ` — ${e.jobTitle}` : ""}` })),
                 ]} />
                 <small className={styles.fieldHint}>{t("departments.fields.managerHint")}</small>
+              </div>
+            )}
+            {editingDept && (
+              <div className={styles.formField}>
+                <label>{t("wsMulti.departmentSchedule")}</label>
+                <CustomSelect value={deptSchedule} onSelect={setDeptSchedule} options={[
+                  { value: "", label: t("wsMulti.useDefault").replace("{name}", companySchedules.find((x) => x.isDefault)?.name || "") },
+                  ...companySchedules.filter((x) => !x.isDefault).map((x) => ({ value: x._id, label: x.name })),
+                ]} />
+                <small className={styles.fieldHint}>{t("wsMulti.departmentScheduleHint")}</small>
               </div>
             )}
             <div className={styles.formField} style={{ gridColumn: "1 / -1" }}>
@@ -490,7 +516,7 @@ export default function Departments() {
                   {dept.permissionKey && (
                     <span className={styles.permissionBadge} title={t("departments.fields.permissionKeyHint")}>
                       <ShieldCheck size={12} />
-                      {dept.permissionKey === "hr" ? t("departments.fields.hrAccess") : t("departments.fields.productionAccess")}
+                      {{ hr: t("departments.fields.hrAccess"), purchasing: t("departments.fields.purchasingAccess"), sales: t("departments.fields.salesAccess"), logistics: t("departments.fields.logisticsAccess") }[dept.permissionKey] || t("departments.fields.productionAccess")}
                     </span>
                   )}
                   <span className={styles.positionCount}>{positions.length}</span>

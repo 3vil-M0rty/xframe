@@ -241,6 +241,7 @@ export default function PurchaseOrderDetail() {
           <p className="pageSubtitle">
             <strong>{order.supplier?.name}</strong> · {formatDate(order.date)}
             {order.expectedDate && ` · ${t("purchasing.orders.form.expectedDate")} : ${formatDate(order.expectedDate)}`}
+            {order.project && ` · ${t("projects.forProject")} : ${order.project.number} — ${order.project.name}`}
             {order.supplier?.paymentTerms && ` · ${order.supplier.paymentTerms}`}
           </p>
         </div>
@@ -741,7 +742,7 @@ export default function PurchaseOrderDetail() {
             <label className={styles.field}>
               <span>{t("purchasing.addToInventory.category")} *</span>
               <CustomSelect value={articleForm.category} onSelect={(v) => setArticleForm({ ...articleForm, category: v })}
-                placeholder={t("purchasing.addToInventory.category")} options={categories.map((c) => ({ value: c._id, label: c.name }))} />
+                placeholder={t("purchasing.addToInventory.category")} options={categories.map((c) => ({ value: c._id, label: c.fullName || c.name }))} />
             </label>
             <label className={styles.field}>
               <span>{t("purchasing.supplierPrices.internalReference")}</span>

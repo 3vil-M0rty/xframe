@@ -1,4 +1,5 @@
 import { useNavigate } from "react-router-dom";
+import ProductTechFields, { techToForm, techFromForm } from "./ProductTechFields";
 import { useEffect, useRef, useState } from "react";
 import {
   Boxes, Plus, Minus, Edit, Trash2, X, Search,
@@ -6,6 +7,7 @@ import {
 } from "lucide-react";
 
 import { useI18n } from "../../hooks/useI18n";
+import { useCan } from "../../hooks/useCan";
 import { buildUnitOptions, getUnitLabel } from "../../config/units";
 import { useAuth } from "../../hooks/useAuth";
 import { useDebouncedValue } from "../../hooks/useDebouncedValue";
@@ -52,6 +54,7 @@ function formatAmount(amount, currency = "MAD") {
  * stock (the backend enforces this too: writes are production-only).
  */
 export default function Inventory({ readOnly = false }) {
+  const can = useCan();
   const navigate = useNavigate();
   const [pricesProduct, setPricesProduct] = useState(null); // purchasing: supplier prices editor
   const { t } = useI18n();
@@ -93,7 +96,10 @@ export default function Inventory({ readOnly = false }) {
     getInventoryCategories(selectedCompanyId).then(setCategories).catch(console.error);
   }, [selectedCompanyId]);
 
-  const categoryOptions = categories.map((c) => ({ value: c._id, label: c.name }));
+  // Sub-categories show their path ("Profilés aluminium › Série ATLAS 78"); picking
+  // a category in the filter also lists the articles of its sub-categories.
+  const categoryOptions = categories.map((c) => ({ value: c._id, label: c.fullName || c.name }));
+  const categoryPath = (cat) => (cat ? categories.find((c) => c._id === (cat._id || cat))?.fullName || cat.name : "");
 
   // ---------- Filters ----------
   const [search, setSearch] = useState("");
@@ -189,6 +195,7 @@ export default function Inventory({ readOnly = false }) {
   const [editingProduct, setEditingProduct] = useState(null);
   const [formData, setFormData] = useState({});
   const [formPrices, setFormPrices] = useState([]);
+  const [formTech, setFormTech] = useState(techToForm({}));
   const [formFile, setFormFile] = useState(null);
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState("");
@@ -196,6 +203,7 @@ export default function Inventory({ readOnly = false }) {
   const openCreateForm = () => {
     setEditingProduct(null);
     setFormData({ category: categories[0]?._id || "", name: "", internalReference: "", quantity: "0", unit: "unit", threshold: "0", sellingPrice: "" });
+    setFormTech(techToForm({}));
     setFormPrices([]);
     setFormFile(null);
     setFormError("");
@@ -212,6 +220,7 @@ export default function Inventory({ readOnly = false }) {
       threshold: String(product.threshold ?? 0),
       sellingPrice: product.sellingPrice ?? "",
     });
+    setFormTech(techToForm(product));
     setFormPrices(product.prices || []);
     setFormFile(null);
     setFormError("");
@@ -269,6 +278,7 @@ export default function Inventory({ readOnly = false }) {
           threshold: formData.threshold,
           sellingPrice: formData.sellingPrice === "" ? null : Number(formData.sellingPrice),
           prices: cleanPrices,
+          ...techFromForm(formTech),
         });
       } else {
         product = await createProduct({
@@ -281,6 +291,7 @@ export default function Inventory({ readOnly = false }) {
           threshold: formData.threshold,
           sellingPrice: formData.sellingPrice === "" ? null : Number(formData.sellingPrice),
           prices: cleanPrices,
+          ...techFromForm(formTech),
         });
       }
 
@@ -417,7 +428,7 @@ export default function Inventory({ readOnly = false }) {
           </div>
           <p className="pageSubtitle">{t("inventory.subtitle")}</p>
         </div>
-        {selectedCompanyId && !readOnly && (
+        {selectedCompanyId && !readOnly && can("inventory.articles.create") && (
           <div className="pageHeaderActions">
             <button type="button" className="btnPrimary" onClick={openCreateForm}>
               <Plus size={16} />
@@ -558,6 +569,12 @@ export default function Inventory({ readOnly = false }) {
             </div>
           </div>
 
+          <details className={styles.pricesSection} open={!!formTech.materialType}>
+            <summary style={{ cursor: "pointer", fontSize: "0.85rem", fontWeight: 600 }}>{t("prod.tech.title")}</summary>
+            <p style={{ fontSize: "0.78rem", color: "var(--color-text-secondary)" }}>{t("prod.tech.hint")}</p>
+            <ProductTechFields value={formTech} onChange={setFormTech} fieldClass={styles.formField} inputClass={styles.textInput} gridClass={styles.formGrid} />
+          </details>
+
           <div className={styles.pricesSection}>
             <div className={styles.pricesHeader}>
               <label>{t("inventory.fields.prices")}</label>
@@ -619,7 +636,7 @@ export default function Inventory({ readOnly = false }) {
                     <div className={styles.productHeader}>
                       <span className={styles.categoryBadge} style={{ color: product.category?.color }}>
                         <Icon size={12} />
-                        {product.category?.name}
+                        <span className={styles.categoryPath} title={categoryPath(product.category)}>{product.category?.name}</span>
                       </span>
                       {isLow && (
                         <span className={styles.lowBadge} title={t("inventory.lowStock")}>
@@ -676,25 +693,25 @@ export default function Inventory({ readOnly = false }) {
                       </>
                     ) : (
                       <>
-                        <button type="button" className="tableActionBtn tableActionBtnAccept" title={t("inventory.actions.add")} onClick={() => openAdjust(product, "in")}>
+                        {can("inventory.articles.adjust") && <button type="button" className="tableActionBtn tableActionBtnAccept" title={t("inventory.actions.add")} onClick={() => openAdjust(product, "in")}>
                           <Plus size={14} />
-                        </button>
-                        <button type="button" className="tableActionBtn tableActionBtnReject" title={t("inventory.actions.remove")} onClick={() => openAdjust(product, "out")}>
+                        </button>}
+                        {can("inventory.articles.adjust") && <button type="button" className="tableActionBtn tableActionBtnReject" title={t("inventory.actions.remove")} onClick={() => openAdjust(product, "out")}>
                           <Minus size={14} />
-                        </button>
-                        <button type="button" className="tableActionBtn" title={t("common.edit")} onClick={() => openEditForm(product)}>
+                        </button>}
+                        {can("inventory.articles.edit") && <button type="button" className="tableActionBtn" title={t("common.edit")} onClick={() => openEditForm(product)}>
                           <Edit size={14} />
-                        </button>
+                        </button>}
                         {/* Production managers ask the purchasing team to buy
                             (was admin-only before the purchasing module). */}
-                        {canAccessProduction(currentUser) && (
+                        {(Array.isArray(currentUser?.permissions) ? can("inventory.requests.create") : canAccessProduction(currentUser)) && (
                           <button type="button" className="tableActionBtn" title={t("inventory.actions.requestPurchase")} onClick={() => openPurchaseRequest(product)}>
                             <ShoppingCart size={14} />
                           </button>
                         )}
-                        <button type="button" className="tableActionBtn tableActionBtnDanger" title={t("common.delete")} onClick={() => askDelete(product)}>
+                        {can("inventory.articles.delete") && <button type="button" className="tableActionBtn tableActionBtnDanger" title={t("common.delete")} onClick={() => askDelete(product)}>
                           <Trash2 size={14} />
-                        </button>
+                        </button>}
                       </>
                     )}
                   </div>

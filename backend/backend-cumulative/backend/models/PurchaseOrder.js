@@ -97,6 +97,9 @@ const purchaseOrderSchema = new mongoose.Schema(
     company: { type: mongoose.Schema.Types.ObjectId, ref: "Company", required: true, index: true },
     number: { type: String, required: true, trim: true },
     supplier: { type: mongoose.Schema.Types.ObjectId, ref: "Supplier", required: true, index: true },
+    // Bought for a client project: its cost counts in the project's
+    // real cost (Production → Projects).
+    project: { type: mongoose.Schema.Types.ObjectId, ref: "Project", default: null, index: true },
     date: { type: Date, required: true, default: Date.now },
     expectedDate: { type: Date, default: null },
     status: {

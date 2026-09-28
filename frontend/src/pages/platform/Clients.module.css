@@ -248,3 +248,13 @@
 .renameRow button {
     margin: 0;
 }
+
+.quotaUse {
+    color: var(--color-text-primary);
+    font-weight: 700;
+}
+
+.quotaFull {
+    color: #dc2626;
+    font-weight: 700;
+}

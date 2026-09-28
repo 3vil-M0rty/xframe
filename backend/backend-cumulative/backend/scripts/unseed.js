@@ -127,6 +127,11 @@ async function run() {
     PriceRequest.deleteMany({ company: companyId }),
   ]);
 
+  // Sales & projects
+  for (const name of ["Customer", "Quote", "SalesInvoice", "Project", "ProjectTask", "TimeEntry", "Workshop", "Finish", "ProductionSettings", "ProfileSeries", "ChassisModel", "ProductionOrder", "TrackingUnit", "DeliveryNote"]) {
+    await require(`../models/${name}`).deleteMany({ company: companyId });
+  }
+
   // Users: matched by email domain, not by company — a User
   // document has no `company` field of its own (company membership
   // is expressed the other way around, via Company.owner and

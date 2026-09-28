@@ -14,13 +14,15 @@ import {
   Factory,
   ShoppingBag,
   Building2,
+  Handshake,
+  Truck,
 } from "lucide-react";
 
 import { useI18n } from "../hooks/useI18n";
 import { useAuth } from "../hooks/useAuth";
 import styles from "./Sidebar.module.css";
 import LanguageSwitcher from "./useful/LanguageSwitcher";
-import { canAccessHR, canSelfService, canAccessProduction, canManageCompanySettings, isDepartmentManager, canAccessPurchasing, isPlatformAdmin } from "../utils/permissions";
+import { canAccessHR, canSelfService, canAccessProduction, canManageCompanySettings, isDepartmentManager, canAccessPurchasing, isPlatformAdmin, canAccessSales, canViewProjects, canUseWorkshops, canConfigureProduction, canAccessLogistics, can, canAny, canViewCatalog, canManageInventory, canManageTeamPermissions, isAdmin } from "../utils/permissions";
 import { getOpenRequestCount } from "../services/purchasingService";
 
 export default function Sidebar() {
@@ -85,48 +87,59 @@ export default function Sidebar() {
       // Company setup (company profile, user accounts, departments,
       // schedules) is for admins and company owners only — it had no
       // permission at all before, so every logged-in employee saw it.
-      permission: canManageCompanySettings,
+      permission: (u) => canManageCompanySettings(u) || canAny(u, ["organization.departments.view", "organization.positions.view", "organization.schedule.edit"]),
       icon: Settings2,
       subsections: [
         {
           label: t("sidebar.company"),
           href: "/organization/company",
+          permission: canManageCompanySettings,
         },
         {
           label: t("sidebar.users"),
           href: "/organization/users",
+          permission: canManageCompanySettings,
         },
         {
           label: t("sidebar.workSchedule"),
           href: "/organization/work-schedule",
+          permission: (u) => canManageCompanySettings(u) || can(u, "organization.schedule.edit"),
         },
         {
           label: t("sidebar.departments"),
           href: "/organization/departments",
+          permission: (u) => canManageCompanySettings(u) || can(u, "organization.departments.view"),
         },
         {
           label: t("sidebar.departmentAccess"),
           href: "/organization/department-access",
+          permission: canManageCompanySettings,
         },
         {
+          // Fine-grained permissions of everyone (admins / owners).
           label: t("sidebar.rolesPermissions"),
           href: "/organization/roles-permissions",
+          permission: canManageCompanySettings,
         },
         {
           label: t("sidebar.locations"),
           href: "/organization/locations",
+          permission: canManageCompanySettings,
         },
         {
           label: t("sidebar.documents"),
           href: "/organization/documents",
+          permission: canManageCompanySettings,
         },
         {
           label: t("sidebar.preferences"),
           href: "/organization/preferences",
+          permission: canManageCompanySettings,
         },
         {
           label: t("sidebar.integrations"),
           href: "/organization/integrations",
+          permission: canManageCompanySettings,
         },
       ],
     },
@@ -146,62 +159,87 @@ export default function Sidebar() {
         {
           label: t("sidebar.employees"),
           href: "/hr/employees",
+          permission: (u) => !Array.isArray(u?.permissions) || canAny(u, ["hr.employees.view"]),
         },
         {
           label: t("sidebar.salaries"),
           href: "/hr/salaries",
+          permission: (u) => !Array.isArray(u?.permissions) || canAny(u, ["hr.salaries.view"]),
         },
         {
           label: t("sidebar.absences"),
           href: "/hr/absences",
+          permission: (u) => !Array.isArray(u?.permissions) || canAny(u, ["hr.absences.view"]),
         },
         {
           label: t("sidebar.advances"),
           href: "/hr/advances",
+          permission: (u) => !Array.isArray(u?.permissions) || canAny(u, ["hr.advances.view"]),
         },
         {
           label: t("sidebar.payroll"),
           href: "/hr/payroll",
+          permission: (u) => !Array.isArray(u?.permissions) || canAny(u, ["hr.payroll.view"]),
+        },
+        {
+          label: t("sidebar.declarations"),
+          href: "/hr/declarations",
+          permission: (u) => !Array.isArray(u?.permissions) || canAny(u, ["hr.declarations.view"]),
         },
         {
           label: t("sidebar.contracts"),
           href: "/hr/contracts",
+          permission: (u) => !Array.isArray(u?.permissions) || canAny(u, ["hr.contracts.view"]),
         },
         {
           label: t("sidebar.employeeDocuments"),
           href: "/hr/documents",
+          permission: (u) => !Array.isArray(u?.permissions) || canAny(u, ["hr.documents.view"]),
         },
         {
           label: t("sidebar.attendance"),
           href: "/hr/attendance",
+          permission: (u) => !Array.isArray(u?.permissions) || canAny(u, ["hr.attendance.view"]),
         },
         {
           label: t("sidebar.orgChart"),
           href: "/hr/org-chart",
+          permission: (u) => !Array.isArray(u?.permissions) || canAny(u, ["hr.employees.view"]),
         },
         {
           label: t("sidebar.leaveCalendar"),
           href: "/hr/leave-calendar",
+          permission: (u) => !Array.isArray(u?.permissions) || canAny(u, ["hr.absences.view"]),
+        },
+        {
+          label: t("sidebar.leaveBalances"),
+          href: "/hr/leave-balances",
+          permission: (u) => !Array.isArray(u?.permissions) || canAny(u, ["hr.leave.view"]),
         },
         {
           label: t("sidebar.holidays"),
           href: "/hr/holidays",
+          permission: (u) => !Array.isArray(u?.permissions) || canAny(u, ["hr.holidays.view"]),
         },
         {
           label: t("sidebar.performanceReviews"),
           href: "/hr/performance-reviews",
+          permission: (u) => !Array.isArray(u?.permissions) || canAny(u, ["hr.reviews.view"]),
         },
         {
           label: t("sidebar.disciplinaryActions"),
           href: "/hr/disciplinary-actions",
+          permission: (u) => !Array.isArray(u?.permissions) || canAny(u, ["hr.discipline.view"]),
         },
         {
           label: t("sidebar.reports"),
           href: "/hr/reports",
+          permission: (u) => !Array.isArray(u?.permissions) || canAny(u, ["hr.reports.view"]),
         },
         {
           label: t("sidebar.auditLog"),
           href: "/hr/audit-log",
+          permission: (u) => !Array.isArray(u?.permissions) || canAny(u, ["hr.auditLogs.view"]),
         },
       ],
     },
@@ -245,6 +283,25 @@ export default function Sidebar() {
           href: "/me/department",
           permission: isDepartmentManager,
         },
+        {
+          // Managers hand out permissions to the people under them.
+          label: t("perm.teamMenu"),
+          href: "/me/team-permissions",
+          permission: (u) => canManageTeamPermissions(u) && !isAdmin(u) && u?.role !== "owner",
+        },
+      ],
+    },
+
+    {
+      id: "sales",
+      label: t("sidebar.sales"),
+      icon: Handshake,
+      permission: canAccessSales,
+      subsections: [
+        { label: t("sidebar.quotes"), href: "/sales/quotes", permission: (u) => !Array.isArray(u?.permissions) || canAny(u, ["sales.quotes.view"]) },
+        { label: t("sidebar.salesInvoices"), href: "/sales/invoices", permission: (u) => !Array.isArray(u?.permissions) || canAny(u, ["sales.invoices.view"]) },
+        { label: t("sidebar.receivables"), href: "/sales/receivables", permission: (u) => !Array.isArray(u?.permissions) || canAny(u, ["sales.reports.view", "sales.invoices.view"]) },
+        { label: t("sidebar.customers"), href: "/sales/customers", permission: (u) => !Array.isArray(u?.permissions) || canAny(u, ["sales.customers.view"]) },
       ],
     },
 
@@ -259,15 +316,16 @@ export default function Sidebar() {
           href: "/purchasing/requests",
           // requests still waiting for an answer (pending + delayed)
           badge: openRequestCount,
+          permission: (u) => !Array.isArray(u?.permissions) || canAny(u, ["purchasing.requests.view"]),
         },
-        { label: t("sidebar.purchaseOrders"), href: "/purchasing/orders" },
-        { label: t("sidebar.supplierInvoices"), href: "/purchasing/invoices" },
-        { label: t("sidebar.restock"), href: "/purchasing/restock" },
-        { label: t("sidebar.purchasingReports"), href: "/purchasing/reports" },
-        { label: t("sidebar.priceRequests"), href: "/purchasing/price-requests" },
-        { label: t("sidebar.suppliers"), href: "/purchasing/suppliers" },
-        { label: t("sidebar.purchasingInventory"), href: "/purchasing/inventory" },
-        { label: t("sidebar.articleHistory"), href: "/purchasing/article-history" },
+        { label: t("sidebar.purchaseOrders"), href: "/purchasing/orders", permission: (u) => !Array.isArray(u?.permissions) || canAny(u, ["purchasing.orders.view"]) },
+        { label: t("sidebar.supplierInvoices"), href: "/purchasing/invoices", permission: (u) => !Array.isArray(u?.permissions) || canAny(u, ["purchasing.invoices.view"]) },
+        { label: t("sidebar.restock"), href: "/purchasing/restock", permission: (u) => !Array.isArray(u?.permissions) || canAny(u, ["purchasing.reports.view"]) },
+        { label: t("sidebar.purchasingReports"), href: "/purchasing/reports", permission: (u) => !Array.isArray(u?.permissions) || canAny(u, ["purchasing.reports.view"]) },
+        { label: t("sidebar.priceRequests"), href: "/purchasing/price-requests", permission: (u) => !Array.isArray(u?.permissions) || canAny(u, ["purchasing.priceRequests.view"]) },
+        { label: t("sidebar.suppliers"), href: "/purchasing/suppliers", permission: (u) => !Array.isArray(u?.permissions) || canAny(u, ["purchasing.suppliers.view"]) },
+        { label: t("sidebar.purchasingInventory"), href: "/purchasing/inventory", permission: (u) => !Array.isArray(u?.permissions) || canAny(u, ["inventory.articles.view"]) },
+        { label: t("sidebar.articleHistory"), href: "/purchasing/article-history", permission: (u) => !Array.isArray(u?.permissions) || canAny(u, ["purchasing.orders.view"]) },
       ],
     },
 
@@ -275,22 +333,44 @@ export default function Sidebar() {
       id: "production",
       label: t("sidebar.production"),
       icon: Factory,
-      // Deliberately narrower than HR — admins and the "production"
-      // department only, no owner bypass. See utils/permissions.js.
-      permission: canAccessProduction,
+      // Inventory stays production-only (admins + "production"
+      // department); projects and planning are also visible to sales,
+      // purchasing and owners. See utils/permissions.js.
+      permission: (u) => canAccessProduction(u) || canViewProjects(u) || canUseWorkshops(u) || canViewCatalog(u) || canManageInventory(u) || canConfigureProduction(u) || can(u, "production.tracking.view"),
       subsections: [
+        { label: t("sidebar.workshops"), href: "/production/workshops", permission: canUseWorkshops },
+        { label: t("sidebar.projects"), href: "/production/projects", permission: canViewProjects },
+        { label: t("sidebar.planning"), href: "/production/planning", permission: canViewProjects },
+        { label: t("sidebar.tracking"), href: "/production/tracking", permission: (u) => canAny(u, ["production.tracking.view"]) || canViewProjects(u) },
+        { label: t("sidebar.chassisCatalog"), href: "/production/catalog", permission: canViewCatalog },
         {
           label: t("sidebar.inventory"),
           href: "/production/inventory",
+          permission: (u) => can(u, "inventory.articles.view") || canAccessProduction(u),
         },
         {
           label: t("sidebar.purchaseRequests"),
           href: "/production/purchase-requests",
+          permission: (u) => can(u, "inventory.requests.view") || canAccessProduction(u),
         },
         {
           label: t("sidebar.inventorySettings"),
           href: "/production/settings",
+          permission: (u) => canAny(u, ["inventory.categories.create", "inventory.categories.edit", "inventory.categories.delete"]) || canAccessProduction(u),
         },
+        { label: t("sidebar.productionConfig"), href: "/production/configuration", permission: canConfigureProduction },
+      ],
+    },
+
+    {
+      id: "logistics",
+      label: t("sidebar.logistics"),
+      icon: Truck,
+      permission: (u) => canAccessLogistics(u) || can(u, "logistics.tracking.view"),
+      subsections: [
+        { label: t("sidebar.toDeliver"), href: "/logistics/to-deliver", permission: (u) => can(u, "logistics.toDeliver.view") || (!Array.isArray(u?.permissions) && canAccessLogistics(u)) },
+        { label: t("sidebar.deliveryNotes"), href: "/logistics/delivery-notes", permission: (u) => can(u, "logistics.notes.view") || (!Array.isArray(u?.permissions) && canAccessLogistics(u)) },
+        { label: t("sidebar.tracking"), href: "/logistics/tracking", permission: (u) => can(u, "logistics.tracking.view") || (!Array.isArray(u?.permissions) && canAccessLogistics(u)) },
       ],
     },
 

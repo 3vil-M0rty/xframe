@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Settings, Plus, Edit, Trash2, BriefcaseBusiness, Languages } from "lucide-react";
+import { Settings, Plus, Edit, Trash2, BriefcaseBusiness, Languages, CornerDownRight, FolderPlus } from "lucide-react";
 
 import { useI18n } from "../../hooks/useI18n";
 
@@ -84,18 +84,22 @@ export default function InventorySettings() {
   // accounting: purchase account of this category + fixed-asset flag
   const [formAccount, setFormAccount] = useState("");
   const [formFixedAsset, setFormFixedAsset] = useState(false);
+  // Sub-categories: "Profilés aluminium" › "Série ATLAS 78 — coulissants"…
+  const [formParent, setFormParent] = useState("");
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState("");
 
-  const openCreateForm = () => {
+  const openCreateForm = (parent = null) => {
     setEditingCategory(null);
+    setFormParent(parent?._id || "");
     setFormName("");
-    setFormIcon("Package");
+    setFormIcon(parent?.icon || "Package");
     setFormDescription("");
-    setFormAccount("");
+    setFormAccount(""); // empty = inherits the parent's account
     setFormFixedAsset(false);
     setFormError("");
     setShowForm(true);
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const openEditForm = (category) => {
@@ -105,8 +109,10 @@ export default function InventorySettings() {
     setFormDescription(category.description || "");
     setFormAccount(category.accountingAccount || "");
     setFormFixedAsset(!!category.isFixedAsset);
+    setFormParent(category.parent || "");
     setFormError("");
     setShowForm(true);
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const closeForm = () => {
@@ -139,11 +145,11 @@ export default function InventorySettings() {
     try {
       if (editingCategory) {
         await updateInventoryCategory(editingCategory._id, {
-          name: formName, icon: formIcon, description: formDescription, accountingAccount: formAccount.trim(), isFixedAsset: formFixedAsset,
+          name: formName, icon: formIcon, description: formDescription, accountingAccount: formAccount.trim(), isFixedAsset: formFixedAsset, parent: formParent || null,
         });
       } else {
         await createInventoryCategory({
-          company: selectedCompanyId, name: formName, icon: formIcon, description: formDescription, accountingAccount: formAccount.trim(), isFixedAsset: formFixedAsset,
+          company: selectedCompanyId, name: formName, icon: formIcon, description: formDescription, accountingAccount: formAccount.trim(), isFixedAsset: formFixedAsset, parent: formParent || null,
         });
       }
       closeForm();
@@ -173,7 +179,7 @@ export default function InventorySettings() {
     setActionLoading(true);
     try {
       await deleteInventoryCategory(pendingDeleteId);
-      setCategories((prev) => prev.filter((c) => c._id !== pendingDeleteId));
+      await reload();
       setModal((prev) => ({ ...prev, open: false }));
     } catch (error) {
       setModal({ open: true, type: "error", title: t("common.fail"), message: error.response?.data?.message || t("inventorySettings.errors.deleteFailed") });
@@ -196,7 +202,7 @@ export default function InventorySettings() {
         </div>
         {selectedCompanyId && (
           <div className="pageHeaderActions">
-            <button type="button" className="btnPrimary" onClick={openCreateForm}>
+            <button type="button" className="btnPrimary" onClick={() => openCreateForm()}>
               <Plus size={16} />
               {t("inventorySettings.addCategory")}
             </button>
@@ -222,6 +228,16 @@ export default function InventorySettings() {
             <div className={styles.formField}>
               <label>{t("inventorySettings.fields.name")}</label>
               <input type="text" className={styles.textInput} value={formName} onChange={(e) => setFormName(e.target.value)} placeholder={t("inventorySettings.fields.namePlaceholder")} />
+            </div>
+            <div className={styles.formField}>
+              <label>{t("cv.parentCategory")}</label>
+              <CustomSelect value={formParent} onSelect={setFormParent}
+                options={[{ value: "", label: t("cv.noParent") }, ...categories
+                  // not itself nor one of its own sub-categories
+                  .filter((c) => !editingCategory || (c._id !== editingCategory._id && !(c.path || []).includes(editingCategory._id)))
+                  .filter((c) => (c.depth || 0) < 3)
+                  .map((c) => ({ value: c._id, label: c.fullName || c.name }))]} />
+              <small className={styles.fieldHint}>{t("cv.parentHint")}</small>
             </div>
             <div className={styles.formField}>
               <label>{t("inventorySettings.fields.icon")}</label>
@@ -274,34 +290,64 @@ export default function InventorySettings() {
 
       {selectedCompanyId && categories.length > 0 && (
         <div className={styles.categoryGrid}>
-          {categories.map((category) => {
-            const Icon = getInventoryIcon(category.icon);
+          {categories.filter((c) => !c.depth).map((top) => {
+            // Articles of a category including its sub-categories.
+            const total = (cat) => categories.filter((c) => c._id === cat._id || (c.path || []).includes(cat._id)).reduce((a, c) => a + (c.productCount || 0), 0);
+            const Icon = getInventoryIcon(top.icon);
+            const branch = categories.filter((c) => (c.path || []).includes(top._id));
+            const actions = (category) => (
+              <div className={styles.categoryActions}>
+                {(category.depth || 0) < 3 && (
+                  <button type="button" className="tableActionBtn" title={t("cv.addSubCategory")} onClick={() => openCreateForm(category)}>
+                    <FolderPlus size={14} />
+                  </button>
+                )}
+                <button type="button" className="tableActionBtn" title={t("contentTranslation.editButton")} onClick={() => setTranslatingCategory(category)}>
+                  <Languages size={14} />
+                </button>
+                <button type="button" className="tableActionBtn" title={t("common.edit")} onClick={() => openEditForm(category)}>
+                  <Edit size={14} />
+                </button>
+                <button type="button" className="tableActionBtn tableActionBtnDanger" title={t("common.delete")} onClick={() => askDelete(category)}>
+                  <Trash2 size={14} />
+                </button>
+              </div>
+            );
             return (
-              <div key={category._id} className={styles.categoryCard}>
-                <div className={styles.categoryIcon} style={{ color: category.color }}>
-                  <Icon size={22} />
-                </div>
-                <div className={styles.categoryInfo}>
-                  <span className={styles.categoryName}>
-                    <TranslatedText doc={category} field="name" />
-                  </span>
-                  {category.description && (
-                    <span className={styles.categoryDescription}>
-                      <TranslatedText doc={category} field="description" />
+              <div key={top._id} className={styles.categoryGroup}>
+                <div className={styles.categoryCard}>
+                  <div className={styles.categoryIcon} style={{ color: top.color }}>
+                    <Icon size={22} />
+                  </div>
+                  <div className={styles.categoryInfo}>
+                    <span className={styles.categoryName}>
+                      <TranslatedText doc={top} field="name" />
                     </span>
-                  )}
+                    <span className={styles.categoryDescription}>
+                      {top.description ? <TranslatedText doc={top} field="description" /> : null}
+                      {top.description ? " · " : ""}{t("cv.articlesCount").replace("{n}", total(top))}
+                      {branch.length > 0 ? ` · ${t("cv.subCount").replace("{n}", branch.length)}` : ""}
+                    </span>
+                  </div>
+                  {actions(top)}
                 </div>
-                <div className={styles.categoryActions}>
-                  <button type="button" className="tableActionBtn" title={t("contentTranslation.editButton")} onClick={() => setTranslatingCategory(category)}>
-                    <Languages size={14} />
-                  </button>
-                  <button type="button" className="tableActionBtn" title={t("common.edit")} onClick={() => openEditForm(category)}>
-                    <Edit size={14} />
-                  </button>
-                  <button type="button" className="tableActionBtn tableActionBtnDanger" title={t("common.delete")} onClick={() => askDelete(category)}>
-                    <Trash2 size={14} />
-                  </button>
-                </div>
+                {branch.length > 0 && (
+                  <div className={styles.subList}>
+                    {branch.map((c) => (
+                      <div key={c._id} className={styles.subRow} style={{ paddingInlineStart: 10 + (c.depth - 1) * 20 }}>
+                        <CornerDownRight size={13} className={styles.subArrow} />
+                        <div className={styles.categoryInfo}>
+                          <span className={styles.subName}><TranslatedText doc={c} field="name" /></span>
+                          <span className={styles.categoryDescription}>
+                            {c.description ? <><TranslatedText doc={c} field="description" /> · </> : null}
+                            {t("cv.articlesCount").replace("{n}", total(c))}
+                          </span>
+                        </div>
+                        {actions(c)}
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             );
           })}

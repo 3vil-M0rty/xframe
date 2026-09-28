@@ -2,6 +2,7 @@ const express = require("express");
 const mongoose = require("mongoose");
 const multer = require("multer");
 
+const { loadTree, effectiveAccounting } = require("../services/categoryTree");
 const router = express.Router();
 
 const PurchaseOrder = require("../models/PurchaseOrder");
@@ -13,6 +14,9 @@ const { fetchLogoBuffer } = require("../services/pdfHelpers");
 const { generatePurchaseOrderPdf } = require("../services/purchasingPdfService");
 const InventoryCategory = require("../models/InventoryCategory");
 const auth = require("../middleware/auth");
+const { guard } = require("../middleware/permissionGuard");
+const { ownsCompany } = require("../permissions/permissions");
+const { ROUTE_PERMISSIONS } = require("../config/routePermissions");
 const { requirePurchasingAccess } = require("../middleware/permissionMiddleware");
 const { logAudit } = require("../services/auditLogger");
 const { applyMovement } = require("../services/inventoryService");
@@ -43,6 +47,8 @@ const {
  * ============================================================
  */
 
+// Fine-grained permissions of every endpoint: config/routePermissions.js
+router.use(auth, guard(ROUTE_PERMISSIONS.purchaseOrders));
 router.use(auth, requirePurchasingAccess);
 
 const uploadDoc = multer({
@@ -93,7 +99,7 @@ async function managesPurchasing(user, companyId) {
 /** Admins, the company owner, and the purchasing department's manager. */
 async function canApprove(user, company) {
   if (user.role === "admin") return true;
-  if (user.role === "owner" && String(company.owner) === String(user.id)) return true;
+  if (user.role === "owner" && ownsCompany(user, company)) return true;
   return managesPurchasing(user, company._id);
 }
 
@@ -128,7 +134,18 @@ async function storeFile(file, companyId) {
   return uploadPrivateFile(file.buffer, `purchasing/${companyId}`, file.originalname, file.mimetype);
 }
 
+// Optional project link (Production → Projects): null when not given,
+// false when the id isn't a project of this company.
+async function projectFor(projectId, companyId) {
+  if (!projectId) return null;
+  const Project = require("../models/Project");
+  if (!isId(projectId)) return false;
+  const p = await Project.findOne({ _id: projectId, company: companyId }).select("_id").lean();
+  return p ? p._id : false;
+}
+
 const DETAIL_POPULATE = [
+  { path: "project", select: "number name" },
   { path: "supplier", select: "name contactName phone email paymentTerms paymentDays" },
   { path: "lines.product", select: "name internalReference unit quantity" },
   { path: "purchaseRequests", select: "requestedQuantity status product", populate: { path: "product", select: "name" } },
@@ -299,12 +316,22 @@ const sendXlsx = (res, buffer, filename) => {
   res.send(buffer);
 };
 async function loadReportOrders(companyId) {
-  return PurchaseOrder.find({ company: companyId, status: { $ne: "cancelled" } })
+  const orders = await PurchaseOrder.find({ company: companyId, status: { $ne: "cancelled" } })
     .select("number status supplier lines totalHT totalVAT totalTTC invoices payments")
     .populate("supplier", "name identifiantFiscal ice")
     // each line's article category carries its accounting account
     .populate({ path: "lines.product", select: "category", populate: { path: "category", select: "accountingAccount isFixedAsset" } })
     .lean();
+  // A sub-category without its own account uses its parent's.
+  const accounting = effectiveAccounting(await loadTree(companyId));
+  for (const o of orders) {
+    for (const l of o.lines || []) {
+      const cat = l.product?.category;
+      const eff = cat?._id ? accounting.get(String(cat._id)) : null;
+      if (eff) Object.assign(cat, eff);
+    }
+  }
+  return orders;
 }
 
 router.get("/reports/vat-deductions", async (req, res) => {
@@ -516,6 +543,8 @@ router.post("/", async (req, res) => {
   try {
     const { company, supplier, date, expectedDate, notes, send, purchaseRequestIds } = req.body;
     if (!company || !isId(company)) return bad(res, "A valid company is required");
+    const project = await projectFor(req.body.project, company);
+    if (project === false) return bad(res, "Project not found in this company");
     if (!supplier || !isId(supplier)) return bad(res, "Choose a supplier");
     const supplierDoc = await Supplier.findOne({ _id: supplier, company });
     if (!supplierDoc) return bad(res, "Supplier not found in this company");
@@ -530,6 +559,7 @@ router.post("/", async (req, res) => {
       expectedDate: expectedDate || null,
       lines,
       notes,
+      project: project || null,
       status: send ? "sent" : "draft",
       createdBy: req.user.id,
       updatedBy: req.user.id,
@@ -592,6 +622,27 @@ router.put("/:id", async (req, res) => {
   } catch (error) {
     console.error("PUT purchase order error:", error);
     res.status(500).json({ success: false, message: "Error updating purchase order", error: error.message });
+  }
+});
+
+// ======================================================
+// PROJECT LINK  PATCH /api/purchase-orders/:id/project  { project: id | null }
+// Any time (even after reception): the order's cost counts in that project.
+// ======================================================
+router.patch("/:id/project", async (req, res) => {
+  try {
+    if (!isId(req.params.id)) return bad(res, "Invalid purchase order ID");
+    const order = await PurchaseOrder.findById(req.params.id);
+    if (!order) return bad(res, "Purchase order not found", 404);
+    const project = await projectFor(req.body.project, order.company);
+    if (project === false) return bad(res, "Project not found in this company");
+    order.project = project || null;
+    order.updatedBy = req.user.id;
+    await order.save();
+    res.json({ success: true, data: await PurchaseOrder.findById(order._id).populate(DETAIL_POPULATE) });
+  } catch (error) {
+    console.error("PATCH purchase order project error:", error);
+    res.status(500).json({ success: false, message: "Error updating the project link", error: error.message });
   }
 });
 

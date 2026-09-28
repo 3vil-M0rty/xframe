@@ -122,6 +122,38 @@ describe("platform: client management", () => {
     expect(await tenantScope.runAsSystem(() => Company.countDocuments({ tenant: tenantB }))).toBe(0);
   });
 
+  it("a client can have several companies: created with the client, added by the platform, or by its admin", async () => {
+    const res = await request(app).post("/api/platform/tenants").set(bearer(platformToken))
+      .send({ name: "Groupe Atlas", admin: { firstName: "Ad", lastName: "Min", email: "admin@groupe.ma", password: "Client-pass-1" }, company: { name: "Atlas Alu", city: "Casablanca" } });
+    expect(res.status).toBe(201);
+    expect(res.body.data.company.name).toBe("Atlas Alu");
+    const tenantId = res.body.data.tenant._id;
+    const added = await request(app).post(`/api/platform/tenants/${tenantId}/companies`).set(bearer(platformToken)).send({ name: "Atlas Vitrage", legalForm: "SA", city: "Rabat" });
+    expect(added.status).toBe(201);
+    await request(app).post(`/api/platform/tenants/${tenantId}/companies`).set(bearer(platformToken)).send({}).expect(400);
+
+    const token = (await login("admin@groupe.ma", "Client-pass-1")).body.data.token;
+    await request(app).post("/api/companies").set(bearer(token)).send({ name: "Atlas Transport", industry: "Transport", legalForm: "SARL" }).expect(201);
+    const list = await request(app).get("/api/companies").set(bearer(token));
+    expect(list.body.data.map((c) => c.name).sort()).toEqual(["Atlas Alu", "Atlas Transport", "Atlas Vitrage"]);
+
+    // An owner of the client sees (and runs) every company of the group, even those they didn't create.
+    const owner = await request(app).post("/api/users").set(bearer(token)).send({ firstName: "Pat", lastName: "Ron", email: "owner@groupe.ma", password: "Owner-pass-1", role: "owner" });
+    expect(owner.status).toBe(201);
+    const ownerToken = (await login("owner@groupe.ma", "Owner-pass-1")).body.data.token;
+    const ownerList = await request(app).get("/api/companies").set(bearer(ownerToken));
+    expect(ownerList.body.data).toHaveLength(3);
+    const vitrage = ownerList.body.data.find((c) => c.name === "Atlas Vitrage");
+    await request(app).get(`/api/companies/${vitrage._id}`).set(bearer(ownerToken)).expect(200);
+
+    // The platform list shows the group's companies; another client sees none of them.
+    const clients = await request(app).get("/api/platform/tenants").set(bearer(platformToken));
+    expect(clients.body.data.find((c) => c.name === "Groupe Atlas").counts.companies).toBe(3);
+    await createClient("Other", "admin@other.ma");
+    const other = (await login("admin@other.ma", "Client-pass-1")).body.data.token;
+    expect((await request(app).get("/api/companies").set(bearer(other))).body.data).toEqual([]);
+  });
+
   it("client admins cannot use platform routes", async () => {
     await createClient("Atlas Group", "admin@atlas.ma");
     const token = (await login("admin@atlas.ma", "Client-pass-1")).body.data.token;

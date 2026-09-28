@@ -84,6 +84,18 @@ const userSchema = new mongoose.Schema(
       default: "administration"
     },
 
+    // Shows prices, costs, margins and budgets to a login whose
+    // department doesn't see them by default (production, workshops,
+    // logistics…) — see canSeeFinancials in permissions/permissions.js.
+    showFinancials: { type: Boolean, default: false },
+
+    // Fine-grained permissions (config/permissionCatalog.js). "role" =
+    // the department / HR-level default profile; "custom" = exactly the
+    // keys below, set by the person's manager or an admin from the
+    // Permissions page (services/permissionService.js).
+    permissionsMode: { type: String, enum: ["role", "custom"], default: "role" },
+    permissions: { type: [String], default: [] },
+
     // =========================================================
     // HR JOB HIERARCHY (only meaningful when department === "hr")
     // =========================================================

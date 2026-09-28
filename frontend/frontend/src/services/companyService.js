@@ -11,6 +11,10 @@ export const getCompanies = async () => {
   return response.data.data;
 };
 
+// Quotas given by the platform + usage:
+// { maxCompanies, maxEmployees, companies, employees } (null = unlimited)
+export const getCompanyQuota = async () => (await api.get("/companies/quota")).data.data;
+
 // ======================================================
 // GET SINGLE COMPANY
 // ======================================================

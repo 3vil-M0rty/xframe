@@ -10,11 +10,15 @@ const { uploadPrivateFile, deleteFile } = require("../services/cloudinaryService
 const { supplierStatement } = require("../services/purchasingReports");
 const { statementXlsx } = require("../services/purchasingExports");
 const auth = require("../middleware/auth");
+const { guard } = require("../middleware/permissionGuard");
+const { ROUTE_PERMISSIONS } = require("../config/routePermissions");
 const { requirePurchasingAccess, requireInventoryViewAccess } = require("../middleware/permissionMiddleware");
 
 // Suppliers (fournisseurs) — purchasing module. Production may READ the
 // list (to pick a supplier for an article's prices in the inventory);
 // creating/editing suppliers stays with purchasing.
+// Fine-grained permissions of every endpoint: config/routePermissions.js
+router.use(auth, guard(ROUTE_PERMISSIONS.suppliers));
 router.use(auth);
 
 const FIELDS = ["name", "contactName", "email", "phone", "address", "city", "ice", "identifiantFiscal", "rc", "paymentTerms", "paymentDays", "notes", "isActive"];

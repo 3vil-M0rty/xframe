@@ -11,3 +11,5 @@ export const updateClient = async (id, data) => (await api.patch(`/platform/tena
 export const addClientAdmin = async (id, data) => (await api.post(`/platform/tenants/${id}/admins`, data)).data.data;
 export const getOrphans = async () => (await api.get("/platform/orphans")).data.data || { companies: [], users: [] };
 export const assignOrphans = async (data) => (await api.post("/platform/orphans/assign", data)).data.data;
+// data: { name, legalForm?, industry?, city?, ice? } — a client can have several companies
+export const addClientCompany = async (id, data) => (await api.post(`/platform/tenants/${id}/companies`, data)).data.data;

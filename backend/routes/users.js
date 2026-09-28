@@ -1,4 +1,5 @@
 const express = require("express");
+const { listOf } = require("../services/permissionService");
 const router = express.Router();
 
 const User = require("../models/User");
@@ -33,7 +34,15 @@ router.get("/me", auth, async (req, res) => {
     // "My department" page to department managers.
     res.json({
       success: true,
-      data: { ...user.toObject(), managedDepartments: req.user.managedDepartments || [] },
+      data: {
+        ...user.toObject(),
+        managedDepartments: req.user.managedDepartments || [],
+        workshops: req.user.workshops || [],
+        managedWorkshops: req.user.managedWorkshops || [],
+        // Effective fine-grained permissions (config/permissionCatalog.js) — the
+        // frontend shows / hides pages and buttons from this list.
+        permissions: listOf(req.user),
+      },
     });
   } catch (error) {
     res.status(500).json({
@@ -216,6 +225,7 @@ router.post("/", auth, async (req, res) => {
       status: status || "active",
       department,
       hrRole: department === "hr" ? hrRole || undefined : undefined,
+      showFinancials: [ROLES.ADMIN, ROLES.OWNER].includes(req.user.role) && req.body.showFinancials === true,
     });
 
     // --------------------------------------------------------
@@ -315,6 +325,8 @@ router.put("/:id", auth, async (req, res) => {
     } = req.body;
 
     let { role, status, department, hrRole } = req.body;
+    // "Voir les montants" (prices, costs, margins) — admins and owners decide.
+    let showFinancials = req.body.showFinancials === undefined ? target.showFinancials === true : req.body.showFinancials === true;
 
     // --------------------------------------------------------
     // Only admin/owner may change role/department/status/hrRole.
@@ -328,6 +340,7 @@ router.put("/:id", auth, async (req, res) => {
       status = target.status;
       department = target.department;
       hrRole = target.hrRole;
+      showFinancials = target.showFinancials === true;
     }
 
     // --------------------------------------------------------
@@ -387,6 +400,7 @@ router.put("/:id", auth, async (req, res) => {
         status,
         department,
         hrRole: department === "hr" ? hrRole || undefined : undefined,
+        showFinancials,
         updatedAt: Date.now(),
       },
       {

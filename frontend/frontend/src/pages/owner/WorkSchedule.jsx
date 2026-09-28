@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Clock, BriefcaseBusiness, Save } from "lucide-react";
+import { Clock, BriefcaseBusiness, Save, Plus, Star, Trash2, Check } from "lucide-react";
 
 import { useI18n } from "../../hooks/useI18n";
 
@@ -7,16 +7,14 @@ import CustomSelect from "../../components/useful/CustomSelect";
 import Breadcrumbs from "../../components/useful/Breadcrumbs";
 import ActionModal from "../../components/useful/ActionModal";
 
-import { getWorkSchedule, updateWorkSchedule } from "../../services/workScheduleService";
+import {
+  getWorkSchedules, createWorkSchedule, saveWorkSchedule, setDefaultWorkSchedule, assignWorkScheduleDepartments, deleteWorkSchedule,
+} from "../../services/workScheduleService";
 import { getCompanies } from "../../services/companyService";
 
 import styles from "./WorkSchedule.module.css";
 
 const DAY_ORDER = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"];
-
-function pad(n) {
-  return String(n).padStart(2, "0");
-}
 
 export default function WorkSchedule() {
   const { t } = useI18n();
@@ -47,10 +45,22 @@ export default function WorkSchedule() {
     label: c.name || c.tradeName || t("employees.company.unnamed"),
   }));
 
+  // Several named schedules per company; the one being edited is `schedule`.
+  const [list, setList] = useState({ schedules: [], departments: [] });
+  const [selectedId, setSelectedId] = useState("");
   const [schedule, setSchedule] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [modal, setModal] = useState({ open: false, type: "success", title: "", message: "" });
+  const [creating, setCreating] = useState(null); // { name, copy }
+
+  const applyList = (data, keepId) => {
+    setList(data);
+    const target = data.schedules.find((x) => x._id === keepId) || data.schedules.find((x) => x.isDefault) || data.schedules[0];
+    setSelectedId(target?._id || "");
+    setSchedule(target ? JSON.parse(JSON.stringify(target)) : null);
+  };
+  const fail = (error, fallback) => setModal({ open: true, type: "error", title: t("common.fail"), message: error.response?.data?.message || t(fallback) });
 
   useEffect(() => {
     if (!selectedCompanyId) { setSchedule(null); setLoading(false); return; }
@@ -58,16 +68,48 @@ export default function WorkSchedule() {
     (async () => {
       try {
         setLoading(true);
-        const data = await getWorkSchedule(selectedCompanyId);
-        if (!cancelled) setSchedule(data);
+        const data = await getWorkSchedules(selectedCompanyId);
+        if (!cancelled) applyList(data, null);
       } catch (error) {
-        console.error("Failed to load work schedule:", error);
+        console.error("Failed to load work schedules:", error);
       } finally {
         if (!cancelled) setLoading(false);
       }
     })();
     return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedCompanyId]);
+
+  const pick = (id) => {
+    const target = list.schedules.find((x) => x._id === id);
+    setSelectedId(id);
+    setSchedule(target ? JSON.parse(JSON.stringify(target)) : null);
+  };
+  const create = async (e) => {
+    e.preventDefault();
+    try {
+      const made = await createWorkSchedule(selectedCompanyId, creating.name, creating.copy ? selectedId : undefined);
+      setCreating(null);
+      applyList(await getWorkSchedules(selectedCompanyId), made._id);
+    } catch (error) { fail(error, "workSchedule.saveFailed"); }
+  };
+  const makeDefault = async () => {
+    try { applyList(await setDefaultWorkSchedule(selectedId), selectedId); } catch (error) { fail(error, "workSchedule.saveFailed"); }
+  };
+  const remove = async () => {
+    if (!window.confirm(t("wsMulti.deleteConfirm").replace("{name}", schedule?.name || ""))) return;
+    try { applyList(await deleteWorkSchedule(selectedId), null); } catch (error) { fail(error, "workSchedule.saveFailed"); }
+  };
+  // Departments following this schedule (the default one: those without a schedule of their own).
+  const followers = (sch) => list.departments.filter((d) => (sch?.isDefault ? !d.workSchedule : d.workSchedule === sch?._id));
+  const toggleDepartment = async (dep) => {
+    const current = followers(schedule).map((d) => d._id);
+    const on = current.includes(dep._id);
+    if (on && schedule.isDefault) return; // leaves the default only by joining another schedule
+    const next = on ? current.filter((id) => id !== dep._id) : [...current, dep._id];
+    try { applyList(await assignWorkScheduleDepartments(selectedId, schedule.isDefault ? [dep._id] : next), selectedId); } catch (error) { fail(error, "workSchedule.saveFailed"); }
+  };
+  const scheduleName = (id) => list.schedules.find((x) => x._id === id)?.name;
 
   const updateDay = (day, field, value) => {
     setSchedule((prev) => ({
@@ -128,8 +170,25 @@ export default function WorkSchedule() {
     setSchedule((prev) => ({ ...prev, [day]: { ...prev[day], [hourField]: hour, [minuteField]: minute } }));
   };
 
-  // Shift type is a company-wide choice: it applies to every day.
+  // Split or continuous applies to every day at once; each day can then
+  // be switched on its own (e.g. a Saturday half day in a split schedule).
   const isSplitSchedule = DAY_ORDER.some((day) => schedule?.[day]?.splitShift);
+  const setDaySplit = (day, split) => {
+    setSchedule((prev) => {
+      const cfg = { ...prev[day] };
+      const end = endOf(cfg);
+      cfg.endHour = end.hour;
+      cfg.endMinute = end.minute;
+      cfg.splitShift = split;
+      if (split) {
+        cfg.breakStartHour = cfg.breakStartHour ?? 12;
+        cfg.breakStartMinute = cfg.breakStartMinute ?? 0;
+        cfg.breakEndHour = cfg.breakEndHour ?? 14;
+        cfg.breakEndMinute = cfg.breakEndMinute ?? 0;
+      }
+      return { ...prev, [day]: cfg };
+    });
+  };
   const setShiftType = (split) => {
     setSchedule((prev) => {
       const next = { ...prev };
@@ -202,8 +261,9 @@ export default function WorkSchedule() {
         const end = endOf(cfg);
         days[day] = { ...cfg, endHour: end.hour, endMinute: end.minute };
       }
-      const updated = await updateWorkSchedule(selectedCompanyId, days, schedule.hoursManagement);
-      setSchedule(updated);
+      const updated = await saveWorkSchedule(selectedId, { ...days, name: schedule.name, hoursManagement: schedule.hoursManagement });
+      setList((prev) => ({ ...prev, schedules: prev.schedules.map((x) => (x._id === updated._id ? updated : x)) }));
+      setSchedule(JSON.parse(JSON.stringify(updated)));
       setModal({
         open: true,
         type: "success",
@@ -254,6 +314,61 @@ export default function WorkSchedule() {
         </div>
       </div>
 
+      {selectedCompanyId && !loading && (
+        <div className={styles.schedulesBar}>
+          {list.schedules.map((x) => (
+            <button key={x._id} type="button" onClick={() => pick(x._id)}
+              className={`${styles.scheduleChip} ${x._id === selectedId ? styles.scheduleChipActive : ""}`}>
+              {x.isDefault && <Star size={12} />} {x.name}
+              <span className={styles.scheduleCount}>{followers(x).length}</span>
+            </button>
+          ))}
+          {creating ? (
+            <form className={styles.createForm} onSubmit={create}>
+              <input autoFocus required value={creating.name} placeholder={t("wsMulti.namePlaceholder")} onChange={(e) => setCreating({ ...creating, name: e.target.value })} />
+              <label className={styles.copyCheck}><input type="checkbox" checked={creating.copy} onChange={(e) => setCreating({ ...creating, copy: e.target.checked })} /> {t("wsMulti.copyCurrent")}</label>
+              <button type="submit" className="btnPrimary"><Check size={14} /> {t("common.create")}</button>
+              <button type="button" className="btnCancel" onClick={() => setCreating(null)}>{t("common.cancel")}</button>
+            </form>
+          ) : (
+            <button type="button" className="btnEdit" onClick={() => setCreating({ name: "", copy: true })}><Plus size={14} /> {t("wsMulti.new")}</button>
+          )}
+        </div>
+      )}
+
+      {selectedCompanyId && !loading && schedule && (
+        <div className={styles.scheduleHeader}>
+          <div className={styles.scheduleNameRow}>
+            <label className={styles.nameField}>
+              <span>{t("wsMulti.name")}</span>
+              <input value={schedule.name || ""} onChange={(e) => setSchedule({ ...schedule, name: e.target.value })} />
+            </label>
+            {schedule.isDefault
+              ? <span className={styles.defaultTag}><Star size={12} /> {t("wsMulti.default")}</span>
+              : <>
+                <button type="button" className="btnEdit" onClick={makeDefault}><Star size={14} /> {t("wsMulti.makeDefault")}</button>
+                <button type="button" className="btnDelete" onClick={remove} title={t("common.delete")}><Trash2 size={14} /></button>
+              </>}
+          </div>
+          <div className={styles.departmentsRow}>
+            <span className={styles.departmentsLabel}>{t("wsMulti.departments")}</span>
+            {list.departments.length === 0 && <span className={styles.muted}>{t("wsMulti.noDepartments")}</span>}
+            {list.departments.map((d) => {
+              const on = followers(schedule).some((x) => x._id === d._id);
+              const elsewhere = !on && (d.workSchedule ? scheduleName(d.workSchedule) : list.schedules.find((x) => x.isDefault)?.name);
+              return (
+                <button key={d._id} type="button" onClick={() => toggleDepartment(d)}
+                  className={`${styles.depChip} ${on ? styles.depChipOn : ""}`}
+                  title={on && schedule.isDefault ? t("wsMulti.leaveDefaultHint") : elsewhere ? t("wsMulti.currently").replace("{name}", elsewhere) : ""}>
+                  {on && <Check size={12} />} {d.name}{elsewhere ? <small> · {elsewhere}</small> : null}
+                </button>
+              );
+            })}
+          </div>
+          <p className={styles.muted}>{schedule.isDefault ? t("wsMulti.defaultHint") : t("wsMulti.assignHint")}</p>
+        </div>
+      )}
+
       {!selectedCompanyId && !companiesLoading && (
         <div className="emptyStateBlock">
           <div className="emptyStateIcon"><BriefcaseBusiness size={28} /></div>
@@ -288,13 +403,14 @@ export default function WorkSchedule() {
 
           {(() => {
             const columns = isSplitSchedule
-              ? "1fr 1fr 0.9fr 0.9fr 0.9fr 0.9fr 0.8fr 0.7fr"
+              ? "1fr 1fr 0.7fr 0.9fr 0.9fr 0.9fr 0.9fr 0.8fr 0.7fr"
               : "1fr 1fr 1fr 1fr 0.8fr 0.7fr";
             return (
               <>
                 <div className={styles.daysHead} style={{ "--day-columns": columns }}>
                   <span>{t("workSchedule.fields.day")}</span>
                   <span>{t("workSchedule.fields.workingDay")}</span>
+                  {isSplitSchedule && <span>{t("wsMulti.splitDay")}</span>}
                   <span>{t("workSchedule.morningIn")}</span>
                   {isSplitSchedule && <span>{t("workSchedule.middayOut")}</span>}
                   {isSplitSchedule && <span>{t("workSchedule.middayIn")}</span>}
@@ -327,20 +443,27 @@ export default function WorkSchedule() {
                         <span>{config.isWorkingDay ? t("workSchedule.working") : t("workSchedule.dayOff")}</span>
                       </label>
 
+                      {isSplitSchedule && (
+                        <label className={styles.toggle} title={t("wsMulti.splitDayHint")}>
+                          <input type="checkbox" disabled={off} checked={!!config.splitShift} onChange={(e) => setDaySplit(day, e.target.checked)} />
+                          <span>{config.splitShift ? t("wsMulti.splitOn") : t("wsMulti.splitOff")}</span>
+                        </label>
+                      )}
+
                       <input type="time" step={300} className={styles.timeInput} disabled={off}
                         value={toHHMM(config.startHour ?? 9, config.startMinute)}
                         onChange={(e) => updateTime(day, "startHour", "startMinute", e.target.value)} />
 
-                      {isSplitSchedule && (
+                      {isSplitSchedule && (config.splitShift ? (
                         <input type="time" step={300} className={styles.timeInput} disabled={off}
                           value={toHHMM(config.breakStartHour ?? 12, config.breakStartMinute)}
                           onChange={(e) => updateTime(day, "breakStartHour", "breakStartMinute", e.target.value)} />
-                      )}
-                      {isSplitSchedule && (
+                      ) : <span className={styles.muted}>—</span>)}
+                      {isSplitSchedule && (config.splitShift ? (
                         <input type="time" step={300} className={styles.timeInput} disabled={off}
                           value={toHHMM(config.breakEndHour ?? 14, config.breakEndMinute)}
                           onChange={(e) => updateTime(day, "breakEndHour", "breakEndMinute", e.target.value)} />
-                      )}
+                      ) : <span className={styles.muted}>—</span>)}
 
                       <input type="time" step={300} className={styles.timeInput} disabled={off}
                         value={toHHMM(end.hour, end.minute)}

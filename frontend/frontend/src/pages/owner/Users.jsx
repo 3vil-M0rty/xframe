@@ -429,6 +429,15 @@ export default function Users() {
                 { value: "hr_director", label: t("users.hrRole.director") },
             ],
         }]),
+
+        // Prices, costs, margins, budgets — shown by default to admins,
+        // owners, sales, finance, accounting and management only.
+        {
+            name: "showFinancials",
+            label: t("cv.amountsLabel"),
+            type: "checkbox",
+            checkboxLabel: t("cv.amountsCheckbox"),
+        },
     ];
 
     // ========================================
@@ -547,6 +556,7 @@ export default function Users() {
                 role: pendingData.role,
                 status: pendingData.status,
                 department: pendingData.department,
+                showFinancials: !!pendingData.showFinancials,
             });
 
             // Add new user to list
@@ -635,6 +645,7 @@ export default function Users() {
                     role: pendingData.role,
                     status: pendingData.status,
                     department: pendingData.department,
+                    showFinancials: !!pendingData.showFinancials,
                 }
             );
 
@@ -965,6 +976,7 @@ export default function Users() {
                             role: "user",
                             status: "active",
                             department: "administration",
+                            showFinancials: false,
                         }}
                     />
                 </div>
@@ -1079,6 +1091,7 @@ export default function Users() {
                             department:
                                 selectedUser.department ||
                                 "administration",
+                            showFinancials: selectedUser.showFinancials === true,
                         }}
                     />
                 </div>

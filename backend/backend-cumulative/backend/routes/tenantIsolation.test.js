@@ -64,6 +64,16 @@ const MOUNTS = [
   ["/api/price-requests", "./priceRequests"],
   ["/api/platform", "./platform"],
   ["/api/files", "./files"],
+  ["/api/leave", "./leave"],
+  ["/api/declarations", "./declarations"],
+  ["/api/customers", "./customers"],
+  ["/api/quotes", "./quotes"],
+  ["/api/sales-invoices", "./salesInvoices"],
+  ["/api/projects", "./projects"],
+  ["/api/production", "./productionConfig"],
+  ["/api/production-orders", "./productionOrders"],
+  ["/api/tracking", "./tracking"],
+  ["/api/logistics", "./logistics"],
 ];
 
 // Which client-B record an `:id` under each mount should point at.
@@ -96,6 +106,16 @@ const MOUNT_MODEL = {
   "/api/price-requests": "PriceRequest",
   "/api/platform": "Company",
   "/api/files": "EmployeeDocument",
+  "/api/leave": "Employee",
+  "/api/declarations": "PayrollRun",
+  "/api/customers": "Customer",
+  "/api/quotes": "Quote",
+  "/api/sales-invoices": "SalesInvoice",
+  "/api/projects": "Project",
+  "/api/production": "ChassisModel",
+  "/api/production-orders": "ProductionOrder",
+  "/api/tracking": "Project",
+  "/api/logistics": "DeliveryNote",
 };
 
 const SECRET = "SECRET-B";

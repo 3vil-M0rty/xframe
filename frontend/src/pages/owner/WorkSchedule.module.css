@@ -322,3 +322,175 @@
     font-weight: 600;
     color: #fca5a5;
 }
+
+/* ---- Multiple named schedules ---- */
+.schedulesBar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 16px;
+}
+
+.scheduleChip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 12px;
+    border: 1px solid var(--color-border);
+    border-radius: 999px;
+    background: var(--color-bg-primary);
+    color: var(--color-text-secondary);
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.scheduleChip:hover {
+    border-color: var(--color-primary, #2563eb);
+}
+
+.scheduleChipActive {
+    border-color: var(--color-primary, #2563eb);
+    background: var(--color-primary-light, rgba(37, 99, 235, 0.1));
+    color: var(--color-primary, #2563eb);
+}
+
+.scheduleCount {
+    min-width: 20px;
+    padding: 1px 6px;
+    border-radius: 999px;
+    background: var(--color-bg-secondary);
+    color: var(--color-text-tertiary);
+    font-size: 0.72rem;
+    text-align: center;
+}
+
+.createForm {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+}
+
+.createForm input[type="text"],
+.createForm input:not([type]) {
+    min-width: 200px;
+    padding: 7px 10px;
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    background: var(--color-bg-primary);
+    color: var(--color-text-primary);
+}
+
+.copyCheck {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--color-text-secondary);
+    font-size: 0.82rem;
+    cursor: pointer;
+}
+
+.scheduleHeader {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-bottom: 20px;
+    padding: 16px 18px;
+    border: 1px solid var(--color-border);
+    border-radius: 12px;
+    background: var(--color-bg-primary);
+}
+
+.scheduleNameRow {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 10px;
+}
+
+.nameField {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    flex: 1 1 260px;
+    max-width: 420px;
+    color: var(--color-text-tertiary);
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+.nameField input {
+    padding: 8px 10px;
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    background: var(--color-bg-primary);
+    color: var(--color-text-primary);
+    font-size: 0.95rem;
+    font-weight: 600;
+    text-transform: none;
+    letter-spacing: normal;
+}
+
+.defaultTag {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 6px 10px;
+    border-radius: 999px;
+    background: rgba(234, 179, 8, 0.15);
+    color: #a16207;
+    font-size: 0.8rem;
+    font-weight: 700;
+}
+
+.departmentsRow {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+}
+
+.departmentsLabel {
+    margin-right: 4px;
+    color: var(--color-text-tertiary);
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+.depChip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 5px 10px;
+    border: 1px dashed var(--color-border);
+    border-radius: 999px;
+    background: transparent;
+    color: var(--color-text-secondary);
+    font-size: 0.8rem;
+    cursor: pointer;
+}
+
+.depChip small {
+    color: var(--color-text-tertiary);
+    font-size: 0.72rem;
+}
+
+.depChipOn {
+    border-style: solid;
+    border-color: #16a34a;
+    background: rgba(22, 163, 74, 0.1);
+    color: #15803d;
+    font-weight: 600;
+}
+
+.muted {
+    margin: 0;
+    color: var(--color-text-tertiary);
+    font-size: 0.8rem;
+}

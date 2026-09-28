@@ -346,6 +346,15 @@ const companySchema = new mongoose.Schema(
         type: Boolean,
         default: false,
       },
+      // Paid-leave days per year GRANTED ON TOP of the legal minimum
+      // (collective agreement / company policy). 0 = the law only
+      // (1.5 days/month + seniority). See services/leaveBalanceService.js.
+      extraLeaveDaysPerYear: {
+        type: Number,
+        default: 0,
+        min: 0,
+        max: 30,
+      },
       // Purchase orders at or above this amount (TTC, MAD) need an
       // approver's OK before they can be marked as ordered. 0 = off.
       // See routes/purchaseOrders.js (status/approve/reject-approval).

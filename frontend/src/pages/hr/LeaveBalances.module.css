@@ -1,0 +1,129 @@
+.toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 16px;
+    margin-bottom: 10px;
+}
+
+.toolbar :global(.filterGroup) {
+    width: 240px;
+}
+
+.policy {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.policy label {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--color-text-secondary);
+}
+
+.policyRow {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.policyRow input {
+    width: 90px;
+    padding: 8px 10px;
+}
+
+.policyRow button {
+    margin: 0;
+    min-height: 38px;
+}
+
+.hint {
+    margin: 0 0 14px;
+    max-width: 900px;
+    font-size: 0.8rem;
+    line-height: 1.5;
+    color: var(--color-text-secondary);
+}
+
+.notice {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 14px;
+    padding: 10px 14px;
+    font-size: 0.82rem;
+    color: #4cc38a;
+    background: rgba(76, 195, 138, 0.08);
+    border: 1px solid rgba(76, 195, 138, 0.25);
+    border-radius: 8px;
+}
+
+.muted {
+    color: var(--color-text-tertiary);
+    font-size: 0.76rem;
+}
+
+.bonus {
+    color: #4cc38a;
+    font-size: 0.76rem;
+}
+
+.negative {
+    color: #ff8585;
+}
+
+.alert {
+    display: inline-flex;
+    margin-left: 6px;
+    color: #f5b544;
+    vertical-align: middle;
+}
+
+.editRow {
+    margin: 0 0 10px;
+    padding: 12px 14px;
+    border: 1px solid var(--color-border);
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.02);
+}
+
+.editFields {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.editFields label {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    font-size: 0.78rem;
+    color: var(--color-text-secondary);
+}
+
+.editFields input {
+    padding: 8px 10px;
+    color-scheme: dark;
+}
+
+.noteField {
+    flex: 1 1 240px;
+}
+
+.editActions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 12px;
+}
+
+.editActions button {
+    margin: 0;
+}
+
+@media (max-width: 700px) {
+    .toolbar :global(.filterGroup) {
+        width: 100%;
+    }
+}

@@ -34,6 +34,15 @@ const inventoryCategorySchema = new mongoose.Schema(
       trim: true,
     },
 
+    // Sub-categories: "Profilés aluminium" › "Série ATLAS 78 — coulissants",
+    // "Série garde-corps"… null = top-level category. Up to 4 levels.
+    parent: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "InventoryCategory",
+      default: null,
+      index: true,
+    },
+
     // Accounting account for purchases of articles in this category
     // (PCGE): 6121 matières premières, 6122 matières et fournitures
     // consommables, 6125 achats non stockés, 2332 installations
@@ -82,6 +91,21 @@ const inventoryCategorySchema = new mongoose.Schema(
 // see plugins/translatable.js.
 inventoryCategorySchema.plugin(translatable, { fields: ["name", "description"] });
 
-inventoryCategorySchema.index({ company: 1, name: 1 }, { unique: true });
+// A name is unique among its siblings: "Accessoires" can exist under two series.
+inventoryCategorySchema.index({ company: 1, parent: 1, name: 1 }, { unique: true });
 
-module.exports = mongoose.model("InventoryCategory", inventoryCategorySchema);
+const InventoryCategory = mongoose.model("InventoryCategory", inventoryCategorySchema);
+
+// Databases created before sub-categories have a unique index on
+// { company, name } alone, which would refuse "Accessoires" under two
+// different parents — drop it once connected (no-op when absent).
+function dropLegacyNameIndex() {
+  try {
+    const p = InventoryCategory.collection?.dropIndex?.("company_1_name_1");
+    if (p && typeof p.catch === "function") p.catch(() => {});
+  } catch { /* index already gone / test database */ }
+}
+if (mongoose.connection.readyState === 1) dropLegacyNameIndex();
+else mongoose.connection.once("open", dropLegacyNameIndex);
+
+module.exports = InventoryCategory;

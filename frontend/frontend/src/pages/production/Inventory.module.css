@@ -498,3 +498,6 @@
 .toolbar > *:has(input[type="text"]) {
     flex: 1 1 280px;
 }
+
+/* Category badge with its path ("Profilés aluminium › Série 78") */
+.categoryPath { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 220px; }

@@ -11,6 +11,7 @@ import {
   createClient,
   updateClient,
   addClientAdmin,
+  addClientCompany,
   getOrphans,
   assignOrphans,
 } from "../../services/platformService";
@@ -18,6 +19,62 @@ import {
 import styles from "./Clients.module.css";
 
 const EMPTY_ADMIN = { firstName: "", lastName: "", email: "", password: "" };
+const EMPTY_COMPANY = { name: "", legalForm: "SARL", industry: "", city: "", ice: "" };
+const LEGAL_FORMS = ["SARL", "SARL_AU", "SA", "SAS", "SASU", "SNC", "SCS", "SCA", "SP", "COOPERATIVE", "ASSOCIATION", "OTHER"];
+
+/** A company of a client (a client can have several: a group and its subsidiaries). */
+function CompanyFields({ value, onChange, t, required = true }) {
+  const set = (k) => (e) => onChange({ ...value, [k]: e.target.value });
+  return (
+    <div className={styles.grid}>
+      <label className={styles.field}>
+        <span>{t("platformCo.companyName")}</span>
+        <input required={required} value={value.name} onChange={set("name")} placeholder={t("platformCo.companyNamePlaceholder")} />
+      </label>
+      <label className={styles.field}>
+        <span>{t("platformCo.companyLegalForm")}</span>
+        <CustomSelect value={value.legalForm} onSelect={(v) => onChange({ ...value, legalForm: v })} options={LEGAL_FORMS.map((f) => ({ value: f, label: f === "OTHER" ? t("platformCo.companyOtherForm") : f.replace("_", " ") }))} />
+      </label>
+      <label className={styles.field}>
+        <span>{t("platformCo.companyIndustry")}</span>
+        <input value={value.industry} onChange={set("industry")} placeholder={t("platformCo.companyIndustryPlaceholder")} />
+      </label>
+      <label className={styles.field}>
+        <span>{t("platformCo.companyCity")}</span>
+        <input value={value.city} onChange={set("city")} />
+      </label>
+      <label className={styles.field}>
+        <span>ICE</span>
+        <input value={value.ice} onChange={set("ice")} inputMode="numeric" />
+      </label>
+    </div>
+  );
+}
+
+const EMPTY_LIMITS = { maxCompanies: "", maxEmployees: "" };
+// "" = unlimited (null for the API)
+const toLimits = (l) => ({
+  maxCompanies: l.maxCompanies === "" ? null : Number(l.maxCompanies),
+  maxEmployees: l.maxEmployees === "" ? null : Number(l.maxEmployees),
+});
+const fromLimits = (l) => ({ maxCompanies: l?.maxCompanies ?? "", maxEmployees: l?.maxEmployees ?? "" });
+const usage = (used, max) => (max === null || max === undefined ? `${used}` : `${used} / ${max}`);
+
+function LimitsFields({ value, onChange, t }) {
+  const set = (key) => (e) => onChange({ ...value, [key]: e.target.value.replace(/[^0-9]/g, "") });
+  return (
+    <div className={styles.grid}>
+      <label className={styles.field}>
+        <span>{t("quota.maxCompanies")}</span>
+        <input inputMode="numeric" value={value.maxCompanies} onChange={set("maxCompanies")} placeholder={t("quota.unlimited")} />
+      </label>
+      <label className={styles.field}>
+        <span>{t("quota.maxEmployees")}</span>
+        <input inputMode="numeric" value={value.maxEmployees} onChange={set("maxEmployees")} placeholder={t("quota.unlimited")} />
+      </label>
+    </div>
+  );
+}
 
 function AdminFields({ value, onChange, t }) {
   const set = (k) => (e) => onChange({ ...value, [k]: e.target.value });
@@ -59,7 +116,10 @@ export default function Clients() {
   const [notice, setNotice] = useState("");
 
   const [showCreate, setShowCreate] = useState(false);
-  const [form, setForm] = useState({ name: "", notes: "", admin: EMPTY_ADMIN });
+  const [form, setForm] = useState({ name: "", notes: "", limits: EMPTY_LIMITS, admin: EMPTY_ADMIN, company: EMPTY_COMPANY });
+  const [limitsEdit, setLimitsEdit] = useState({ id: null, value: EMPTY_LIMITS });
+  const [companyFormFor, setCompanyFormFor] = useState(null);
+  const [companyForm, setCompanyForm] = useState(EMPTY_COMPANY);
   const [saving, setSaving] = useState(false);
 
   const [expanded, setExpanded] = useState(null); // client id
@@ -115,11 +175,47 @@ export default function Clients() {
     setError("");
     setNotice("");
     try {
-      const { tenant, admin } = await createClient(form);
+      const { tenant, admin } = await createClient({ ...form, limits: toLimits(form.limits), company: form.company.name.trim() ? form.company : undefined });
       setNotice(t("platform.created").replace("{name}", tenant.name).replace("{email}", admin.email));
-      setForm({ name: "", notes: "", admin: EMPTY_ADMIN });
+      setForm({ name: "", notes: "", limits: EMPTY_LIMITS, admin: EMPTY_ADMIN, company: EMPTY_COMPANY });
       setShowCreate(false);
       await load();
+    } catch (err) {
+      setError(errMsg(err, "platform.errors.save"));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // ---------- quotas ----------
+  const handleSaveLimits = async (e) => {
+    e.preventDefault();
+    setSaving(true);
+    setError("");
+    try {
+      await updateClient(limitsEdit.id, { limits: toLimits(limitsEdit.value) });
+      setNotice(t("quota.saved"));
+      setLimitsEdit({ id: null, value: EMPTY_LIMITS });
+      await load();
+    } catch (err) {
+      setError(errMsg(err, "platform.errors.save"));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // ---------- add a company to a client ----------
+  const handleAddCompany = async (e, id) => {
+    e.preventDefault();
+    setSaving(true);
+    setError("");
+    setNotice("");
+    try {
+      const c = await addClientCompany(id, companyForm);
+      setNotice(t("platformCo.companyAdded").replace("{name}", c.name));
+      setCompanyFormFor(null);
+      setCompanyForm(EMPTY_COMPANY);
+      await Promise.all([load(), loadDetails(id)]);
     } catch (err) {
       setError(errMsg(err, "platform.errors.save"));
     } finally {
@@ -229,9 +325,15 @@ export default function Clients() {
               <input value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} />
             </label>
           </div>
+          <h3 className={styles.subTitle}>{t("quota.title")}</h3>
+          <p className={styles.hint}>{t("quota.hint")}</p>
+          <LimitsFields value={form.limits} onChange={(limits) => setForm({ ...form, limits })} t={t} />
           <h3 className={styles.subTitle}>{t("platform.firstAdmin")}</h3>
           <p className={styles.hint}>{t("platform.firstAdminHint")}</p>
           <AdminFields value={form.admin} onChange={(admin) => setForm({ ...form, admin })} t={t} />
+          <h3 className={styles.subTitle}>{t("platformCo.companyFirst")}</h3>
+          <p className={styles.hint}>{t("platformCo.companyFirstHint")}</p>
+          <CompanyFields value={form.company} onChange={(company) => setForm({ ...form, company })} t={t} required={false} />
           <div className={styles.actions}>
             <button type="button" className="btnCancel" onClick={() => setShowCreate(false)}>{t("common.cancel")}</button>
             <button type="submit" className="btnPrimary" disabled={saving}>{saving ? t("common.loading") : t("platform.create")}</button>
@@ -317,9 +419,12 @@ export default function Clients() {
                     {open ? <ChevronDown size={15} /> : <ChevronRight size={15} />}
                   </button>
                   <span><strong>{c.name}</strong>{c.notes && <small className={styles.muted}> — {c.notes}</small>}</span>
-                  <span className="dataTableCellMuted">{c.companies.map((x) => x.name).join(", ") || "—"}</span>
+                  <span className="dataTableCellMuted">
+                    {c.limits?.maxCompanies != null && <strong className={styles.quotaUse}>{usage(c.counts.companies, c.limits.maxCompanies)} · </strong>}
+                    {c.companies.map((x) => x.name).join(", ") || "—"}
+                  </span>
                   <span>{c.counts.users}</span>
-                  <span>{c.counts.employees}</span>
+                  <span className={c.limits?.maxEmployees != null && c.counts.employees >= c.limits.maxEmployees ? styles.quotaFull : ""}>{usage(c.counts.employees, c.limits?.maxEmployees)}</span>
                   <span>
                     <span className={`statusPill ${suspended ? "statusPillRejected" : "statusPillAccepted"}`}>
                       {t(suspended ? "platform.status.suspended" : "platform.status.active")}
@@ -347,6 +452,56 @@ export default function Clients() {
                         <Pencil size={13} /> {t("platform.rename")}
                       </button>
                     )}
+                    <div className={styles.detailHead}>
+                      <h4>{t("quota.title")}</h4>
+                      {limitsEdit.id !== c._id && (
+                        <button type="button" className="btnEdit" onClick={() => setLimitsEdit({ id: c._id, value: fromLimits(c.limits) })}>
+                          <Pencil size={13} /> {t("quota.edit")}
+                        </button>
+                      )}
+                    </div>
+                    {limitsEdit.id === c._id ? (
+                      <form className={styles.inlineForm} onSubmit={handleSaveLimits}>
+                        <LimitsFields value={limitsEdit.value} onChange={(value) => setLimitsEdit({ id: c._id, value })} t={t} />
+                        <p className={styles.hint}>{t("quota.hint")}</p>
+                        <div className={styles.actions}>
+                          <button type="button" className="btnCancel" onClick={() => setLimitsEdit({ id: null, value: EMPTY_LIMITS })}>{t("common.cancel")}</button>
+                          <button type="submit" className="btnPrimary" disabled={saving}>{t("common.save")}</button>
+                        </div>
+                      </form>
+                    ) : (
+                      <div className={styles.adminRow}>
+                        <span>{t("quota.companies")} : <strong>{usage(c.counts.companies, c.limits?.maxCompanies)}</strong>{c.limits?.maxCompanies == null && <small className={styles.muted}> ({t("quota.unlimited")})</small>}</span>
+                        <span>{t("quota.employees")} : <strong>{usage(c.counts.employees, c.limits?.maxEmployees)}</strong>{c.limits?.maxEmployees == null && <small className={styles.muted}> ({t("quota.unlimited")})</small>}</span>
+                      </div>
+                    )}
+
+                    <div className={styles.detailHead}>
+                      <h4>{t("platformCo.companyTitle")} ({c.companies.length})</h4>
+                      <button type="button" className="btnEdit" disabled={c.limits?.maxCompanies != null && c.counts.companies >= c.limits.maxCompanies} title={c.limits?.maxCompanies != null && c.counts.companies >= c.limits.maxCompanies ? t("quota.companiesFull") : ""} onClick={() => { setCompanyFormFor(c._id); setCompanyForm(EMPTY_COMPANY); }}>
+                        <Plus size={14} /> {t("platformCo.companyAdd")}
+                      </button>
+                    </div>
+                    {c.companies.length === 0 && <p className={styles.hint}>{t("platformCo.companyNone")}</p>}
+                    {c.companies.map((co) => (
+                      <div key={co._id} className={styles.adminRow}>
+                        <span>{co.name}</span>
+                        <span className={styles.muted}>{co.legalForm || ""}</span>
+                        <span className={styles.muted}>{co.city || ""}</span>
+                        <span className={styles.muted}>{co.ice ? `ICE ${co.ice}` : ""}</span>
+                      </div>
+                    ))}
+                    {companyFormFor === c._id && (
+                      <form className={styles.inlineForm} onSubmit={(e) => handleAddCompany(e, c._id)}>
+                        <CompanyFields value={companyForm} onChange={setCompanyForm} t={t} />
+                        <div className={styles.actions}>
+                          <button type="button" className="btnCancel" onClick={() => setCompanyFormFor(null)}>{t("common.cancel")}</button>
+                          <button type="submit" className="btnPrimary" disabled={saving}>{t("platformCo.companyAdd")}</button>
+                        </div>
+                      </form>
+                    )}
+                    <p className={styles.hint}>{t("platformCo.companyAdminHint")}</p>
+
                     <div className={styles.detailHead}>
                       <h4>{t("platform.admins")}</h4>
                       <button type="button" className="btnEdit" onClick={() => { setAdminFormFor(c._id); setAdminForm(EMPTY_ADMIN); }}>

@@ -1,0 +1,15 @@
+.steps { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 16px; padding: 0; list-style: none; counter-reset: step; }
+.step { flex: 1 1 120px; min-width: 120px; position: relative; }
+.inner { display: flex; align-items: center; gap: 8px; width: 100%; height: 100%; padding: 8px 10px; text-align: left; font: inherit; color: var(--color-text-secondary); background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: 10px; }
+button.inner { cursor: pointer; }
+button.inner:hover { border-color: var(--color-info); }
+.badge { display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; width: 22px; height: 22px; font-size: 0.72rem; font-weight: 700; border-radius: 999px; border: 1px solid var(--color-border); color: var(--color-text-tertiary); }
+.text { display: flex; flex-direction: column; min-width: 0; }
+.text strong { font-size: 0.78rem; color: inherit; }
+.text small { font-size: 0.7rem; color: var(--color-text-tertiary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.done .inner { color: var(--color-text-primary); }
+.done .badge { background: var(--color-success); border-color: var(--color-success); color: #fff; }
+.current .inner { color: var(--color-text-primary); border-color: var(--color-info); box-shadow: 0 0 0 1px var(--color-info) inset; }
+.current .badge { border-color: var(--color-info); color: var(--color-info); }
+.todo .inner { opacity: 0.6; }
+@media (max-width: 640px) { .step { flex-basis: 45%; } }

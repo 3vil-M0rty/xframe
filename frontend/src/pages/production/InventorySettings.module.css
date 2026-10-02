@@ -10,7 +10,7 @@
     border: 1px solid rgba(255, 80, 80, 0.25);
     border-radius: 10px;
     background: rgba(255, 80, 80, 0.06);
-    color: #ff8585;
+    color: var(--tone-ff8585);
     font-size: 0.82rem;
 }
 
@@ -184,3 +184,76 @@
 
 .fieldHint { font-size: 0.72rem; line-height: 1.4; color: var(--color-text-tertiary); }
 .inlineSwitch { display: inline-flex; align-items: center; gap: 8px; font-size: 0.82rem; color: var(--color-text-secondary); cursor: pointer; }
+
+/* ---------- collapsible tree + drag & drop ---------- */
+.treeToolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 10px;
+}
+
+.treeToolbarActions {
+    display: flex;
+    gap: 6px;
+}
+
+.toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    color: var(--color-text-secondary);
+    background: transparent;
+    border: 1px solid var(--color-border);
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+.toggle:hover {
+    color: var(--color-text-primary);
+    background: var(--color-bg-hover);
+}
+
+.togglePlaceholder {
+    width: 24px;
+    flex-shrink: 0;
+}
+
+.grip {
+    flex-shrink: 0;
+    color: var(--color-text-tertiary);
+    cursor: grab;
+    opacity: 0.6;
+}
+
+.categoryCard:hover .grip,
+.subRow:hover .grip {
+    opacity: 1;
+}
+
+.categoryCard[draggable="true"],
+.subRow[draggable="true"] {
+    cursor: grab;
+}
+
+.dropActive {
+    outline: 2px dashed var(--color-info);
+    outline-offset: -2px;
+    background: var(--color-info-light);
+}
+
+.rootDrop {
+    padding: 10px 14px;
+    margin-bottom: 10px;
+    font-size: 0.8rem;
+    text-align: center;
+    color: var(--color-text-secondary);
+    border: 1px dashed var(--color-border);
+    border-radius: 10px;
+}

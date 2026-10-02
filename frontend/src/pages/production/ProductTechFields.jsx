@@ -2,7 +2,7 @@ import CustomSelect from "../../components/useful/CustomSelect";
 import { useI18n } from "../../hooks/useI18n";
 import { MATERIAL_TYPES, STOCK_MODES } from "./prodShared";
 
-export const TECH_KEYS = ["materialType", "stockMode", "barLength", "sheetWidth", "sheetHeight", "packSize", "weightPerMeter", "perimeter", "paintSurface", "powderPerUnit", "coverage", "thickness"];
+export const TECH_KEYS = ["materialType", "stockMode", "barLength", "profileChamber", "profileOuterFin", "profileInnerFin", "profileWidth", "sheetWidth", "sheetHeight", "packSize", "weightPerMeter", "perimeter", "paintSurface", "powderPerUnit", "coverage", "thickness"];
 
 /** Article fields → form values (strings) and back. */
 export const techToForm = (p = {}) => Object.fromEntries(TECH_KEYS.map((k) => [k, p[k] ?? (k === "stockMode" ? "unit" : "")]));
@@ -39,6 +39,16 @@ export default function ProductTechFields({ value, onChange, fieldClass, inputCl
       {mode === "sheet" && num("sheetWidth", "mm")}
       {mode === "sheet" && num("sheetHeight", "mm")}
       {mode === "unit" && num("packSize", t("prod.tech.packUnit"))}
+      {type === "profile" && num("profileChamber", "mm")}
+      {type === "profile" && num("profileOuterFin", "mm")}
+      {type === "profile" && num("profileInnerFin", "mm")}
+      {type === "profile" && (
+        <div className={fieldClass}>
+          <label>{t("prod.tech.profileHeight")} (mm)</label>
+          <input className={inputClass} readOnly tabIndex={-1} value={["profileChamber", "profileOuterFin", "profileInnerFin"].some((k) => value[k] !== "" && value[k] !== undefined && value[k] !== null) ? ["profileChamber", "profileOuterFin", "profileInnerFin"].reduce((a, k) => a + (Number(value[k]) || 0), 0) : ""} placeholder="= chambre + ailettes" />
+        </div>
+      )}
+      {type === "profile" && num("profileWidth", "mm")}
       {(type === "profile" || mode === "kg") && num("weightPerMeter", "kg/m")}
       {(type === "profile" || type === "panel") && num("perimeter", "mm")}
       {(type === "profile" || type === "panel") && num("paintSurface", "m²")}

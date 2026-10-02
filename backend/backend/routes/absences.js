@@ -10,6 +10,8 @@ const User = require("../models/User");
 const Department = require("../models/Department");
 
 const auth = require("../middleware/auth");
+const { guard } = require("../middleware/permissionGuard");
+const { ROUTE_PERMISSIONS } = require("../config/routePermissions");
 const { requireHRAccess } = require("../middleware/permissionMiddleware");
 const { attachTranslationRoutes } = require("../utils/translationRoutes");
 const { findMatchingEmployeeIds } = require("../utils/employeeSearch");
@@ -26,26 +28,15 @@ const { notify, notifyMany, getHRRecipientIds } = require("../services/notificat
 // not just full HR access, so it can't sit behind a blanket
 // requireHRAccess. Every OTHER route below still applies
 // requireHRAccess individually.
+// Fine-grained permissions of every endpoint: config/routePermissions.js
+router.use(auth, guard(ROUTE_PERMISSIONS.absences));
 router.use(auth);
 
 const canManage = (req, company) => canAccessHRForCompany(req.user, company);
+const { countAbsenceDays } = require("../services/workingDays");
 
-// Inclusive day count between two dates (ignoring time-of-day),
-// halved for a half-day absence.
-function computeDaysCount(startDate, endDate, halfDay) {
-  const start = new Date(startDate);
-  const end = new Date(endDate);
+const NO_WORKING_DAY = "This period contains no working day (weekly rest or closed public holiday)";
 
-  start.setHours(0, 0, 0, 0);
-  end.setHours(0, 0, 0, 0);
-
-  const diffDays =
-    Math.round((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
-
-  const days = Math.max(diffDays, halfDay ? 0.5 : 1);
-
-  return halfDay ? Math.min(days, 0.5) : days;
-}
 
 // ======================================================
 // GET ALL ABSENCES
@@ -327,6 +318,13 @@ router.post("/", requireHRAccess, async (req, res) => {
       });
     }
 
+    // Working days for leave/absences (schedule + closed public
+    // holidays), calendar days for sick leave — services/workingDays.js.
+    const daysCount = await countAbsenceDays({ companyId: company, employeeId: employeeDoc._id, type, startDate, endDate, halfDay: !!halfDay });
+    if (daysCount === 0) {
+      return res.status(400).json({ success: false, message: NO_WORKING_DAY });
+    }
+
     const absence = await Absence.create({
       company,
       employee,
@@ -334,7 +332,7 @@ router.post("/", requireHRAccess, async (req, res) => {
       startDate,
       endDate,
       halfDay: !!halfDay,
-      daysCount: computeDaysCount(startDate, endDate, halfDay),
+      daysCount,
       justified: justified !== undefined ? justified : true,
       reason,
       status: "pending",
@@ -418,12 +416,18 @@ router.put("/:id", requireHRAccess, async (req, res) => {
     if (justified !== undefined) absence.justified = justified;
     if (reason !== undefined) absence.reason = reason;
 
-    if (startDate !== undefined || endDate !== undefined || halfDay !== undefined) {
-      absence.daysCount = computeDaysCount(
-        absence.startDate,
-        absence.endDate,
-        absence.halfDay
-      );
+    if (startDate !== undefined || endDate !== undefined || halfDay !== undefined || type !== undefined) {
+      absence.daysCount = await countAbsenceDays({
+        companyId: absence.company._id,
+        employeeId: absence.employee?._id || absence.employee,
+        type: absence.type,
+        startDate: absence.startDate,
+        endDate: absence.endDate,
+        halfDay: absence.halfDay,
+      });
+      if (absence.daysCount === 0) {
+        return res.status(400).json({ success: false, message: NO_WORKING_DAY });
+      }
     }
 
     absence.updatedBy = req.user.id;
@@ -529,7 +533,7 @@ router.patch("/:id/review", async (req, res) => {
       !!absence.employee.manager ||
       (!!absenceDepartment?.manager && String(absenceDepartment.manager) !== String(absence.employee._id));
     const sequential = !!absence.company.settings?.requireSequentialApproval && hasManagerStep;
-    const capacity = reviewerRole(req.user, absence.company, absence.employee);
+    const capacity = reviewerRole(req.user, absence.company, absence.employee, "absences");
 
     let newStatus = requestedStatus;
     let isFinal = true;

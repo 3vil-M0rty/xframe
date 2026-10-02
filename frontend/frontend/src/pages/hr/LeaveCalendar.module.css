@@ -43,7 +43,7 @@
 .weekdayRow {
     display: grid;
     grid-template-columns: repeat(7, 1fr);
-    background: var(--color-bg-secondary, rgba(255, 255, 255, 0.03));
+    background: var(--color-bg-secondary, rgba(var(--overlay-rgb),  0.03));
 }
 
 .weekdayCell {
@@ -72,7 +72,7 @@
 }
 
 .dayCellEmpty {
-    background: var(--color-bg-secondary, rgba(255, 255, 255, 0.015));
+    background: var(--color-bg-secondary, rgba(var(--overlay-rgb),  0.015));
 }
 
 .dayCellToday {
@@ -97,7 +97,7 @@
     overflow: hidden;
     padding: 2px 6px;
 
-    color: #93c5fd;
+    color: var(--tone-93c5fd);
     font-size: 0.68rem;
     white-space: nowrap;
     text-overflow: ellipsis;

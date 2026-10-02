@@ -22,6 +22,7 @@
  * ============================================================
  */
 
+require("../services/tenantScope"); // client-isolation plugin, before models
 const mongoose = require("mongoose");
 require("dotenv").config();
 
@@ -126,11 +127,30 @@ async function run() {
     PriceRequest.deleteMany({ company: companyId }),
   ]);
 
+  // Sales & projects
+  for (const name of ["Customer", "Quote", "SalesInvoice", "Project", "ProjectTask", "TimeEntry", "Workshop", "Finish", "ProductionSettings", "ProfileSeries", "ChassisModel", "ProductionOrder", "TrackingUnit", "DeliveryNote"]) {
+    await require(`../models/${name}`).deleteMany({ company: companyId });
+  }
+
   // Users: matched by email domain, not by company — a User
   // document has no `company` field of its own (company membership
   // is expressed the other way around, via Company.owner and
   // Employee links), so the email domain is the only safe way to
   // identify exactly the accounts seed.js created.
+  // The second demo client (Beta Trading, owned by admin-b@frame.test).
+  const ownerB = await User.findOne({ email: "admin-b@frame.test" });
+  const companyB = ownerB ? await Company.findOne({ name: "Beta Trading", owner: ownerB._id }) : null;
+  if (companyB) {
+    await Supplier.deleteMany({ company: companyB._id });
+    await AuditLog.deleteMany({ company: companyB._id });
+    await Company.findByIdAndDelete(companyB._id);
+  }
+
+  // The demo clients (tenants) of the seeded accounts — removed below
+  // once nothing belongs to them anymore.
+  const seedTenantIds = (await User.find({ email: { $regex: `${SEED_EMAIL_DOMAIN}$`, $options: "i" } }).select("tenant").lean())
+    .map((u) => u.tenant).filter(Boolean);
+
   const seededUsers = await User.find({ email: { $regex: `${SEED_EMAIL_DOMAIN}$`, $options: "i" } }).select("_id");
   const seededUserIds = seededUsers.map((u) => u._id);
 
@@ -143,6 +163,16 @@ async function run() {
   // The company itself, last — everything that referenced it is
   // already gone.
   await Company.findByIdAndDelete(companyId);
+
+  // Demo clients left with no company and no account.
+  const Tenant = require("../models/Tenant");
+  for (const tenantId of [...new Set(seedTenantIds.map(String))]) {
+    const [companiesLeft, usersLeft] = await Promise.all([
+      Company.countDocuments({ tenant: tenantId }),
+      User.countDocuments({ tenant: tenantId }),
+    ]);
+    if (!companiesLeft && !usersLeft) await Tenant.deleteOne({ _id: tenantId });
+  }
 
   console.log("\n============================================================");
   console.log("UNSEED COMPLETE:");

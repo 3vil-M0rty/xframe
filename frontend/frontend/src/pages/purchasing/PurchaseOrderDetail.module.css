@@ -18,7 +18,7 @@
   gap: 10px;
   padding: 12px 16px;
   border-bottom: 1px solid var(--color-border);
-  background: var(--color-bg-secondary, rgba(255, 255, 255, 0.02));
+  background: var(--color-bg-secondary, rgba(var(--overlay-rgb),  0.02));
 }
 .cardHeader h2 {
   display: flex;
@@ -73,8 +73,8 @@
 .kpiLabel { font-size: 0.72rem; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--color-text-tertiary); }
 .kpiValue { font-size: 1.15rem; color: var(--color-text-primary); }
 .kpiSub { font-size: 0.74rem; color: var(--color-text-secondary); }
-.kpiDue { font-size: 0.78rem; font-weight: 600; color: #f87171; }
-.kpiSettled { font-size: 0.78rem; font-weight: 600; color: #4cc38a; }
+.kpiDue { font-size: 0.78rem; font-weight: 600; color: var(--tone-f87171); }
+.kpiSettled { font-size: 0.78rem; font-weight: 600; color: var(--tone-4cc38a); }
 
 /* ---------- progress bars ---------- */
 .bar {
@@ -109,9 +109,9 @@
 }
 .kpi .badge { margin-left: 0; }
 .badgeNeutral { color: var(--color-text-secondary); border-color: var(--color-border); }
-.badgeOk { color: #4cc38a; background: rgba(76, 195, 138, 0.1); border-color: rgba(76, 195, 138, 0.3); }
-.badgeWarn { color: #e8b93f; background: rgba(232, 185, 63, 0.1); border-color: rgba(232, 185, 63, 0.3); }
-.badgeBad { color: #f87171; background: rgba(248, 113, 113, 0.1); border-color: rgba(248, 113, 113, 0.3); }
+.badgeOk { color: var(--tone-4cc38a); background: rgba(76, 195, 138, 0.1); border-color: rgba(76, 195, 138, 0.3); }
+.badgeWarn { color: var(--tone-e8b93f); background: rgba(232, 185, 63, 0.1); border-color: rgba(232, 185, 63, 0.3); }
+.badgeBad { color: var(--tone-f87171); background: rgba(248, 113, 113, 0.1); border-color: rgba(248, 113, 113, 0.3); }
 
 .alertWarn, .alertBad {
   display: flex;
@@ -122,8 +122,8 @@
   font-size: 0.82rem;
   border-radius: 10px;
 }
-.alertWarn { color: #e8b93f; background: rgba(232, 185, 63, 0.08); border: 1px solid rgba(232, 185, 63, 0.3); }
-.alertBad { color: #f87171; background: rgba(248, 113, 113, 0.08); border: 1px solid rgba(248, 113, 113, 0.3); }
+.alertWarn { color: var(--tone-e8b93f); background: rgba(232, 185, 63, 0.08); border: 1px solid rgba(232, 185, 63, 0.3); }
+.alertBad { color: var(--tone-f87171); background: rgba(248, 113, 113, 0.08); border: 1px solid rgba(248, 113, 113, 0.3); }
 
 /* ---------- lines ---------- */
 .lines { display: flex; flex-direction: column; gap: 10px; }
@@ -136,7 +136,7 @@
   border: 1px solid var(--color-border);
   border-radius: 12px;
 }
-.lineClosed { background: var(--color-bg-secondary, rgba(255, 255, 255, 0.02)); }
+.lineClosed { background: var(--color-bg-secondary, rgba(var(--overlay-rgb),  0.02)); }
 .lineMain { min-width: 0; }
 .lineTitle { display: flex; flex-wrap: wrap; align-items: center; font-size: 0.88rem; color: var(--color-text-primary); }
 .lineMeta {
@@ -151,7 +151,7 @@
 .lineReason { margin-top: 4px; font-size: 0.74rem; font-style: italic; color: var(--color-text-tertiary); }
 .lineProgress { display: flex; flex-direction: column; gap: 6px; }
 .lineCounts { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 0.76rem; color: var(--color-text-secondary); }
-.outstanding { font-weight: 600; color: #e8b93f; }
+.outstanding { font-weight: 600; color: var(--tone-e8b93f); }
 .lineActions { display: flex; gap: 6px; }
 .lineActions :global(button) { display: inline-flex; align-items: center; gap: 5px; padding: 6px 10px; font-size: 0.76rem; }
 
@@ -174,12 +174,12 @@
   justify-content: center;
   width: 25px;
   height: 25px;
-  color: #4cc38a;
+  color: var(--tone-4cc38a);
   border: 1px solid rgba(76, 195, 138, 0.4);
   border-radius: 50%;
   background: rgba(76, 195, 138, 0.1);
 }
-.dotReturn { color: #f87171; border-color: rgba(248, 113, 113, 0.4); background: rgba(248, 113, 113, 0.1); }
+.dotReturn { color: var(--tone-f87171); border-color: rgba(248, 113, 113, 0.4); background: rgba(248, 113, 113, 0.1); }
 .timelineBody { flex: 1; min-width: 0; }
 .timelineHead { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 12px; font-size: 0.84rem; }
 .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
@@ -200,22 +200,22 @@
   border-radius: 999px;
 }
 
-.creditAmount { color: #e8b93f; }
+.creditAmount { color: var(--tone-e8b93f); }
 
 @media (max-width: 800px) {
   .line { grid-template-columns: 1fr; }
 }
 
 /* invoice due date explanations */
-.dueOk { font-size: 0.74rem; color: #4cc38a; }
-.dueWarn { font-size: 0.74rem; line-height: 1.4; color: #e8b93f; }
+.dueOk { font-size: 0.74rem; color: var(--tone-4cc38a); }
+.dueWarn { font-size: 0.74rem; line-height: 1.4; color: var(--tone-e8b93f); }
 .alertAction {
   margin-left: auto;
   padding: 4px 12px;
   font-size: 0.76rem;
   font-weight: 600;
-  color: #111;
-  background: #fff;
+  color: var(--color-inverse-fg);
+  background: var(--color-inverse-bg);
   border: none;
   border-radius: 7px;
   cursor: pointer;

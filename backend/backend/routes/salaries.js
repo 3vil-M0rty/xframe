@@ -8,17 +8,22 @@ const Employee = require("../models/Employee");
 const Company = require("../models/Company");
 
 const auth = require("../middleware/auth");
+const { guard } = require("../middleware/permissionGuard");
+const { ROUTE_PERMISSIONS } = require("../config/routePermissions");
 const {
   requireHRAccess,
   requireAdmin,
 } = require("../middleware/permissionMiddleware");
-const { canAccessHRForCompany, canManageSalaries } = require("../permissions/permissions");
+const { canAccessHRForCompany } = require("../permissions/permissions");
+const { has: hasPerm } = require("../services/permissionService");
 const { findMatchingEmployeeIds } = require("../utils/employeeSearch");
 
 // Every route below the module-wide requireHRAccess check applies
 // to the whole HR module. Company-level scoping for owners (an
 // owner may only touch companies they own) is still checked
 // per-record via canAccessHRForCompany.
+// Fine-grained permissions of every endpoint: config/routePermissions.js
+router.use(auth, guard(ROUTE_PERMISSIONS.salaries));
 router.use(auth, requireHRAccess);
 
 const canManage = (req, company) => canAccessHRForCompany(req.user, company);
@@ -234,7 +239,7 @@ router.post("/", async (req, res) => {
       });
     }
 
-    if (!canManageSalaries(req.user)) {
+    if (!hasPerm(req.user, "hr.salaries.create")) {
       return res.status(403).json({
         success: false,
         message: "Managing salaries requires Responsable RH authority or higher",
@@ -324,7 +329,7 @@ router.put("/:id", async (req, res) => {
       });
     }
 
-    if (!canManageSalaries(req.user)) {
+    if (!hasPerm(req.user, "hr.salaries.edit")) {
       return res.status(403).json({
         success: false,
         message: "Managing salaries requires Responsable RH authority or higher",

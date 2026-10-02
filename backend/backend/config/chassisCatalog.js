@@ -1236,35 +1236,36 @@ const TEMPLATES = [
 // Companies edit this per model (e.g. deliver a curtain wall module by
 // module, a sliding window frame first then the sashes).
 // ------------------------------------------------------------------
-const part = (key, label, kind, qty = "1", condition = "") => ({ key, label, kind, qty, condition });
-const GLASS = (qty) => part("vitrages", "Vitrages", "glass", qty, "vitrage");
+const part = (key, label, kind, qty = "1", condition = "", pieceLabel = "", width = "", height = "") => ({ key, label, kind, qty, condition, perPiece: !!pieceLabel, pieceLabel, width, height });
+// Glass and sashes are tracked one by one ("Vitrage 1", "Vantail 2"…), with their own size.
+const GLASS = (qty, w = "gw", h = "gh") => part("vitrages", "Vitrages", "glass", qty, "vitrage", "Vitrage", w, h);
 const DELIVERY_PARTS = {
   sliding: (t) => [
     part("dormant", "Dormant (cadre)", "frame"),
-    part("vantaux", "Vantaux", "sash", t.parameters.some((p) => p.key === "n") ? "n" : "2"),
+    part("vantaux", "Vantaux", "sash", t.parameters.some((p) => p.key === "n") ? "n" : "2", "", "Vantail", "wv", "hv"),
     ...(t.parameters.some((p) => p.key === "vitrage") ? [GLASS(t.parameters.some((p) => p.key === "n") ? "n" : "2")] : []),
-    ...(t.parameters.some((p) => p.key === "ms") ? [part("moustiquaire", "Moustiquaire", "screen", "1", "ms")] : []),
+    ...(t.parameters.some((p) => p.key === "ms") ? [part("moustiquaire", "Moustiquaire", "screen", "1", "ms", "", "wv", "hv")] : []),
   ],
   casement: () => [part("chassis", "Châssis (dormant + ouvrants)", "complete"), GLASS("n")],
   fixed: () => [part("cadre", "Cadre", "frame"), GLASS("1")],
 };
 const DELIVERY_BY_KEY = {
   fixe_meneaux: [part("cadre", "Cadre + meneaux", "frame"), GLASS("nx*ny")],
-  porte_1v: [part("porte", "Porte (dormant + ouvrant)", "complete"), part("vitrages", "Vitrages", "glass", "n", "rempl != 1"), part("panneaux", "Panneaux de remplissage", "panel", "n", "rempl != 0")],
-  porte_2v: [part("porte", "Porte (dormant + ouvrants)", "complete"), part("vitrages", "Vitrages", "glass", "n", "rempl != 1"), part("panneaux", "Panneaux de remplissage", "panel", "n", "rempl != 0")],
+  porte_1v: [part("porte", "Porte (dormant + ouvrant)", "complete"), part("vitrages", "Vitrages", "glass", "n", "rempl != 1", "Vitrage", "iw", "hg"), part("panneaux", "Panneaux de remplissage", "panel", "n", "rempl != 0", "Panneau", "iw", "hb")],
+  porte_2v: [part("porte", "Porte (dormant + ouvrants)", "complete"), part("vitrages", "Vitrages", "glass", "n", "rempl != 1", "Vitrage", "iw", "hg"), part("panneaux", "Panneaux de remplissage", "panel", "n", "rempl != 0", "Panneau", "iw", "hb")],
   porte_entree_pleine: [part("porte", "Porte complète", "complete")],
   porte_va_et_vient: [part("porte", "Porte (dormant + vantaux)", "complete"), part("pivots", "Pivots de sol", "accessory"), GLASS("n")],
-  porte_pliante: [part("rails", "Rails + dormant", "frame"), part("vantaux", "Vantaux", "sash", "n"), GLASS("n")],
+  porte_pliante: [part("rails", "Rails + dormant", "frame"), part("vantaux", "Vantaux", "sash", "n", "", "Vantail", "wo", "ho"), GLASS("n")],
   porte_service_tolee: [part("porte", "Porte complète", "complete")],
   porte_garage_basculante: [part("porte", "Porte + cadre", "complete"), part("mecanisme", "Kit de basculement / moteur", "accessory")],
-  porte_auto_coulissante: [part("caisson", "Caisson opérateur", "frame"), part("vantaux", "Vantaux", "sash", "4"), GLASS("4")],
-  mur_rideau: [part("ossature", "Ossature (montants + traverses)", "frame"), part("modules", "Modules vitrés", "module", "nx*ny", "vitrage"), part("capots", "Capots, presseurs & finitions", "accessory")],
+  porte_auto_coulissante: [part("caisson", "Caisson opérateur", "frame"), part("vantaux", "Vantaux", "sash", "4", "", "Vantail", "wo", "ho"), GLASS("4")],
+  mur_rideau: [part("ossature", "Ossature (montants + traverses)", "frame"), part("modules", "Modules vitrés", "module", "nx*ny", "vitrage", "", "gw", "gh"), part("capots", "Capots, presseurs & finitions", "accessory")],
   verriere: [part("cadre", "Cadre + petits bois", "frame"), GLASS("nx*ny")],
   verriere_toiture: [part("structure", "Chevrons + pannes", "frame"), GLASS("nx")],
   cloison_vitree: [part("rails", "Rails + profils", "frame"), GLASS("nv")],
   vitrine: [part("porte", "Porte", "complete"), part("fixes", "Fixes latéraux", "complete", "2")],
   volet_roulant: [part("coffre", "Coffre + coulisses", "frame"), part("tablier", "Tablier", "sash"), part("manoeuvre", "Moteur / manœuvre", "accessory", "1", "man >= 2")],
-  persienne: [part("vantaux", "Vantaux", "sash", "n")],
+  persienne: [part("vantaux", "Vantaux", "sash", "n", "", "Vantail", "wo", "ho")],
   jalousie: [part("cadre", "Cadre + mécanisme", "frame"), part("lames", "Lames de verre", "glass")],
   moustiquaire_fixe: [part("moustiquaire", "Moustiquaire", "complete")],
   moustiquaire_enroulable: [part("moustiquaire", "Moustiquaire", "complete")],
@@ -1273,7 +1274,7 @@ const DELIVERY_BY_KEY = {
   pergola_bioclimatique: [part("structure", "Poteaux + poutres", "frame"), part("lames", "Lames orientables", "sash"), part("moteur", "Motorisation", "accessory", "1", "mot")],
   brise_soleil: [part("supports", "Supports", "frame"), part("lames", "Lames", "sash")],
   habillage_composite: [part("ossature", "Ossature", "frame"), part("panneaux", "Panneaux", "panel")],
-  marquise: [part("structure", "Profil mural + consoles", "frame"), GLASS("1")],
+  marquise: [part("structure", "Profil mural + consoles", "frame"), GLASS("1", "L", "H")],
 };
 for (const t of TEMPLATES) {
   if (t.deliveryParts) continue;
@@ -1294,4 +1295,25 @@ function findTemplate(key) {
   return TEMPLATES.find((t) => t.key === key) || null;
 }
 
-module.exports = { FAMILIES, TEMPLATES, DEFAULT_MEASURE, findTemplate };
+// ------------------------------------------------------------------
+// Couvre-joint = ailette externe of the frame profile (article geometry,
+// variable `ae`, see services/chassisBom.js). Sizes are entered "en
+// tableau"; each frame (dormant) piece is cut + the ailette externe at
+// every mitred end — dormant coulissant with a 25 mm couvre-joint,
+// opening 1000 → 1050 cut 45/45 ; door jamb 45/90 → + 25 only ; square
+// ends (seuil) → nothing. A profile without ailette externe adds 0.
+// ------------------------------------------------------------------
+const FRAME_ROLES = /^(dormant_|rail_haut$|rail_bas$)/;
+function withCoverJoint(component) {
+  if (component.kind !== "profile" || !FRAME_ROLES.test(component.role || "")) return component;
+  let len = String(component.length || "").trim();
+  if (!len || /\bae\b/.test(len)) return component;
+  // Earlier versions used a series variable `cj`: switch it to the profile's ailette.
+  len = len.replace(/\s*\+\s*2\s*\*\s*cj\b|\s*\+\s*cj\b/g, "").trim();
+  const mitres = String(component.angle || "90/90").split("/").filter((a) => Number(a) !== 90).length;
+  if (!mitres) return { ...component, length: len };
+  return { ...component, length: `${/^[A-Za-z_][A-Za-z0-9_]*$/.test(len) ? len : `(${len})`} + ${mitres === 1 ? "ae" : "2*ae"}` };
+}
+for (const t of TEMPLATES) t.components = (t.components || []).map(withCoverJoint);
+
+module.exports = { FAMILIES, TEMPLATES, DEFAULT_MEASURE, findTemplate, withCoverJoint };

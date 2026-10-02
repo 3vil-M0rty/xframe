@@ -9,7 +9,7 @@
     margin-bottom: 14px;
     padding: 10px 14px;
     font-size: 0.82rem;
-    color: #4cc38a;
+    color: var(--tone-4cc38a);
     background: rgba(76, 195, 138, 0.08);
     border: 1px solid rgba(76, 195, 138, 0.25);
     border-radius: 8px;

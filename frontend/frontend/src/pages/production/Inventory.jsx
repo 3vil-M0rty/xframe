@@ -1,6 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import ProductTechFields, { techToForm, techFromForm } from "./ProductTechFields";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Boxes, Plus, Minus, Edit, Trash2, X, Search,
   AlertTriangle, ShoppingCart, BriefcaseBusiness, Package, Languages, Ruler, History, Tags,
@@ -105,6 +105,23 @@ export default function Inventory({ readOnly = false }) {
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebouncedValue(search, 350);
   const [categoryFilter, setCategoryFilter] = useState("");
+  // Cascading filter: one select per level — the top-level categories, then
+  // the sub-categories of the one picked, and so on. `parent` = what the
+  // filter falls back to when "all" is chosen at that level.
+  const categoryLevels = useMemo(() => {
+    const selected = categories.find((c) => c._id === categoryFilter);
+    const path = selected ? [...(selected.path || []), selected._id] : [];
+    const childrenOf = (id) => categories
+      .filter((c) => String(c.parent || "") === String(id || "") && (id ? true : !c.depth))
+      .map((c) => ({ value: c._id, label: c.name }));
+    const levels = [{ value: path[0] || "", parent: "", options: childrenOf(null) }];
+    for (let i = 0; i < path.length; i += 1) {
+      const options = childrenOf(path[i]);
+      if (!options.length) break;
+      levels.push({ value: path[i + 1] || "", parent: path[i], options });
+    }
+    return levels;
+  }, [categories, categoryFilter]);
   const [lowStockOnly, setLowStockOnly] = useState(false);
   const [asOfDate, setAsOfDate] = useState("");
   const [page, setPage] = useState(1);
@@ -483,13 +500,16 @@ export default function Inventory({ readOnly = false }) {
           )}
         </div>
 
-        <div className="filterGroup">
-          <label>{t("inventory.fields.category")}</label>
-          <CustomSelect value={categoryFilter} onSelect={setCategoryFilter} options={[
-            { value: "", label: t("absences.filters.allTypes") },
-            ...categoryOptions,
-          ]} />
-        </div>
+        {/* Category first, then its sub-categories level by level (not the whole tree at once). */}
+        {categoryLevels.map((level, i) => (
+          <div className="filterGroup" key={`cat-level-${i}`}>
+            <label>{i === 0 ? t("inventory.fields.category") : i === 1 ? t("cv.subCategory") : `${t("cv.subCategory")} (${i})`}</label>
+            <CustomSelect value={level.value} onSelect={(v) => setCategoryFilter(v || level.parent || "")} options={[
+              { value: "", label: i === 0 ? t("cv.allCategories") : t("cv.allSubCategories") },
+              ...level.options,
+            ]} />
+          </div>
+        ))}
 
         {/* One date, not a range: stock is shown AS OF this day. (This
             used to reuse the from/to range component with both ends

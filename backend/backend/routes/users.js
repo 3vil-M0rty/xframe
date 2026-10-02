@@ -1,4 +1,5 @@
 const express = require("express");
+const { listOf } = require("../services/permissionService");
 const router = express.Router();
 
 const User = require("../models/User");
@@ -33,7 +34,15 @@ router.get("/me", auth, async (req, res) => {
     // "My department" page to department managers.
     res.json({
       success: true,
-      data: { ...user.toObject(), managedDepartments: req.user.managedDepartments || [] },
+      data: {
+        ...user.toObject(),
+        managedDepartments: req.user.managedDepartments || [],
+        workshops: req.user.workshops || [],
+        managedWorkshops: req.user.managedWorkshops || [],
+        // Effective fine-grained permissions (config/permissionCatalog.js) — the
+        // frontend shows / hides pages and buttons from this list.
+        permissions: listOf(req.user),
+      },
     });
   } catch (error) {
     res.status(500).json({
@@ -191,9 +200,11 @@ router.post("/", auth, async (req, res) => {
     // Check if email already exists
     // --------------------------------------------------------
 
+    // Emails are unique across the whole platform (every client), so
+    // this check deliberately looks outside the caller's client.
     const existingUser = await User.findOne({
       email: email.toLowerCase(),
-    });
+    }).setOptions({ skipTenantScope: true });
 
     if (existingUser) {
       return res.status(400).json({
@@ -214,6 +225,7 @@ router.post("/", auth, async (req, res) => {
       status: status || "active",
       department,
       hrRole: department === "hr" ? hrRole || undefined : undefined,
+      showFinancials: [ROLES.ADMIN, ROLES.OWNER].includes(req.user.role) && req.body.showFinancials === true,
     });
 
     // --------------------------------------------------------
@@ -236,7 +248,7 @@ router.post("/", auth, async (req, res) => {
   } catch (error) {
     console.error("Create user error:", error);
 
-    res.status(500).json({
+    res.status(error.status || 500).json({
       message: "Error creating user",
       error: error.message,
     });
@@ -313,6 +325,8 @@ router.put("/:id", auth, async (req, res) => {
     } = req.body;
 
     let { role, status, department, hrRole } = req.body;
+    // "Voir les montants" (prices, costs, margins) — admins and owners decide.
+    let showFinancials = req.body.showFinancials === undefined ? target.showFinancials === true : req.body.showFinancials === true;
 
     // --------------------------------------------------------
     // Only admin/owner may change role/department/status/hrRole.
@@ -326,6 +340,7 @@ router.put("/:id", auth, async (req, res) => {
       status = target.status;
       department = target.department;
       hrRole = target.hrRole;
+      showFinancials = target.showFinancials === true;
     }
 
     // --------------------------------------------------------
@@ -362,6 +377,15 @@ router.put("/:id", auth, async (req, res) => {
       });
     }
 
+    // Emails are unique across the whole platform (every client).
+    const emailTaken = await User.findOne({
+      email: email.toLowerCase(),
+      _id: { $ne: req.params.id },
+    }).setOptions({ skipTenantScope: true }).select("_id").lean();
+    if (emailTaken) {
+      return res.status(400).json({ message: "A user with this email already exists" });
+    }
+
     // --------------------------------------------------------
     // Update user
     // --------------------------------------------------------
@@ -376,6 +400,7 @@ router.put("/:id", auth, async (req, res) => {
         status,
         department,
         hrRole: department === "hr" ? hrRole || undefined : undefined,
+        showFinancials,
         updatedAt: Date.now(),
       },
       {
@@ -383,6 +408,10 @@ router.put("/:id", auth, async (req, res) => {
         runValidators: true,
       }
     ).select("-password");
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
 
     res.json({
       success: true,
@@ -392,7 +421,7 @@ router.put("/:id", auth, async (req, res) => {
   } catch (error) {
     console.error("Update user error:", error);
 
-    res.status(500).json({
+    res.status(error.status || 500).json({
       message: "Error updating user",
       error: error.message,
     });

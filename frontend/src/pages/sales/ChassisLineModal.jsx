@@ -17,7 +17,7 @@ import prod from "../production/Production.module.css";
  */
 export default function ChassisLineModal({ companyId, line, onClose, onSave }) {
   const { t } = useI18n();
-  const { models, finishes, articles, families, loading } = useChassisData(companyId);
+  const { models, finishes, articles, families, glassTypes, loading } = useChassisData(companyId);
   const [spec, setSpec] = useState(() => (line?.chassis
     ? { ...line.chassis, quantity: line.quantity, model: line.chassis.model?._id || line.chassis.model, finish: line.chassis.finish?._id || line.chassis.finish || "" }
     : { model: "", ref: "", L: 1200, H: 1000, quantity: 1, finish: "", params: {} }));
@@ -85,7 +85,7 @@ export default function ChassisLineModal({ companyId, line, onClose, onSave }) {
       <div className={prod.modalWide}>
         <h3>{line ? t("prod.editChassisLine") : t("prod.addChassisLine")}</h3>
         {!loading && models.length === 0 && <div className={purch.infoBanner}>{t("prod.noModels")}</div>}
-        <ChassisConfigurator value={spec} onChange={setSpec} models={models} finishes={finishes} articles={articles} families={families} />
+        <ChassisConfigurator value={spec} onChange={setSpec} models={models} finishes={finishes} articles={articles} families={families} glassTypes={glassTypes} />
 
         <div className={prod.priceBox}>
           {busy && <span className={purch.muted}>{t("prod.pricing")}…</span>}

@@ -9,6 +9,7 @@ import {
   getPermissionCatalog, getTeamPermissions, getUserPermissions, saveUserPermissions, resetUserPermissions,
 } from "../../services/permissionService";
 import styles from "./TeamPermissions.module.css";
+import { useDialog } from "../../components/useful/DialogProvider";
 
 /**
  * Permissions of the people under me (everyone, for admins / owners).
@@ -21,6 +22,7 @@ import styles from "./TeamPermissions.module.css";
 const label = (obj, language) => (obj ? obj[language === "fr" || language === "ar" ? "fr" : "en"] || obj.fr : "");
 
 export default function TeamPermissions() {
+  const dialog = useDialog();
   const { t, language } = useI18n();
   const { companyId, setCompanyId, options: companyOptions } = useCompanyPicker();
   const [catalog, setCatalog] = useState(null);
@@ -103,7 +105,7 @@ export default function TeamPermissions() {
     } catch (err) { setError(err.response?.data?.message || t("perm.errors.save")); } finally { setBusy(false); }
   };
   const reset = async () => {
-    if (!window.confirm(t("perm.resetConfirm"))) return;
+    if (!(await dialog.confirm(t("perm.resetConfirm")))) return;
     setBusy(true); setError(""); setNotice("");
     try {
       const s = await resetUserPermissions(selected.user._id);

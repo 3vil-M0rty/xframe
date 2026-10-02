@@ -1,6 +1,7 @@
 // ======================================================
 // i18n Configuration
 // ======================================================
+import { mergeExtraTranslations } from "./i18n.extra.js";
 
 export const translations = {
   // ======================================================
@@ -8898,3 +8899,6 @@ export const getDefaultLanguage = () => {
 
   return "en";
 };
+
+// Débit, vitrages, category tree — see i18n.extra.js
+mergeExtraTranslations(translations);

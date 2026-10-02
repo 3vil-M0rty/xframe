@@ -1,0 +1,73 @@
+.card {
+  max-width: 480px;
+  padding: 1.1rem 1.25rem;
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 0.5rem;
+}
+
+.header h3 {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.hint {
+  margin: 0 0 0.8rem;
+  color: var(--color-text-secondary);
+  font-size: 0.82rem;
+  line-height: 1.5;
+}
+
+.segment {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 4px;
+  background: var(--color-bg-tertiary);
+  border-radius: 9px;
+}
+
+.option {
+  display: inline-flex;
+  flex: 1 1 auto;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 7px 10px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  background: transparent;
+  border: none;
+  border-radius: 7px;
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.option small {
+  color: var(--color-text-muted);
+  font-size: 0.72rem;
+}
+
+.option:hover {
+  color: var(--color-text-primary);
+}
+
+.optionActive {
+  color: var(--color-inverse-fg);
+  background: var(--color-inverse-bg);
+  font-weight: 600;
+}
+
+.optionActive small {
+  color: inherit;
+  opacity: 0.7;
+}

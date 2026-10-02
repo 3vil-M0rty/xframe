@@ -96,14 +96,23 @@ module.exports = {
   // this is a standard allowance, not something the employee has
   // to justify with receipts.
   // ----------------------------------------------------------
+  // Since the 2023 Loi de Finances (CGI art. 59-I), computed on the
+  // GROSS taxable salary (salaire brut imposable), before social
+  // contributions:
+  //   - 35% when the annual gross taxable salary ≤ 78,000 MAD
+  //     (6,500 MAD/month);
+  //   - 25% above, capped at 35,000 MAD/year (2,916.67 MAD/month).
+  // (It was a flat 20% capped at 30,000 MAD/year before 2023.)
   PROFESSIONAL_EXPENSES: {
-    RATE: 0.2, // 20% — the long-standing general rate for most professions
-    MONTHLY_CAP: 2500, // MAD (30,000 MAD/year)
+    ANNUAL_THRESHOLD: 78000, // MAD
+    RATE_UP_TO_THRESHOLD: 0.35,
+    RATE_ABOVE_THRESHOLD: 0.25,
+    ANNUAL_CAP_ABOVE_THRESHOLD: 35000, // MAD
   },
 
   // ----------------------------------------------------------
   // IR (Impôt sur le Revenu) — progressive ANNUAL brackets,
-  // reformed by the 2023 Loi de Finances (effective January 2024):
+  // reformed by the 2025 Loi de Finances (effective January 2025):
   // the 0%-threshold rose from 30,000 to 40,000 MAD/year and the
   // top rate dropped from 38% to 37%.
   //
@@ -131,9 +140,11 @@ module.exports = {
   // taxable base) per dependent (spouse + each child), up to a
   // maximum number of dependents.
   // ----------------------------------------------------------
+  // Loi de Finances 2025: 500 MAD/year per dependent (was 360),
+  // at most 6 dependents → 3,000 MAD/year.
   FAMILY_DEDUCTION: {
-    PER_DEPENDENT_MONTHLY: 30, // MAD, subtracted from IR owed
-    MAX_DEPENDENTS: 6, // i.e. a maximum of 180 MAD/month
+    PER_DEPENDENT_ANNUAL: 500, // MAD, subtracted from IR owed
+    MAX_DEPENDENTS: 6,
   },
 
   // ----------------------------------------------------------

@@ -10,15 +10,20 @@ const InventoryCategory = require("../models/InventoryCategory");
 const Company = require("../models/Company");
 
 const auth = require("../middleware/auth");
+const { guard } = require("../middleware/permissionGuard");
+const { ROUTE_PERMISSIONS } = require("../config/routePermissions");
 const upload = require("../middleware/uploadMiddleware");
 const { requireProductionAccess, requireInventoryViewAccess } = require("../middleware/permissionMiddleware");
 const { canAccessProduction } = require("../permissions/permissions");
 const { uploadImage, deleteImage } = require("../services/cloudinaryService");
 const { logAudit } = require("../services/auditLogger");
 const { attachTranslationRoutes } = require("../utils/translationRoutes");
+const { withDescendants } = require("../services/categoryTree");
 
 // Reading is shared with the purchasing team (they look articles up
 // and follow purchase history); every change stays production-only.
+// Fine-grained permissions of every endpoint: config/routePermissions.js
+router.use(auth, guard(ROUTE_PERMISSIONS.products));
 router.use(auth);
 
 // applyMovement lives in services/inventoryService.js so purchase
@@ -47,7 +52,13 @@ router.get("/", requireInventoryViewAccess, async (req, res) => {
 
     const filter = { company: new mongoose.Types.ObjectId(companyId) };
 
-    if (category) filter.category = new mongoose.Types.ObjectId(category);
+    // A category includes its sub-categories ("Profilés aluminium" shows
+    // the articles of every series under it).
+    if (category) {
+      if (!mongoose.Types.ObjectId.isValid(category)) return res.status(400).json({ success: false, message: "Invalid category" });
+      const ids = await withDescendants(companyId, category);
+      filter.category = { $in: (ids.length ? ids : [category]).map((id) => new mongoose.Types.ObjectId(id)) };
+    }
 
     if (search) {
       const regex = new RegExp(search.trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i");
@@ -237,6 +248,23 @@ router.get("/:id/movements", requireInventoryViewAccess, async (req, res) => {
   }
 });
 
+
+// Technical fields for the aluminium catalogue (see models/Product.js).
+const TECH_NUMBERS = ["barLength", "profileChamber", "profileOuterFin", "profileInnerFin", "profileHeight", "profileWidth", "sheetWidth", "sheetHeight", "packSize", "weightPerMeter", "perimeter", "paintSurface", "powderPerUnit", "coverage", "thickness", "standardCost"];
+const MATERIAL_TYPES = ["profile", "powder", "glass", "accessory", "gasket", "panel", "consumable", "other"];
+const STOCK_MODES = ["unit", "bar", "meter", "m2", "sheet", "kg"];
+function technicalFields(body) {
+  const out = {};
+  if (body.materialType !== undefined) out.materialType = MATERIAL_TYPES.includes(body.materialType) ? body.materialType : null;
+  if (body.stockMode !== undefined) out.stockMode = STOCK_MODES.includes(body.stockMode) ? body.stockMode : "unit";
+  for (const k of TECH_NUMBERS) {
+    if (body[k] === undefined) continue;
+    const v = body[k] === "" || body[k] === null ? null : Number(body[k]);
+    out[k] = Number.isFinite(v) && v >= 0 ? v : null;
+  }
+  return out;
+}
+
 // ======================================================
 // CREATE PRODUCT
 // POST /api/products
@@ -294,6 +322,7 @@ router.post("/", requireProductionAccess, async (req, res) => {
       sellingPrice: sellingPrice || null,
       currency: currency || "MAD",
       notes,
+      ...technicalFields(req.body),
       createdBy: req.user.id,
       updatedBy: req.user.id,
     });
@@ -367,6 +396,7 @@ router.put("/:id", requireProductionAccess, async (req, res) => {
     if (currency !== undefined) product.currency = currency;
     if (notes !== undefined) product.notes = notes;
     if (isActive !== undefined) product.isActive = isActive;
+    Object.assign(product, technicalFields(req.body));
 
     product.updatedBy = req.user.id;
     await product.save();

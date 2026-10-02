@@ -33,9 +33,19 @@ const userSchema = new mongoose.Schema(
       select: false
     },
 
+    // The client (tenant) this account belongs to. null only for
+    // platform_admin accounts (the platform operator), which belong
+    // to no client. See services/tenantScope.js.
+    tenant: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Tenant',
+      default: null,
+      index: true
+    },
+
     role: {
       type: String,
-      enum: ['admin', 'owner', 'user'],
+      enum: ['admin', 'owner', 'user', 'platform_admin'],
       default: 'user'
     },
 
@@ -73,6 +83,18 @@ const userSchema = new mongoose.Schema(
       ],
       default: "administration"
     },
+
+    // Shows prices, costs, margins and budgets to a login whose
+    // department doesn't see them by default (production, workshops,
+    // logistics…) — see canSeeFinancials in permissions/permissions.js.
+    showFinancials: { type: Boolean, default: false },
+
+    // Fine-grained permissions (config/permissionCatalog.js). "role" =
+    // the department / HR-level default profile; "custom" = exactly the
+    // keys below, set by the person's manager or an admin from the
+    // Permissions page (services/permissionService.js).
+    permissionsMode: { type: String, enum: ["role", "custom"], default: "role" },
+    permissions: { type: [String], default: [] },
 
     // =========================================================
     // HR JOB HIERARCHY (only meaningful when department === "hr")
@@ -173,5 +195,24 @@ userSchema.index({ lastName: 1, firstName: 1 });
 // Supports self-service lookups ("find the User account linked to
 // this Employee") and manager-approval routing.
 userSchema.index({ employee: 1 });
+
+// A client's admin can never create or promote a platform operator
+// account — platform_admin only exists outside every client.
+function refusePlatformRole(role) {
+  const ctx = require('../services/tenantScope').current();
+  if (role === 'platform_admin' && ctx && ctx.kind === 'tenant') {
+    const err = new Error('Invalid role');
+    err.status = 403;
+    throw err;
+  }
+}
+userSchema.pre('validate', function () {
+  if (this.isModified('role')) refusePlatformRole(this.role);
+});
+userSchema.pre(['findOneAndUpdate', 'updateOne', 'updateMany'], function () {
+  const u = this.getUpdate() || {};
+  refusePlatformRole(u.role);
+  refusePlatformRole(u.$set && u.$set.role);
+});
 
 module.exports = mongoose.model('User', userSchema);

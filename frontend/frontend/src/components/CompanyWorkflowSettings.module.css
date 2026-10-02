@@ -48,7 +48,7 @@
 
 .error {
     margin: 10px 0 0;
-    color: #fca5a5;
+    color: var(--tone-fca5a5);
     font-size: 0.78rem;
 }
 
@@ -66,4 +66,4 @@
     padding: 6px 8px;
     text-align: right;
 }
-.saved { color: #4cc38a; font-weight: 700; }
+.saved { color: var(--tone-4cc38a); font-weight: 700; }

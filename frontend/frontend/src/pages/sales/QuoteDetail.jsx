@@ -12,6 +12,7 @@ import {
   getQuote, setQuoteStatus, duplicateQuote, deleteQuote, emailQuote, downloadQuotePdf, quoteToProject, quoteDeposit, quoteFinalInvoice,
 } from "../../services/salesService";
 import { getProjectPeople } from "../../services/projectService";
+import WorkflowSteps, { quoteSteps } from "../../components/workflow/WorkflowSteps";
 import { formatMoney, formatDate, SALES_PILL, lineHT, salesTotals } from "./salesShared";
 import styles from "../purchasing/Purchasing.module.css";
 import SalesLineCell from "./SalesLineCell";
@@ -90,7 +91,7 @@ export default function QuoteDetail() {
           <div className="pageTitleRow">
             <FileSignature size={20} />
             <h1>{t("sales.quotes.one")} {quote.number}</h1>
-            <StatusPill status={SALES_PILL[quote.status]} label={t(`sales.quoteStatus.${quote.status}`)} />
+            <StatusPill status={SALES_PILL[quote.status]} label={quote.status === "accepted" && quote.project ? t("flow.launchedPill") : t(`sales.quoteStatus.${quote.status}`)} />
           </div>
           <p className="pageSubtitle">{quote.customer?.name}{quote.subject ? ` — ${quote.subject}` : ""}</p>
         </div>
@@ -106,6 +107,8 @@ export default function QuoteDetail() {
       {error && <div className="errorMessage">{error}</div>}
       {notice && <div className={styles.infoBanner}>{notice}</div>}
 
+      {quote.status !== "cancelled" && quote.status !== "refused" && <WorkflowSteps steps={quoteSteps(quote, t, navigate)} />}
+
       <div className={s.statusBar}>
         {["draft", "sent", "expired"].includes(quote.status) && can("sales.quotes.send") && (
           <button type="button" className="btnPrimary" onClick={() => openModal("email")}><Send size={15} /> {t("sales.quotes.sendEmail")}</button>
@@ -118,7 +121,7 @@ export default function QuoteDetail() {
           </>
         )}
         {quote.status === "accepted" && !quote.project && can("sales.quotes.toProject") && (
-          <button type="button" className="btnPrimary" onClick={() => openModal("project")}><FolderKanban size={15} /> {t("sales.quotes.toProject")}</button>
+          <button type="button" className="btnPrimary" onClick={() => openModal("project")}><FolderKanban size={15} /> {t("flow.launchProject")}</button>
         )}
         {quote.status === "accepted" && !hasFinal && can("sales.quotes.invoice") && (
           <>
@@ -220,7 +223,7 @@ export default function QuoteDetail() {
       {modal === "project" && (
         <div className={styles.modalOverlay}>
           <div className={styles.modalCard}>
-            <h3>{t("sales.quotes.toProject")}</h3>
+            <h3>{t("flow.launchProject")}</h3>
             <p className={s.muted}>{t("sales.quotes.toProjectHint").replace("{amount}", formatMoney(quote.totalHT))}</p>
             <label className={styles.field}>{t("projects.name")}<input className={styles.input} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></label>
             <div className={styles.formGrid}>
@@ -236,7 +239,7 @@ export default function QuoteDetail() {
               <button type="button" className="btnPrimary" disabled={busy} onClick={async () => {
                 const p = await run(() => quoteToProject(id, form));
                 if (p) navigate(`/production/projects/${p._id}`);
-              }}><FolderKanban size={14} /> {t("sales.quotes.createProject")}</button>
+              }}><FolderKanban size={14} /> {t("flow.launchProject")}</button>
             </div>
           </div>
         </div>

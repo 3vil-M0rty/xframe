@@ -15,6 +15,7 @@ import { useCompanyPicker, formatDate, toInputDate, fmtQty, NOTE_PILL, STAGE_COL
 import purch from "../purchasing/Purchasing.module.css";
 import s from "../sales/Sales.module.css";
 import styles from "./Logistics.module.css";
+import { useDialog } from "../../components/useful/DialogProvider";
 
 const emptyTransport = { mode: "own", carrier: "", vehicle: "", driver: "", driverPhone: "", trackingRef: "", cost: 0 };
 
@@ -26,6 +27,7 @@ const emptyTransport = { mode: "own", carrier: "", vehicle: "", driver: "", driv
  * can carry frames only, sashes + glass, some curtain-wall modules…
  */
 export default function DeliveryNoteForm() {
+  const dialog = useDialog();
   const can = useCan();
   const { id } = useParams();
   const isNew = !id || id === "new";
@@ -136,8 +138,8 @@ export default function DeliveryNoteForm() {
           {(isNew || note?.status === "draft") && can(isNew ? "logistics.notes.create" : "logistics.notes.ship") && <button type="button" className="btnPrimary" disabled={busy || !form.project || !lines.length} onClick={() => save("planned")}><CalendarCheck size={15} /> {t("logi.notes.plan")}</button>}
           {note && ["draft", "planned"].includes(note.status) && can("logistics.notes.ship") && <button type="button" className="btnEdit" disabled={busy} onClick={() => status("shipped")}><Send size={15} /> {t("logi.notes.ship")}</button>}
           {note && ["draft", "planned", "shipped"].includes(note.status) && can("logistics.notes.deliver") && <button type="button" className="btnPrimary" disabled={busy} onClick={() => setDeliverDialog({ receivedBy: form.siteContact || "", reserves: "", deliveredAt: toInputDate(new Date()) })}><CheckCircle2 size={15} /> {t("logi.notes.deliver")}</button>}
-          {note && note.status !== "cancelled" && can("logistics.notes.cancel") && <button type="button" className="btnCancel" disabled={busy} onClick={() => { const reason = window.prompt(t(note.status === "delivered" ? "logi.notes.returnPrompt" : "logi.notes.cancelPrompt")); if (reason !== null) status("cancelled", { reason }); }}><XCircle size={15} /> {note.status === "delivered" ? t("logi.notes.return") : t("common.cancel")}</button>}
-          {note?.status === "draft" && can("logistics.notes.delete") && <button type="button" className="btnDelete" disabled={busy} onClick={async () => { if (window.confirm(t("logi.notes.deleteConfirm")) && (await run(() => deleteDeliveryNote(id)))) navigate("/logistics/delivery-notes"); }}><Trash2 size={15} /></button>}
+          {note && note.status !== "cancelled" && can("logistics.notes.cancel") && <button type="button" className="btnCancel" disabled={busy} onClick={async () => { const reason = await dialog.prompt({ message: t(note.status === "delivered" ? "logi.notes.returnPrompt" : "logi.notes.cancelPrompt"), multiline: true }); if (reason !== null) status("cancelled", { reason }); }}><XCircle size={15} /> {note.status === "delivered" ? t("logi.notes.return") : t("common.cancel")}</button>}
+          {note?.status === "draft" && can("logistics.notes.delete") && <button type="button" className="btnDelete" disabled={busy} onClick={async () => { if ((await dialog.confirm(t("logi.notes.deleteConfirm"))) && (await run(() => deleteDeliveryNote(id)))) navigate("/logistics/delivery-notes"); }}><Trash2 size={15} /></button>}
         </div>
       </div>
       {error && <div className="errorMessage">{error}</div>}

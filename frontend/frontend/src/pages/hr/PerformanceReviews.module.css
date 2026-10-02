@@ -50,7 +50,7 @@
 }
 
 .avgRating {
-    color: #e8b93f;
+    color: var(--tone-e8b93f);
     font-size: 0.8rem;
     font-weight: 600;
 }

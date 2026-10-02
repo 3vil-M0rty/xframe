@@ -20,6 +20,7 @@ import { formatMoney, formatDate, todayInput, PILL, PAYMENT_METHODS, lineOutstan
 import styles from "./Purchasing.module.css";
 import d from "./PurchaseOrderDetail.module.css";
 import FileLink from "../../components/useful/FileLink";
+import { useDialog } from "../../components/useful/DialogProvider";
 
 const net = (l) => (l.receivedQuantity || 0) - (l.returnedQuantity || 0);
 const r2 = (n) => Math.round((Number(n) || 0) * 100) / 100;
@@ -75,6 +76,7 @@ function Empty({ icon, text }) {
 }
 
 export default function PurchaseOrderDetail() {
+  const dialog = useDialog();
   const { t } = useI18n();
   const navigate = useNavigate();
   const { id } = useParams();
@@ -282,7 +284,7 @@ export default function PurchaseOrderDetail() {
           {(editable || order.status === "pending_approval") && <button type="button" className="btnCancel" onClick={() => { setCancelReason(""); setCancelOpen(true); }}><Ban size={14} /> {t("purchasing.detail.cancelOrder")}</button>}
           {order.status === "draft" && (
             <button type="button" className="btnDelete" disabled={busy}
-              onClick={async () => { if (window.confirm(t("purchasing.detail.deleteConfirm"))) { try { await deleteOrder(order._id); navigate("/purchasing/orders"); } catch (err) { setError(err.response?.data?.message || t("purchasing.errors.save")); } } }}>
+              onClick={async () => { if (await dialog.confirm(t("purchasing.detail.deleteConfirm"))) { try { await deleteOrder(order._id); navigate("/purchasing/orders"); } catch (err) { setError(err.response?.data?.message || t("purchasing.errors.save")); } } }}>
               <Trash2 size={14} /> {t("common.delete")}
             </button>
           )}
@@ -623,7 +625,7 @@ export default function PurchaseOrderDetail() {
                     {row && row.status === "partially_paid" && <small className={d.muted}> {t("purchasing.summary.remaining")} : {formatMoney(row.remaining)}</small>}
                   </span>
                   <span><button type="button" className="tableActionBtn tableActionBtnDanger" title={t("common.delete")}
-                    onClick={() => window.confirm(t("purchasing.detail.deleteInvoiceConfirm")) && run(() => deleteInvoice(order._id, i._id))}><Trash2 size={13} /></button></span>
+                    onClick={async () => (await dialog.confirm(t("purchasing.detail.deleteInvoiceConfirm"))) && run(() => deleteInvoice(order._id, i._id))}><Trash2 size={13} /></button></span>
                 </div>
               );
             })}
@@ -683,7 +685,7 @@ export default function PurchaseOrderDetail() {
                 <span className="dataTableCellMuted">{p.reference || "—"}</span>
                 <span><strong>{formatMoney(p.amount)}</strong></span>
                 <span><button type="button" className="tableActionBtn tableActionBtnDanger" title={t("common.delete")}
-                  onClick={() => window.confirm(t("purchasing.detail.deletePaymentConfirm")) && run(() => deletePayment(order._id, p._id))}><Trash2 size={13} /></button></span>
+                  onClick={async () => (await dialog.confirm(t("purchasing.detail.deletePaymentConfirm"))) && run(() => deletePayment(order._id, p._id))}><Trash2 size={13} /></button></span>
               </div>
             ))}
           </div>

@@ -1,3 +1,5 @@
+// Must load before the schema is compiled — registers the client-isolation plugin.
+require("../services/tenantScope");
 const mongoose = require("mongoose");
 const translatable = require("../plugins/translatable");
 
@@ -47,10 +49,15 @@ const employeeDocumentSchema = new mongoose.Schema(
 
     label: { type: String, trim: true },
 
+    // Private files have no url (empty) — they're opened through a
+    // short-lived signed link, see routes/files.js.
     file: {
-      url: { type: String, trim: true, required: true },
+      url: { type: String, trim: true, default: "" },
       publicId: { type: String, trim: true },
       originalName: { type: String, trim: true },
+      private: { type: Boolean, default: false },
+      resourceType: { type: String, trim: true },
+      format: { type: String, trim: true },
     },
 
     issueDate: { type: Date, default: null },

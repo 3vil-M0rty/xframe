@@ -13,10 +13,12 @@ import {
 import { getCompanies } from "../../services/companyService";
 
 import styles from "./WorkSchedule.module.css";
+import { useDialog } from "../../components/useful/DialogProvider";
 
 const DAY_ORDER = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"];
 
 export default function WorkSchedule() {
+  const dialog = useDialog();
   const { t } = useI18n();
 
   const [companies, setCompanies] = useState([]);
@@ -97,7 +99,7 @@ export default function WorkSchedule() {
     try { applyList(await setDefaultWorkSchedule(selectedId), selectedId); } catch (error) { fail(error, "workSchedule.saveFailed"); }
   };
   const remove = async () => {
-    if (!window.confirm(t("wsMulti.deleteConfirm").replace("{name}", schedule?.name || ""))) return;
+    if (!(await dialog.confirm(t("wsMulti.deleteConfirm").replace("{name}", schedule?.name || "")))) return;
     try { applyList(await deleteWorkSchedule(selectedId), null); } catch (error) { fail(error, "workSchedule.saveFailed"); }
   };
   // Departments following this schedule (the default one: those without a schedule of their own).

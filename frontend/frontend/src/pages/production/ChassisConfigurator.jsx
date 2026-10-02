@@ -13,7 +13,7 @@ import styles from "./Production.module.css";
  * Controlled: `value` = { model, ref, L, H, quantity, finish, params }.
  * Used by the devis lines and by the project ouvrages.
  */
-export default function ChassisConfigurator({ value, onChange, models = [], finishes = [], articles = [], families = [], showQuantity = true, showRef = true }) {
+export default function ChassisConfigurator({ value, onChange, models = [], finishes = [], articles = [], families = [], glassTypes = [], showQuantity = true, showRef = true }) {
   const { t, language } = useI18n();
   const model = models.find((m) => String(m._id) === String(value.model));
   const set = (patch) => onChange({ ...value, ...patch });
@@ -62,6 +62,8 @@ export default function ChassisConfigurator({ value, onChange, models = [], fini
             if (p.type === "choice") return <label key={p.key} className={purch.field}>{label}<CustomSelect value={String(v ?? p.default ?? "")} onSelect={(x) => setParam(p.key, Number(x))} options={(p.options || []).map((o) => ({ value: String(o.value), label: o.label }))} /></label>;
             if (p.type === "model") {
               const opts = models.filter((m) => String(m._id) !== String(model._id) && (!p.family || m.family === p.family)).map((m) => ({ value: m._id, label: m.name }));
+              // Glass units: the company's glass compositions ("44.2 / 10 / 6"…) too.
+              if (!p.family || p.family === "vitrage") opts.push(...glassTypes.map((g) => ({ value: g._id, label: `${t("glazing.composition")} ${g.name}` })));
               return <label key={p.key} className={purch.field}>{label}<CustomSelect value={v || ""} onSelect={(x) => setParam(p.key, x)} options={[{ value: "", label: "—" }, ...opts]} placeholder={t("prod.pickModel")} /></label>;
             }
             if (p.type === "product") {

@@ -12,6 +12,7 @@ import { STAGE_COLORS, NOTE_PILL, PART_KINDS, fmtQty, formatDate } from "./logis
 import purch from "../purchasing/Purchasing.module.css";
 import s from "../sales/Sales.module.css";
 import styles from "./Logistics.module.css";
+import { useDialog } from "../../components/useful/DialogProvider";
 
 const FILTERS = ["all", "to_make", "in_production", "made", "ready", "partially_delivered", "delivered", "installed", "modified", "cancelled"];
 
@@ -43,6 +44,7 @@ export function Pipeline({ summary }) {
  * undo), create a delivery note, edit a chassis breakdown, cancel one.
  */
 export default function ProjectTracking({ projectId, onChanged }) {
+  const dialog = useDialog();
   const { t } = useI18n();
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -191,8 +193,8 @@ export default function ProjectTracking({ projectId, onChanged }) {
                         <button type="button" className="tableActionBtn" title={t("logi.history")} onClick={() => setHistoryOf(u)}><History size={14} /></button>
                         {perm.parts && !u.cancelled && <button type="button" className="tableActionBtn" title={t("logi.editParts")} onClick={() => setEditing({ unit: u, parts: u.parts.filter((p) => !p.cancelled).map((p) => ({ ...p })) })}><Scissors size={14} /></button>}
                         {perm.cancel && !u.cancelled && (
-                          <button type="button" className="tableActionBtn tableActionBtnDanger" title={t("logi.cancelUnit")} onClick={() => {
-                            const reason = window.prompt(t("logi.cancelPrompt").replace("{ref}", u.ref));
+                          <button type="button" className="tableActionBtn tableActionBtnDanger" title={t("logi.cancelUnit")} onClick={async () => {
+                            const reason = await dialog.prompt({ message: t("logi.cancelPrompt").replace("{ref}", u.ref), multiline: true });
                             if (reason !== null) run(() => cancelUnit(u._id, reason), "logi.cancelled");
                           }}><Ban size={14} /></button>
                         )}

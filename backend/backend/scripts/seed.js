@@ -23,10 +23,13 @@
  * ============================================================
  */
 
+// First: the client-isolation plugin must be registered before models load.
+const { runInTenant } = require("../services/tenantScope");
 const mongoose = require("mongoose");
 require("dotenv").config();
 const { syncEmployeeIndexes } = require("../utils/syncEmployeeIndexes");
 
+const Tenant = require("../models/Tenant");
 const User = require("../models/User");
 const Company = require("../models/Company");
 const Employee = require("../models/Employee");
@@ -51,6 +54,20 @@ const PublicHoliday = require("../models/PublicHoliday");
 const Supplier = require("../models/Supplier");
 const PurchaseOrder = require("../models/PurchaseOrder");
 const PriceRequest = require("../models/PriceRequest");
+const Customer = require("../models/Customer");
+const Quote = require("../models/Quote");
+const SalesInvoice = require("../models/SalesInvoice");
+const Project = require("../models/Project");
+const ProjectTask = require("../models/ProjectTask");
+const Workshop = require("../models/Workshop");
+const Finish = require("../models/Finish");
+const ProductionSettings = require("../models/ProductionSettings");
+const ProfileSeries = require("../models/ProfileSeries");
+const ChassisModel = require("../models/ChassisModel");
+const ProductionOrder = require("../models/ProductionOrder");
+const TrackingUnit = require("../models/TrackingUnit");
+const DeliveryNote = require("../models/DeliveryNote");
+const TimeEntry = require("../models/TimeEntry");
 const { MOROCCO_FIXED_HOLIDAYS } = require("../config/moroccoFixedHolidays");
 
 const { calculatePayslip } = require("../services/payrollCalculationService");
@@ -81,6 +98,7 @@ async function run() {
 
   console.log("Clearing existing data...");
   await Promise.all([
+    Tenant.deleteMany({}),
     User.deleteMany({}),
     Company.deleteMany({}),
     Employee.deleteMany({}),
@@ -105,12 +123,80 @@ async function run() {
     Supplier.deleteMany({}),
     PurchaseOrder.deleteMany({}),
     PriceRequest.deleteMany({}),
+    Customer.deleteMany({}),
+    Quote.deleteMany({}),
+    SalesInvoice.deleteMany({}),
+    Project.deleteMany({}),
+    ProjectTask.deleteMany({}),
+    TimeEntry.deleteMany({}),
+    Workshop.deleteMany({}),
+    Finish.deleteMany({}),
+    ProductionSettings.deleteMany({}),
+    ProfileSeries.deleteMany({}),
+    ChassisModel.deleteMany({}),
+    ProductionOrder.deleteMany({}),
+    TrackingUnit.deleteMany({}),
+    DeliveryNote.deleteMany({}),
   ]);
 
   // Rebuild the CIN/CNSS uniqueness indexes if this database still has
   // the old (broken) sparse versions — see utils/syncEmployeeIndexes.js.
   await syncEmployeeIndexes();
+  // Sub-categories: category names are unique per parent now (drops the old { company, name } index).
+  await InventoryCategory.syncIndexes().catch((e) => console.warn("  (category indexes not synced:", e.message, ")"));
 
+  // ==========================================================
+  // CLIENTS (tenants)
+  // ==========================================================
+  // The main demo client gets everything below. Everything is created
+  // INSIDE that client's context, so users/companies/records are
+  // attached to it automatically (services/tenantScope.js). A second,
+  // tiny client proves isolation: log in as admin-b@frame.test and
+  // none of Atlas Industries' data is visible.
+  const tenant = await Tenant.create({ name: "Atlas Group (démo)" });
+  await runInTenant({ tenantId: tenant._id, companyIds: [] }, () => seedMainClient());
+
+  const tenantB = await Tenant.create({ name: "Beta Trading (démo client B)" });
+  await runInTenant({ tenantId: tenantB._id, companyIds: [] }, () => seedSecondClient());
+
+  console.log("  Logistics      logistique@frame.test   / Logistique@123 (Responsable logistique — hands out permissions to his team)");
+  console.log("  Driver         chauffeur@frame.test    / Chauffeur@123  (Said — only delivery notes: view / ship / deliver; can pass some on to Omar)");
+  console.log("  Driver helper  aide-livreur@frame.test / AideLivreur@123 (Omar — sees delivery notes only)");
+  console.log("  HR assistant   assistant-rh@frame.test / AssistantRh@123 (Nadia — reports to the Directeur RH, who sets her permissions)");
+  console.log("  Sales          ventes@frame.test       / Ventes@123     (Ventes: clients, devis, factures, encaissements; sees projects)");
+  console.log("  Client B admin admin-b@frame.test      / AdminB@123     (another client — must see NONE of the above)");
+  console.log("============================================================\n");
+
+  await mongoose.disconnect();
+  process.exit(0);
+}
+
+/** Second demo client: one admin, one company, one supplier. */
+async function seedSecondClient() {
+  const adminB = await User.create({
+    firstName: "Badr",
+    lastName: "Beta",
+    email: "admin-b@frame.test",
+    password: "AdminB@123",
+    role: "admin",
+    department: "management",
+  });
+  const companyB = await Company.create({
+    name: "Beta Trading",
+    legalForm: "SARL",
+    industry: "Trading",
+    size: "small",
+    currency: "MAD",
+    owner: adminB._id,
+    email: "contact@beta-trading.test",
+    address: { city: "Rabat", region: "Rabat-Salé-Kénitra" },
+    employeeCount: 0,
+  });
+  await Supplier.create({ company: companyB._id, name: "Fournisseur Beta (client B)", paymentDays: 30 });
+  console.log("✓ Second client created: Beta Trading");
+}
+
+async function seedMainClient() {
   // ==========================================================
   // USERS
   // ==========================================================
@@ -249,7 +335,8 @@ async function run() {
     { name: "Ressources Humaines", permissionKey: "hr", description: "Gestion du personnel et de la paie" },
     { name: "Production", permissionKey: "production", description: "Fabrication et gestion des stocks" },
     { name: "Finance", permissionKey: null },
-    { name: "Ventes", permissionKey: null },
+    { name: "Ventes", permissionKey: "sales" },
+    { name: "Logistique", permissionKey: "logistics", description: "Livraisons, transport, suivi chantier" },
     { name: "Direction", permissionKey: null },
   ];
 
@@ -483,6 +570,14 @@ async function run() {
   // services/employeeAccountService.js's computeInheritedPermissions.
   await User.findByIdAndUpdate(hrAssistantUser._id, { employee: extraEmployees[2]._id });
   await User.findByIdAndUpdate(hrManagerUser._id, { employee: byNumber["EMP-007"]._id });
+  // HR hierarchy: an assistant reporting to the Directeur RH, who adjusts
+  // her permissions (Droits de mon équipe) on top of the "Assistant(e) RH" profile.
+  const nadia = await Employee.create({
+    company: company._id, employeeNumber: "EMP-030", firstName: "Nadia", lastName: "Chraibi", gender: "female", maritalStatus: "single",
+    numberOfDependents: 0, nationality: "Moroccan", employmentStatus: "active", employmentType: "permanent", workLocation: "Casablanca Plant",
+    jobTitle: "Assistante RH", department: hrDept._id, manager: byNumber["EMP-007"]._id, hireDate: daysAgo(200), createdBy: hrUser._id, updatedBy: hrUser._id,
+  });
+  await User.create({ firstName: "Nadia", lastName: "Chraibi", email: "assistant-rh@frame.test", password: "AssistantRh@123", role: "user", department: "hr", hrRole: "hr_assistant", employee: nadia._id });
 
   console.log("✓ Linked manager@frame.test, employee@frame.test, and hr-assistant@frame.test to their employee records");
 
@@ -806,6 +901,54 @@ async function run() {
   console.log(`✓ Payroll run completed for ${lastMonth}/${lastMonthYear} with ${allEmployees.length} payslips`);
 
   // ==========================================================
+  // DECLARATIONS DEMO (HR → Declarations)
+  // ==========================================================
+  // Real-looking identifiers so the Damancom file, bank transfer and
+  // Simpl-IR screens can be tried end to end: company IF / CNSS /
+  // RIB, 9-digit CNSS numbers and valid RIBs for every employee (one
+  // paid in cash), and a demo PRÉÉTABLI file for last month's payroll
+  // written next to this script. It leaves out the newest employee
+  // (declared as a new entrant) and includes a former employee with no
+  // payslip (HR picks the situation "SO — left").
+  const { ribWithKey } = require("../services/bankTransferService");
+  const { makePreetabli } = require("../test/preetabliFixture");
+  const fs = require("fs");
+  const path = require("path");
+  company.taxId = "40123456";
+  company.cnssNumber = "7654321";
+  company.professionalTaxNumber = "34567890";
+  company.bank = { ...(company.bank || {}), bankName: "Attijariwafa bank", rib: ribWithKey("0077800001112223334445") };
+  await company.save();
+
+  const sortedEmployees = [...allEmployees].sort((a, b) => a.employeeNumber.localeCompare(b.employeeNumber));
+  for (const [i, emp] of sortedEmployees.entries()) {
+    emp.cnssNumber = String(120000100 + i);
+    if (!emp.cin) emp.cin = `BK${String(700000 + i)}`;
+    emp.bank = { ...(emp.bank || {}), rib: ribWithKey(`0117800000${String(1000000000 + i * 7919)}00`.slice(0, 22)) };
+    emp.paymentMethod = emp.employeeNumber === "EMP-008" ? "cash" : "bank_transfer";
+    await emp.save();
+  }
+  await Payslip.updateMany({ payrollRun: payrollRun._id }, { $set: { declaredDays: 26, unpaidDays: 0 } });
+
+  const newest = [...sortedEmployees].sort((a, b) => new Date(b.hireDate) - new Date(a.hireDate))[0];
+  const period = `${lastMonthYear}${String(lastMonth).padStart(2, "0")}`;
+  const preetabliText = makePreetabli({
+    affiliate: company.cnssNumber,
+    period,
+    employees: [
+      ...sortedEmployees.filter((e) => e !== newest).map((e) => ({
+        cnss: e.cnssNumber,
+        name: `${e.lastName} ${e.firstName}`,
+        children: e.familyStatus?.numberOfChildren || 0,
+      })),
+      { cnss: "120000999", name: "EL IDRISSI RACHID" }, // left the company: no payslip
+    ],
+  });
+  const preetabliPath = path.join(__dirname, `demo-preetabli-${period}.txt`);
+  fs.writeFileSync(preetabliPath, preetabliText, "latin1");
+  console.log(`✓ Declarations demo: company IF/CNSS/RIB, employee CNSS numbers and RIBs, demo préétabli → ${preetabliPath}`);
+
+  // ==========================================================
   // INVENTORY (categories + products + a purchase request in each status)
   // ==========================================================
 
@@ -996,6 +1139,390 @@ async function run() {
   console.log("✓ Sample notifications created");
 
   // ==========================================================
+  // SALES (Ventes) + PROJECTS (Production)
+  // ==========================================================
+  // A sales login, 3 customers, devis in every state, one accepted
+  // devis turned into a project with tasks, hours, material taken
+  // from stock and an expense, a 30% deposit invoice issued and paid,
+  // the final invoice still a draft, and an older unpaid invoice now
+  // overdue — so Ventes → Encaissements shows something to chase.
+  const { createWithNumber } = require("../services/documentNumberService");
+  const { depositLines, sumDeposits } = require("../services/salesCalc");
+  const { hourlyCostFor } = require("../services/projectCosts");
+  const { applyMovement } = require("../services/inventoryService");
+
+  const salesUser = await User.create({
+    firstName: "Hind",
+    lastName: "Commerciale",
+    email: "ventes@frame.test",
+    password: "Ventes@123",
+    role: "user",
+    department: "sales",
+  });
+
+  const [hotel, clinic, particulier] = await Customer.create([
+    { company: company._id, name: "Hôtel Atlas Marrakech", kind: "company", ice: "001526374000012", identifiantFiscal: "45123789", rc: "RC 98765",
+      email: "achats@hotel-atlas.test", phone: "+212524000000", address: "Avenue Mohammed VI", city: "Marrakech", paymentDays: 60,
+      contacts: [{ name: "M. Berrada", role: "Directeur technique", phone: "+212661000000", email: "berrada@hotel-atlas.test" }], createdBy: salesUser._id },
+    { company: company._id, name: "Clinique Al Amal", kind: "company", ice: "002837465000023", city: "Casablanca", paymentDays: 30,
+      email: "compta@alamal.test", createdBy: salesUser._id },
+    { company: company._id, name: "M. Youssef Tazi", kind: "individual", city: "Rabat", paymentDays: 0, phone: "+212600000001", createdBy: salesUser._id },
+  ]);
+
+  const dayOffset = (n) => { const d = new Date(); d.setDate(d.getDate() + n); return d; };
+  const accepted = await createWithNumber(Quote, {
+    company: company._id, customer: hotel._id, date: daysAgo(40), validUntil: daysAgo(10), subject: "Garde-corps et escaliers métalliques — aile B",
+    lines: [
+      { product: finishedPart._id, description: "Support métallique XL", quantity: 40, unit: "unit", unitPrice: 145, vatRate: 20 },
+      { description: "Garde-corps acier galvanisé (ml)", quantity: 60, unit: "ml", unitPrice: 850, discount: 5, vatRate: 20 },
+      { description: "Pose et fixation sur site", quantity: 1, unit: "forfait", unitPrice: 18000, vatRate: 20 },
+    ],
+    paymentTerms: "30% à la commande, solde à la réception des travaux",
+    status: "accepted", sentAt: daysAgo(39), decidedAt: daysAgo(30), createdBy: salesUser._id, updatedBy: salesUser._id,
+  }, "DV");
+  await createWithNumber(Quote, {
+    company: company._id, customer: clinic._id, date: daysAgo(5), validUntil: dayOffset(25), subject: "Portail coulissant et clôture",
+    lines: [
+      { description: "Portail coulissant motorisé 5 m", quantity: 1, unit: "unité", unitPrice: 24000, vatRate: 20 },
+      { description: "Clôture barreaudage (ml)", quantity: 35, unit: "ml", unitPrice: 620, vatRate: 20 },
+    ],
+    status: "sent", sentAt: daysAgo(5), createdBy: salesUser._id, updatedBy: salesUser._id,
+  }, "DV");
+  await createWithNumber(Quote, {
+    company: company._id, customer: particulier._id, date: new Date(), subject: "Pergola métallique",
+    lines: [{ description: "Pergola 4 × 3 m, peinture époxy", quantity: 1, unit: "unité", unitPrice: 15500, vatRate: 20 }],
+    status: "draft", createdBy: salesUser._id, updatedBy: salesUser._id,
+  }, "DV");
+
+  const project = await createWithNumber(Project, {
+    company: company._id, name: "Hôtel Atlas — garde-corps aile B", customer: hotel._id, quote: accepted._id,
+    status: "in_progress", startDate: daysAgo(25), dueDate: dayOffset(20), manager: managerEmployee._id,
+    team: [managerEmployee._id, reportEmployee._id], location: "Marrakech — Hôtel Atlas, aile B",
+    budget: { revenue: accepted.totalHT, materials: 22000, labour: 9000, purchases: 8000, other: 1500 },
+    expenses: [{ date: daysAgo(12), label: "Transport matériel Casablanca → Marrakech", amount: 1800 }],
+    createdBy: managerUser._id, updatedBy: managerUser._id,
+  }, "PRJ");
+  accepted.project = project._id;
+  await accepted.save();
+
+  const tasks = await ProjectTask.create([
+    { company: company._id, project: project._id, title: "Relevé de cotes sur site", assignees: [managerEmployee._id], startDate: daysAgo(25), dueDate: daysAgo(23), estimatedHours: 8, status: "done", order: 0, completedAt: daysAgo(23) },
+    { company: company._id, project: project._id, title: "Fabrication des garde-corps", assignees: [reportEmployee._id], startDate: daysAgo(20), dueDate: dayOffset(2), estimatedHours: 60, status: "in_progress", order: 1 },
+    { company: company._id, project: project._id, title: "Galvanisation (sous-traitance)", startDate: dayOffset(3), dueDate: dayOffset(8), estimatedHours: 0, status: "todo", order: 2 },
+    { company: company._id, project: project._id, title: "Pose sur site", assignees: [managerEmployee._id, reportEmployee._id], startDate: dayOffset(10), dueDate: dayOffset(18), estimatedHours: 40, status: "todo", order: 3 },
+  ]);
+  for (const [employee, task, days, hours] of [
+    [managerEmployee._id, tasks[0]._id, 24, 8],
+    [reportEmployee._id, tasks[1]._id, 15, 8],
+    [reportEmployee._id, tasks[1]._id, 14, 8],
+    [reportEmployee._id, tasks[1]._id, 13, 6],
+  ]) {
+    const hourlyCost = await hourlyCostFor(employee, company._id);
+    await TimeEntry.create({ company: company._id, project: project._id, task, employee, date: daysAgo(days), hours, hourlyCost, cost: Math.round(hours * hourlyCost * 100) / 100, createdBy: managerUser._id });
+  }
+  await applyMovement({ product: steelSheet, type: "out", quantity: 25, reason: `Sortie pour projet ${project.number}`, actorId: managerUser._id, project: project._id, unitCost: 12.5 });
+
+  const deposit = await SalesInvoice.create({
+    company: company._id, type: "deposit", customer: hotel._id, quote: accepted._id, project: project._id,
+    date: daysAgo(28), dueDate: daysAgo(-2), lines: depositLines(accepted, 30), number: `AC-${daysAgo(28).getFullYear()}-0001`,
+    status: "issued", issuedAt: daysAgo(28), createdBy: salesUser._id, updatedBy: salesUser._id,
+  });
+  deposit.payments.push({ date: daysAgo(20), amount: deposit.totalTTC, method: "virement", reference: "VIR-HOTEL-0921", by: salesUser._id });
+  await deposit.save();
+  await SalesInvoice.create({
+    company: company._id, type: "invoice", customer: hotel._id, quote: accepted._id, project: project._id, date: new Date(),
+    lines: accepted.lines.map((l) => { const { _id, ...rest } = l.toObject(); return rest; }),
+    depositBreakdown: sumDeposits([deposit]), depositInvoices: [deposit._id], paymentTerms: accepted.paymentTerms,
+    createdBy: salesUser._id, updatedBy: salesUser._id,
+  });
+  const older = await SalesInvoice.create({
+    company: company._id, type: "invoice", customer: clinic._id, date: daysAgo(75), dueDate: daysAgo(45), subject: "Réparation rampe d'accès",
+    lines: [{ description: "Réparation et renforcement rampe d'accès", quantity: 1, unit: "forfait", unitPrice: 6500, vatRate: 20 }],
+    number: `FA-${daysAgo(75).getFullYear()}-0001`, status: "issued", issuedAt: daysAgo(75), createdBy: salesUser._id, updatedBy: salesUser._id,
+  });
+  older.payments.push({ date: daysAgo(40), amount: 3000, method: "cheque", reference: "CHQ 445566", by: salesUser._id });
+  await older.save();
+
+  console.log(`✓ Sales & projects: 3 customers, 3 devis, project ${project.number} (tasks, hours, material, expense), deposit paid, final invoice draft, 1 overdue invoice`);
+
+  // ==========================================================
+  // ALUMINIUM JOINERY (menuiserie aluminium): workshops, colours,
+  // articles with technical data, series, chassis models imported from
+  // the catalogue, a devis with chassis lines → project → work orders.
+  // ==========================================================
+  {
+    const { findTemplate } = require("../config/chassisCatalog");
+    const { mergeTemplateVariables, modelFromTemplate } = require("../services/chassisCatalogService");
+    const { ensureProductionDefaults, createOrdersForProject, completeOrder, consume } = require("../services/productionPlanning");
+    const bom = require("../services/chassisBom");
+
+    await ensureProductionDefaults(company._id);
+    const [laq, alu, vit] = await Promise.all(["LAQ", "ALU", "VIT"].map((code) => Workshop.findOne({ company: company._id, code })));
+    laq.manager = managerEmployee._id; laq.hourlyRate = 55; await laq.save();
+    alu.manager = managerEmployee._id; alu.members = [managerEmployee._id]; alu.hourlyRate = 60; await alu.save();
+    // Imane (employee@frame.test, no department) runs the glazing workshop:
+    // she only sees the Vitrage work orders.
+    vit.manager = reportEmployee._id; vit.members = [reportEmployee._id]; vit.hourlyRate = 50; await vit.save();
+
+    const aluCat = await InventoryCategory.create({ company: company._id, name: "Profilés aluminium", icon: "Ruler", color: "#8aa4c8", accountingAccount: "6121", createdBy: admin._id });
+    const accCat = await InventoryCategory.create({ company: company._id, name: "Accessoires & joints", icon: "Wrench", color: "#c8a48a", accountingAccount: "6122", createdBy: admin._id });
+    const glassCat = await InventoryCategory.create({ company: company._id, name: "Verre & panneaux", icon: "Square", color: "#7cc8d4", accountingAccount: "6121", createdBy: admin._id });
+    const powderCat = await InventoryCategory.create({ company: company._id, name: "Poudres de laquage", icon: "Paintbrush", color: "#e8793f", accountingAccount: "6122", createdBy: admin._id });
+    // Sub-categories: one per profile series, accessories by family… (they inherit the account)
+    const sub = (parent, name, icon) => InventoryCategory.create({ company: company._id, parent: parent._id, name, icon: icon || parent.icon, color: parent.color, createdBy: admin._id });
+    const c67Cat = await sub(aluCat, "Série 67 — coulissants");
+    const o50Cat = await sub(aluCat, "Série 50 — fenêtres & portes");
+    const msCat = await sub(aluCat, "Moustiquaires");
+    await sub(aluCat, "Série garde-corps");
+    const jointCat = await sub(accCat, "Joints", "Paperclip");
+    const accSlideCat = await sub(accCat, "Quincaillerie coulissants", "Wrench");
+    const accOpenCat = await sub(accCat, "Quincaillerie fenêtres & portes", "Wrench");
+    const fixCat = await sub(accCat, "Visserie, fixations & consommables", "Bolt");
+    const verreCat = await sub(glassCat, "Verres", "Square");
+    const dvCat = await sub(glassCat, "Composants double vitrage", "Square");
+    const panelCat = await sub(glassCat, "Tôles, panneaux & toiles", "Square");
+    const art = {};
+    const mk = async (key, category, name, ref, quantity, price, tech) => {
+      art[key] = await Product.create({ company: company._id, category: category._id, name, internalReference: ref, quantity, unit: tech.unit || "u", threshold: tech.threshold || 0,
+        prices: [{ supplierName: tech.supplier || "Profilés du Maroc", price }], createdBy: admin._id, ...tech, supplier: undefined, unit: tech.unit || "u" });
+    };
+    const bar = (perimeter, weight) => ({ materialType: "profile", stockMode: "bar", barLength: 6500, perimeter, weightPerMeter: weight, unit: "barre", threshold: 10 });
+    // Profiles (raw) — series Coulissant 67
+    await mk("railHaut", c67Cat, "Dormant haut coulissant 67", "C67-DH", 60, 238, bar(260, 0.95));
+    await mk("railBas", c67Cat, "Dormant bas coulissant 67", "C67-DB", 60, 245, bar(270, 1.0));
+    await mk("montantDormant", c67Cat, "Montant dormant coulissant 67", "C67-MD", 60, 210, bar(230, 0.82));
+    await mk("montantLateral", c67Cat, "Montant latéral vantail 67", "C67-ML", 80, 198, bar(220, 0.78));
+    await mk("chicane", c67Cat, "Montant de chicane 67", "C67-MC", 80, 205, bar(230, 0.8));
+    await mk("traverse", c67Cat, "Traverse vantail 67", "C67-TV", 80, 176, bar(200, 0.7));
+    await mk("profilMs", msCat, "Profil cadre moustiquaire", "MS-CAD", 30, 62, bar(90, 0.25));
+    // Profiles (raw) — series Ouvrant 50
+    await mk("dormant50", o50Cat, "Dormant ouvrant 50", "O50-DO", 60, 228, bar(250, 0.9));
+    await mk("ouvrant50", o50Cat, "Ouvrant 50", "O50-OU", 60, 236, bar(260, 0.92));
+    await mk("parclose50", o50Cat, "Parclose 50", "O50-PC", 80, 64, bar(80, 0.22));
+    await mk("battement50", o50Cat, "Profil de battement 50", "O50-BA", 30, 142, bar(160, 0.5));
+    await mk("seuil", o50Cat, "Seuil aluminium", "SEUIL", 20, 188, bar(180, 0.7));
+    await mk("traverseInter", o50Cat, "Traverse intermédiaire porte", "P60-TI", 20, 182, bar(200, 0.66));
+    await mk("intercalaire", dvCat, "Intercalaire alu 16 mm", "INT-16", 50, 32, { materialType: "profile", stockMode: "bar", barLength: 6000, unit: "barre", supplier: "Verrerie Atlas" });
+    // Gaskets (per metre)
+    const m = (extra = {}) => ({ materialType: "gasket", stockMode: "meter", unit: "m", ...extra });
+    await mk("jointVitrage", jointCat, "Joint EPDM de vitrage", "J-EPDM", 1500, 3.2, m());
+    await mk("jointBrosse", jointCat, "Joint brosse 7 mm", "J-BR7", 1200, 2.4, m());
+    await mk("jointFrappe", jointCat, "Joint de frappe", "J-FR", 800, 3.8, m());
+    await mk("butyl", dvCat, "Butyl", "BUTYL", 2000, 0.9, m({ supplier: "Verrerie Atlas" }));
+    // Accessories (units)
+    const u = (extra = {}) => ({ materialType: "accessory", stockMode: "unit", unit: "u", threshold: 20, ...extra });
+    await mk("roulette", accSlideCat, "Roulette coulissant (paire)", "ACC-ROU", 300, 28, u());
+    await mk("fermeture", accSlideCat, "Fermeture à crochet coulissant", "ACC-FER", 120, 45, u());
+    await mk("poignee", accSlideCat, "Poignée cuvette", "ACC-POI", 150, 18, u());
+    await mk("equerre", fixCat, "Équerre d'assemblage", "ACC-EQ", 1500, 4.5, u());
+    await mk("embout", accSlideCat, "Kit étanchéité de chicane", "ACC-EMB", 400, 6, u());
+    await mk("butee", accSlideCat, "Butée amortisseur", "ACC-BUT", 300, 3, u());
+    await mk("busette", fixCat, "Busette d'évacuation", "ACC-BUS", 500, 1.2, u());
+    await mk("cale", fixCat, "Cale de vitrage", "ACC-CAL", 3000, 0.4, u());
+    await mk("visserie", fixCat, "Vis inox (boîte de 100)", "VIS-100", 60, 38, u({ packSize: 100, unit: "boîte" }));
+    await mk("kitMs", msCat, "Kit roulettes moustiquaire", "MS-KIT", 60, 22, u());
+    await mk("paumelle", accOpenCat, "Paumelle", "ACC-PAU", 400, 16, u());
+    await mk("cremone", accOpenCat, "Crémone + poignée", "ACC-CRE", 100, 85, u());
+    await mk("gache", accOpenCat, "Gâche", "ACC-GAC", 400, 5, u());
+    await mk("verrou", accOpenCat, "Verrou semi-fixe", "ACC-VER", 150, 24, u());
+    await mk("serrure", accOpenCat, "Serrure de porte", "ACC-SER", 40, 160, u());
+    await mk("cylindre", accOpenCat, "Cylindre européen", "ACC-CYL", 40, 95, u());
+    await mk("bequille", accOpenCat, "Jeu de béquilles", "ACC-BEQ", 40, 120, u());
+    await mk("fermePorte", accOpenCat, "Ferme-porte", "ACC-FP", 20, 380, u());
+    await mk("plinthe", accOpenCat, "Plinthe / balai bas de porte", "ACC-PLI", 30, 55, u());
+    await mk("angleInt", dvCat, "Angle d'intercalaire", "INT-ANG", 2000, 0.6, u({ supplier: "Verrerie Atlas" }));
+    // Consumables
+    await mk("silicone", fixCat, "Silicone neutre (cartouche)", "SIL-310", 200, 32, { materialType: "consumable", stockMode: "unit", unit: "cartouche" });
+    await mk("dessicant", dvCat, "Tamis moléculaire (dessicant)", "DESS", 80, 28, { materialType: "consumable", stockMode: "kg", unit: "kg", supplier: "Verrerie Atlas" });
+    await mk("mastic", dvCat, "Mastic polysulfure", "MAST-PS", 120, 45, { materialType: "consumable", stockMode: "kg", unit: "kg", supplier: "Verrerie Atlas" });
+    // Glass & panels
+    await mk("float4", verreCat, "Verre float clair 4 mm", "VF-4", 180, 78, { materialType: "glass", stockMode: "m2", unit: "m²", thickness: 4, supplier: "Verrerie Atlas" });
+    await mk("float6", verreCat, "Verre float clair 6 mm", "VF-6", 90, 118, { materialType: "glass", stockMode: "m2", unit: "m²", thickness: 6, supplier: "Verrerie Atlas" });
+    await mk("feuillete", verreCat, "Verre feuilleté 44.2", "VFE-442", 60, 265, { materialType: "glass", stockMode: "m2", unit: "m²", thickness: 8.8, supplier: "Verrerie Atlas" });
+    await mk("toile", panelCat, "Toile moustiquaire", "MS-TOI", 80, 24, { materialType: "panel", stockMode: "m2", unit: "m²" });
+    await mk("tole", panelCat, "Tôle aluminium 15/10", "TOLE-15", 20, 420, { materialType: "panel", stockMode: "sheet", sheetWidth: 1250, sheetHeight: 2500, perimeter: 0, paintSurface: 3.125, unit: "plaque" });
+    await mk("mdf", panelCat, "MDF hydrofuge 19 mm", "MDF-19", 15, 310, { materialType: "panel", stockMode: "sheet", sheetWidth: 1220, sheetHeight: 2440, unit: "plaque", supplier: "Bois & Panneaux" });
+    // Powders
+    const pw = (price) => ({ materialType: "powder", stockMode: "kg", unit: "kg", coverage: 0.12, threshold: 15, supplier: "Akzo Maroc" });
+    await mk("ral9016", powderCat, "Poudre polyester RAL 9016 blanc", "PDR-9016", 120, 58, pw());
+    await mk("ral7016", powderCat, "Poudre polyester RAL 7016 anthracite", "PDR-7016", 60, 66, pw());
+    await mk("ral9005", powderCat, "Poudre polyester RAL 9005 noir", "PDR-9005", 40, 66, pw());
+
+    const white = await Finish.create({ company: company._id, code: "RAL 9016", name: "Blanc", kind: "lacquer", processWorkshop: laq._id, powderProduct: art.ral9016._id, color: "#f4f6f3", isDefault: true });
+    await Finish.create({ company: company._id, code: "RAL 7016", name: "Gris anthracite", kind: "lacquer", processWorkshop: laq._id, powderProduct: art.ral7016._id, color: "#383e42", surchargePercent: 6 });
+    await Finish.create({ company: company._id, code: "RAL 9005", name: "Noir", kind: "lacquer", processWorkshop: laq._id, powderProduct: art.ral9005._id, color: "#0a0a0a", surchargePercent: 6 });
+    await Finish.create({ company: company._id, code: "ANO ARGENT", name: "Anodisé argent", kind: "anodized", color: "#c0c4c8", surchargePercent: 12 });
+
+    const s67 = await ProfileSeries.create({ company: company._id, name: "Coulissant 67", supplier: "Profilés du Maroc", families: ["coulissant"], variables: [] });
+    const s50 = await ProfileSeries.create({ company: company._id, name: "Ouvrant 50", supplier: "Profilés du Maroc", families: ["ouvrant", "fixe", "porte"], variables: [] });
+    const common = {
+      joint_vitrage: art.jointVitrage._id, joint_vitrage_ext: art.jointVitrage._id, joint_vitrage_int: art.jointVitrage._id, joint_brosse: art.jointBrosse._id,
+      joint_frappe: art.jointFrappe._id, joint_central: art.jointFrappe._id, cales: art.cale._id, visserie: art.visserie._id, silicone: art.silicone._id,
+      equerres_dormant: art.equerre._id, equerres_ouvrant: art.equerre._id, equerres: art.equerre._id, busettes: art.busette._id,
+    };
+    const slidingArticles = {
+      ...common, rail_haut: art.railHaut._id, rail_bas: art.railBas._id, dormant_v: art.montantDormant._id, montant_lateral: art.montantLateral._id,
+      montant_chicane: art.chicane._id, traverse_haute: art.traverse._id, traverse_basse: art.traverse._id, roulettes: art.roulette._id,
+      fermeture: art.fermeture._id, poignee: art.poignee._id, embouts: art.embout._id, butees: art.butee._id,
+      ms_profil: art.profilMs._id, ms_toile: art.toile._id, ms_kit: art.kitMs._id,
+    };
+    const casementArticles = {
+      ...common, dormant_haut: art.dormant50._id, dormant_bas: art.dormant50._id, dormant_v: art.dormant50._id, dormant_h: art.dormant50._id,
+      ouvrant_h: art.ouvrant50._id, ouvrant_v: art.ouvrant50._id, battement: art.battement50._id, parclose_h: art.parclose50._id, parclose_v: art.parclose50._id,
+      paumelles: art.paumelle._id, cremone: art.cremone._id, gaches: art.gache._id, verrous: art.verrou._id, ferrure_ob: art.cremone._id, poignee_ob: art.poignee._id,
+      seuil: art.seuil._id, traverse_inter: art.traverseInter._id, serrure: art.serrure._id, cylindre: art.cylindre._id, bequille: art.bequille._id,
+      ferme_porte: art.fermePorte._id, plinthe_auto: art.plinthe._id,
+    };
+    const importModel = async (key, series, articles, extra = {}) => {
+      const t = findTemplate(key);
+      if (series) { mergeTemplateVariables(series, t); await series.save(); }
+      return ChassisModel.create({ ...modelFromTemplate(t, { company: company._id, series, articles, actorId: managerUser._id }), ...extra });
+    };
+    const simple = await importModel("simple_vitrage", null, {}, { name: "Simple vitrage 6 mm", code: "SV6" });
+    simple.parameters[0].default = String(art.float6._id); simple.markModified("parameters"); await simple.save();
+    const dv = await importModel("double_vitrage", null, { intercalaire: art.intercalaire._id, intercalaire_v: art.intercalaire._id, angles: art.angleInt._id, butyl: art.butyl._id, dessicant: art.dessicant._id, mastic: art.mastic._id }, { name: "Double vitrage 4/16/4", code: "DV4164" });
+    dv.parameters.forEach((p) => { p.default = String(art.float4._id); }); dv.markModified("parameters"); await dv.save();
+    const panneau = await importModel("panneau_simple", null, {}, { name: "Panneau tôle laquée", code: "PAN-TOLE" });
+    panneau.parameters[0].default = String(art.tole._id); panneau.markModified("parameters"); await panneau.save();
+    const withGlass = async (model) => { const p = model.parameters.find((x) => x.key === "vitrage"); if (p) { p.default = String(dv._id); model.markModified("parameters"); await model.save(); } return model; };
+    const c2 = await withGlass(await importModel("coulissant_2v", s67, slidingArticles, { name: "Coulissant 2 vantaux — série 67", code: "C67-2V" }));
+    await withGlass(await importModel("coulissant_4v", s67, slidingArticles, { name: "Coulissant 4 vantaux — série 67", code: "C67-4V" }));
+    await withGlass(await importModel("baie_coulissante_2v", s67, slidingArticles, { name: "Baie coulissante 2 vantaux — série 67", code: "C67-B2V" }));
+    const f2 = await withGlass(await importModel("francaise_2v", s50, casementArticles, { name: "Fenêtre 2 vantaux — série 50", code: "O50-F2" }));
+    await withGlass(await importModel("francaise_1v", s50, casementArticles, { name: "Fenêtre 1 vantail — série 50", code: "O50-F1" }));
+    await withGlass(await importModel("ob_1v", s50, casementArticles, { name: "Oscillo-battant 1 vantail — série 50", code: "O50-OB1" }));
+    const fixe = await withGlass(await importModel("fixe", s50, casementArticles, { name: "Châssis fixe — série 50", code: "O50-FX" }));
+    const porte = await withGlass(await importModel("porte_1v", s50, casementArticles, { name: "Porte 1 vantail — série 50", code: "O50-P1" }));
+    const pp = porte.parameters.find((x) => x.key === "panneau"); pp.default = String(panneau._id); porte.markModified("parameters"); await porte.save();
+    const imposte = await importModel("ouvrant_imposte", null, { accouplement: art.traverseInter._id, silicone: art.silicone._id }, { name: "Fenêtre + imposte fixe — série 50", code: "O50-IMP" });
+    imposte.parameters.find((x) => x.key === "bas").default = String(f2._id);
+    imposte.parameters.find((x) => x.key === "haut").default = String(fixe._id);
+    imposte.markModified("parameters"); await imposte.save();
+
+    // A devis with chassis lines, priced from the catalogue.
+    const villa = await Customer.create({ company: company._id, name: "Villa Anfa — M. Alami", kind: "individual", city: "Casablanca", phone: "+212661223344", paymentDays: 0, createdBy: salesUser._id });
+    const { loadContext } = require("../services/productionPlanning");
+    const ctx = await loadContext(company._id);
+    const specs = [
+      { model: c2._id, ref: "F1", L: 1800, H: 1250, quantity: 4, finish: white._id, params: { vitrage: String(dv._id), ms: 1 } },
+      { model: f2._id, ref: "F2", L: 1100, H: 1350, quantity: 3, finish: white._id, params: { vitrage: String(dv._id) } },
+      { model: porte._id, ref: "P1", L: 950, H: 2200, quantity: 1, finish: white._id, params: { rempl: 2, hs: 900, vitrage: String(dv._id), panneau: String(panneau._id), seuil: 1, fp: 0 } },
+      { model: fixe._id, ref: "FX1", L: 700, H: 1350, quantity: 2, finish: white._id, params: { vitrage: String(dv._id) } },
+    ];
+    const lines = specs.map((sp) => {
+      const price = bom.priceChassis({ ...sp, model: String(sp.model), finish: String(sp.finish) }, ctx);
+      return {
+        description: bom.describeChassis({ ...sp, model: String(sp.model), finish: String(sp.finish) }, ctx), quantity: sp.quantity, unit: "u",
+        unitPrice: Math.round(price.unitPrice), vatRate: 20,
+        chassis: { model: sp.model, ref: sp.ref, L: sp.L, H: sp.H, finish: sp.finish, params: sp.params },
+      };
+    });
+    lines.push({ description: "Pose et étanchéité sur chantier", quantity: 1, unit: "forfait", unitPrice: 6500, vatRate: 20 });
+    const aluQuote = await createWithNumber(Quote, {
+      company: company._id, customer: villa._id, date: daysAgo(12), validUntil: dayOffset(18), subject: "Menuiserie aluminium — villa Anfa (RAL 9016)",
+      lines, paymentTerms: "40% à la commande, 50% à la livraison, 10% à la réception", status: "accepted", sentAt: daysAgo(12), decidedAt: daysAgo(6),
+      createdBy: salesUser._id, updatedBy: salesUser._id,
+    }, "DV");
+    const aluProject = await createWithNumber(Project, {
+      company: company._id, name: "Villa Anfa — menuiserie aluminium", customer: villa._id, quote: aluQuote._id, status: "in_progress",
+      startDate: daysAgo(5), dueDate: dayOffset(21), manager: managerEmployee._id, team: [managerEmployee._id, reportEmployee._id], location: "Casablanca — Anfa",
+      budget: { revenue: aluQuote.totalHT, materials: Math.round(aluQuote.totalHT * 0.45), labour: Math.round(aluQuote.totalHT * 0.12), other: 1500 },
+      finish: white._id,
+      items: specs.map((sp) => ({ ...sp, label: "" })),
+      createdBy: managerUser._id, updatedBy: managerUser._id,
+    }, "PRJ");
+    aluQuote.project = aluProject._id;
+    await aluQuote.save();
+
+    // Colour-matched accessories (white handles, hinges…) are bought ready-made.
+    {
+      const { ensureVariant: mkVariant } = require("../services/productionPlanning");
+      const vctx = await loadContext(company._id);
+      for (const key of ["poignee", "busette", "paumelle", "cremone", "bequille"]) {
+        const v = await mkVariant(vctx, art[key].toObject(), white.toObject(), managerUser._id);
+        await Product.updateOne({ _id: v._id }, { quantity: 80, prices: [{ supplierName: "Profilés du Maroc", price: Math.round(art[key].prices[0].price * 1.1 * 100) / 100 }] });
+      }
+    }
+
+    // Work orders: laquage done (lacquered bars in stock), vitrage in progress, aluminium waiting.
+    const { orders } = await createOrdersForProject(aluProject, managerUser._id);
+    const byKind = Object.fromEntries(orders.map((o) => [o.kind, o]));
+    const businessNotifications = require("../services/businessNotifications");
+    await businessNotifications.onOrdersPlanned(aluProject, orders, managerUser._id);
+    if (byKind.laquage) {
+      const settings = await ensureProductionDefaults(company._id);
+      await completeOrder(byKind.laquage, { consumeRemaining: true }, managerUser._id, settings);
+      await businessNotifications.onOrderCompleted(byKind.laquage, managerUser._id);
+    }
+    if (byKind.vitrage) {
+      const glassNeeds = byKind.vitrage.needs.filter((n) => n.kind === "glass" && n.product).map((n) => ({ need: n._id, quantity: Math.round(n.theoretical * 0.6 * 100) / 100 }));
+      await consume(byKind.vitrage, { lines: glassNeeds }, employeeUser._id);
+    }
+    // ---------- Chassis tracking + logistics ----------
+    // F1 (4 sliding windows): frames and sashes made & ready; glass still in
+    // the glazing workshop. BL-…-0001 delivered the 4 FRAMES only (no glass),
+    // BL-…-0002 is planned tomorrow for the sashes + fly screens of F1-1/F1-2.
+    const tracking = require("../services/trackingService");
+    // Logistique: its own department and manager (Karim), who hands out
+    // permissions to his team — Said the driver (only what a driver needs),
+    // who can himself give a subset to his helper Omar.
+    const logisticsDept = await Department.findOne({ company: company._id, permissionKey: "logistics" });
+    const logEmp = (data) => Employee.create({
+      company: company._id, gender: "male", maritalStatus: "single", numberOfDependents: 0, nationality: "Moroccan",
+      employmentStatus: "active", employmentType: "permanent", workLocation: "Casablanca Plant", hireDate: new Date(Date.now() - 400 * 86400000),
+      department: logisticsDept._id, createdBy: admin._id, updatedBy: admin._id, ...data,
+    });
+    const karimEmp = await logEmp({ employeeNumber: "EMP-020", firstName: "Karim", lastName: "Benali", jobTitle: "Responsable logistique" });
+    await Department.updateOne({ _id: logisticsDept._id }, { manager: karimEmp._id });
+    const saidEmp = await logEmp({ employeeNumber: "EMP-021", firstName: "Said", lastName: "Amrani", jobTitle: "Chauffeur-livreur", manager: karimEmp._id });
+    const omarEmp = await logEmp({ employeeNumber: "EMP-022", firstName: "Omar", lastName: "Tazi", jobTitle: "Aide-livreur", manager: saidEmp._id });
+    const logisticsUser = await User.create({ firstName: "Karim", lastName: "Benali", email: "logistique@frame.test", password: "Logistique@123", role: "user", department: "logistics", employee: karimEmp._id });
+    const { PRESETS } = require("../config/permissionCatalog");
+    const driverKeys = PRESETS.find((pr) => pr.key === "driver").keys();
+    await User.create({ firstName: "Said", lastName: "Amrani", email: "chauffeur@frame.test", password: "Chauffeur@123", role: "user", employee: saidEmp._id,
+      permissionsMode: "custom", permissions: [...driverKeys, "team.permissions.manage"] });
+    await User.create({ firstName: "Omar", lastName: "Tazi", email: "aide-livreur@frame.test", password: "AideLivreur@123", role: "user", employee: omarEmp._id,
+      permissionsMode: "custom", permissions: ["logistics.notes.view", "logistics.tracking.view"] });
+    await tracking.syncProjectUnits(aluProject, managerUser._id);
+    const f1Units = await TrackingUnit.find({ project: aluProject._id, ref: /^F1/ }).sort({ index: 1 });
+    await tracking.applyAction(aluProject._id, "ready", f1Units.flatMap((u) => u.parts.filter((pt) => ["frame", "sash", "screen"].includes(pt.kind)).map((pt) => ({ unit: u._id, part: pt._id }))), managerUser._id);
+    const fresh = await TrackingUnit.find({ project: aluProject._id, ref: /^F1/ }).populate("finish", "code").sort({ index: 1 });
+    const sizeOf = (u, pt) => (pt.width && pt.height ? `${pt.width} × ${pt.height}` : `${u.L} × ${u.H}`);
+    const lineOf = (u, kind) => { const pt = u.parts.find((x) => x.kind === kind); return { unit: u._id, part: pt._id, ref: u.ref, label: u.label, partLabel: pt.label, partKind: pt.kind, size: sizeOf(u, pt), finish: u.finish?.code || "", quantity: pt.quantity }; };
+    // F2-1 (casement): chassis made & ready, glass 1 in progress, glass 2 not started.
+    const f21 = await TrackingUnit.findOne({ project: aluProject._id, ref: "F2-1" });
+    if (f21) {
+      const chassisPart = f21.parts.find((x) => x.kind === "complete");
+      const glass1 = f21.parts.find((x) => x.label === "Vitrage 1");
+      await tracking.applyAction(aluProject._id, "ready", [{ unit: f21._id, part: chassisPart._id }], managerUser._id);
+      if (glass1) await tracking.applyAction(aluProject._id, "started", [{ unit: f21._id, part: glass1._id }], employeeUser._id);
+    }
+    const bl1 = await createWithNumber(DeliveryNote, {
+      company: company._id, project: aluProject._id, customer: villa._id, status: "delivered", date: daysAgo(1), deliveredAt: daysAgo(1), shippedAt: daysAgo(1), timeSlot: "9h–11h",
+      address: "Casablanca — Anfa", siteContact: "M. Alami", sitePhone: "+212661223344",
+      transport: { mode: "own", vehicle: "Camion 12345-A-6", driver: "Said", driverPhone: "+212600112233", cost: 0 },
+      packages: 2, lines: fresh.map((u) => lineOf(u, "frame")), extraLines: [{ label: "Pattes de fixation + chevilles", quantity: 1, unit: "lot" }],
+      notes: "Dormants seuls : vitrages et vantaux à la prochaine livraison.", receivedBy: "M. Alami",
+      history: [{ status: "delivered", note: "", by: logisticsUser._id }], createdBy: logisticsUser._id,
+    }, "BL");
+    for (const u of fresh) {
+      const pt = u.parts.find((x) => x.kind === "frame");
+      pt.deliveredQty = pt.quantity;
+      u.history.push({ by: logisticsUser._id, action: "delivered", note: `${bl1.number} : ${pt.label}` });
+      u.markModified("parts");
+      await u.save();
+    }
+    const bl2 = await createWithNumber(DeliveryNote, {
+      company: company._id, project: aluProject._id, customer: villa._id, status: "planned", date: dayOffset(1), timeSlot: "14h–16h",
+      address: "Casablanca — Anfa", siteContact: "M. Alami", sitePhone: "+212661223344",
+      transport: { mode: "carrier", carrier: "Transports Atlas", vehicle: "Plateau 9876-B-6", driver: "Hassan", driverPhone: "+212600445566", cost: 900 },
+      packages: 4, lines: fresh.slice(0, 2).flatMap((u) => u.parts.filter((x) => ["sash", "screen"].includes(x.kind)).map((pt) => ({ unit: u._id, part: pt._id, ref: u.ref, label: u.label, partLabel: pt.label, partKind: pt.kind, size: sizeOf(u, pt), chassisSize: `${u.L} × ${u.H}`, finish: u.finish?.code || "", quantity: pt.quantity }))),
+      notes: "Vantaux + moustiquaires F1-1 et F1-2. Prévoir chevalets.", history: [{ status: "planned", note: "", by: logisticsUser._id }], createdBy: logisticsUser._id,
+    }, "BL");
+    console.log(`✓ Aluminium joinery: 3 workshops, ${Object.keys(art).length} articles, 5 colours, 2 series, ${await ChassisModel.countDocuments({ company: company._id })} chassis models, devis ${aluQuote.number} → project ${aluProject.number} → ${orders.map((o) => `${o.number} (${o.kind})`).join(", ")}; tracking + ${bl1.number} (delivered, frames only) and ${bl2.number} (planned)`);
+  }
+
+  // ==========================================================
   // DONE
   // ==========================================================
 
@@ -1009,7 +1536,7 @@ async function run() {
   console.log("  Purchasing     achats@frame.test       / Achats@123     (service achats)");
   console.log("  HR (assistant) hr-assistant@frame.test / HrAssist@123   (hr_assistant tier -> view-only, most actions blocked)");
   console.log("  Manager        manager@frame.test      / Manager@123    (Production department manager — see My Space > My department)");
-  console.log("  Employee       employee@frame.test     / Employee@123   (Opérateur de Production — My Space only)");
+  console.log("  Employee       employee@frame.test     / Employee@123   (Opérateur de Production — My Space + Vitrage workshop manager)");
   console.log("============================================================");
   console.log("Also seeded: 6 employees, departments + job positions, salaries,");
   console.log("contracts, absences, advances, documents, attendance, a completed");
@@ -1019,10 +1546,7 @@ async function run() {
   console.log("and a few notifications.");
   console.log("============================================================");
   console.log("To remove all of this later: npm run unseed");
-  console.log("============================================================\n");
-
-  await mongoose.disconnect();
-  process.exit(0);
+  console.log("============================================================");
 }
 
 run().catch((error) => {

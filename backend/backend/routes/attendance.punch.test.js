@@ -84,3 +84,50 @@ describe("clock-in / clock-out follow the company's schedule", () => {
     expect((await punchAt("clock-in", 9, 0)).status).toBe(400); // already in
   });
 });
+
+// ------------------------------------------------------------------
+// REGRESSION: the tests above hand the route a plain object, which hid
+// a real bug — the database returns a Mongoose DOCUMENT, and copying
+// one with { ...config } drops every field, so all schedules silently
+// became 09:00-17:00 continuous (no split, wrong lateness/overtime).
+// These feed the route a real WorkSchedule document.
+// ------------------------------------------------------------------
+describe("with a REAL WorkSchedule document (as loaded from the database)", () => {
+  let stored;
+  const realSchedule = (monday) => new WorkSchedule({ company: "507f1f77bcf86cd7994390f1", monday });
+
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    stored = null;
+    vi.spyOn(Employee, "findById").mockImplementation(() => {
+      const emp = { _id: "507f1f77bcf86cd7994390e1", company: "507f1f77bcf86cd7994390f1" };
+      const q = Promise.resolve(emp); q.select = () => Promise.resolve(emp); return q;
+    });
+    vi.spyOn(PublicHoliday, "findOne").mockImplementation(() => ({ lean: async () => null }));
+    vi.spyOn(Attendance, "findOne").mockImplementation(async () => stored);
+    vi.spyOn(Attendance.prototype, "save").mockImplementation(async function save() { stored = this; return this; });
+  });
+  afterEach(() => vi.useRealTimers());
+
+  const app = () => { const a = express(); a.use(express.json()); a.use("/api/attendance", router); return a; };
+  const punchAt = (path, h, m = 0) => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date(2026, 0, 12, h, m)); // a Monday
+    return request(app()).post(`/api/attendance/${path}`);
+  };
+
+  it("a split day saved by the admin really gives employees 2 clock-ins and 2 clock-outs", async () => {
+    vi.spyOn(WorkSchedule, "findOne").mockResolvedValue(realSchedule(SPLIT));
+    expect((await punchAt("clock-in", 8)).body.punch).toBe("clockIn");
+    const second = await punchAt("clock-out", 12);
+    expect(second.body.punch).toBe("breakOut"); // was "clockOut" -> day over after 1 pair
+    expect(second.body.nextPunch).toBe("breakIn");
+  });
+
+  it("lateness uses the company's REAL start time, not a default 09:00", async () => {
+    // company starts at 08:00 -> arriving 08:40 is 30 min late (after 10 min grace)
+    vi.spyOn(WorkSchedule, "findOne").mockResolvedValue(realSchedule({ ...CONTINUOUS, startHour: 8, endHour: 16 }));
+    await punchAt("clock-in", 8, 40);
+    expect(stored.lateMinutes).toBe(30); // with the bug: 0 (compared to 09:00)
+  });
+});

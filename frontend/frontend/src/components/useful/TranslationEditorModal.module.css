@@ -24,14 +24,14 @@
   display: flex;
   flex-direction: column;
 
-  background: rgba(15, 15, 15, 0.96);
+  background: rgba(var(--surface-rgb), 0.96);
 
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(var(--overlay-rgb),  0.1);
   border-radius: 14px;
 
   box-shadow:
     0 25px 80px rgba(0, 0, 0, 0.6),
-    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+    inset 0 1px 0 rgba(var(--overlay-rgb),  0.04);
 }
 
 .header {
@@ -40,14 +40,14 @@
   justify-content: space-between;
 
   padding: 1.1rem 1.25rem;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  border-bottom: 1px solid rgba(var(--overlay-rgb),  0.08);
 }
 
 .headerTitle {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  color: #fff;
+  color: var(--color-text-primary);
 }
 
 .headerTitle h3 {
@@ -65,7 +65,7 @@
   justify-content: center;
 
   padding: 0;
-  color: #666;
+  color: var(--color-text-muted);
 
   background: transparent;
   border: none;
@@ -76,8 +76,8 @@
 }
 
 .closeIcon:hover {
-  color: #fff;
-  background: rgba(255, 255, 255, 0.06);
+  color: var(--color-text-primary);
+  background: rgba(var(--overlay-rgb),  0.06);
 }
 
 .stateBlock {
@@ -87,7 +87,7 @@
   gap: 0.5rem;
 
   padding: 2.5rem 1.25rem;
-  color: #999;
+  color: var(--color-text-tertiary);
   font-size: 0.9rem;
 }
 
@@ -108,7 +108,7 @@
 
 .fieldLabel {
   margin: 0;
-  color: #fff;
+  color: var(--color-text-primary);
   font-size: 0.85rem;
   font-weight: 600;
   letter-spacing: 0.01em;
@@ -121,8 +121,8 @@
 
   padding: 0.65rem;
 
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.07);
+  background: rgba(var(--overlay-rgb),  0.03);
+  border: 1px solid rgba(var(--overlay-rgb),  0.07);
   border-radius: 10px;
 }
 
@@ -133,7 +133,7 @@
 }
 
 .langName {
-  color: #ccc;
+  color: var(--color-text-secondary);
   font-size: 0.78rem;
   font-weight: 600;
 }
@@ -147,25 +147,25 @@
 }
 
 .badgeOriginal {
-  color: #93c5fd;
+  color: var(--tone-93c5fd);
   background: rgba(59, 130, 246, 0.12);
   border: 1px solid rgba(59, 130, 246, 0.25);
 }
 
 .badgeAuto {
-  color: #999;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: var(--color-text-tertiary);
+  background: rgba(var(--overlay-rgb),  0.05);
+  border: 1px solid rgba(var(--overlay-rgb),  0.1);
 }
 
 .badgeManual {
-  color: #4ade80;
+  color: var(--tone-4ade80);
   background: rgba(74, 222, 128, 0.1);
   border: 1px solid rgba(74, 222, 128, 0.22);
 }
 
 .badgeMissing {
-  color: #facc15;
+  color: var(--tone-facc15);
   background: rgba(250, 204, 21, 0.08);
   border: 1px solid rgba(250, 204, 21, 0.2);
 }
@@ -175,13 +175,13 @@
 
   padding: 0.55rem 0.65rem;
 
-  color: #e6e6e6;
+  color: var(--color-text-primary);
   font-size: 0.85rem;
   font-family: inherit;
   line-height: 1.4;
 
   background: rgba(0, 0, 0, 0.3);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(var(--overlay-rgb),  0.1);
   border-radius: 8px;
 
   resize: vertical;
@@ -189,12 +189,12 @@
 
 .textarea:focus {
   outline: none;
-  border-color: rgba(255, 255, 255, 0.28);
+  border-color: rgba(var(--overlay-rgb),  0.28);
 }
 
 .rowError {
   margin: 0;
-  color: #f87171;
+  color: var(--tone-f87171);
   font-size: 0.75rem;
 }
 
@@ -221,23 +221,23 @@
 }
 
 .regenerateBtn {
-  color: #ccc;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: var(--color-text-secondary);
+  background: rgba(var(--overlay-rgb),  0.05);
+  border: 1px solid rgba(var(--overlay-rgb),  0.1);
 }
 
 .regenerateBtn:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.09);
+  background: rgba(var(--overlay-rgb),  0.09);
 }
 
 .saveBtn {
-  color: #000;
-  background: #fff;
-  border: 1px solid #fff;
+  color: var(--color-inverse-fg);
+  background: var(--color-inverse-bg);
+  border: 1px solid var(--color-inverse-bg);
 }
 
 .saveBtn:hover:not(:disabled) {
-  background: #e8e8e8;
+  background: var(--color-inverse-hover);
 }
 
 .regenerateBtn:disabled,
@@ -251,7 +251,7 @@
   justify-content: flex-end;
 
   padding: 1rem 1.25rem;
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  border-top: 1px solid rgba(var(--overlay-rgb),  0.08);
 }
 
 .spinner {

@@ -1,0 +1,20 @@
+.steps { list-style: none; margin: 8px 0 6px; padding: 0; display: flex; flex-direction: column; gap: 0; }
+.step { display: grid; grid-template-columns: 34px minmax(0, 1fr); gap: 12px; position: relative; padding-bottom: 14px; }
+.step:not(:last-child)::before { content: ""; position: absolute; left: 16px; top: 34px; bottom: 0; width: 2px; background: var(--color-border); }
+.num { display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 34px; font-size: 0.85rem; font-weight: 700; border-radius: 999px; border: 2px solid var(--color-border); background: var(--color-bg-primary); color: var(--color-text-secondary); z-index: 1; }
+.done .num { background: var(--color-success); border-color: var(--color-success) !important; color: #fff; }
+.current .num { border-color: var(--color-info) !important; color: var(--color-info); }
+.todo { opacity: 0.75; }
+.body { padding: 10px 14px; border: 1px solid var(--color-border); border-radius: 12px; background: var(--color-bg-primary); }
+.current .body { border-color: var(--color-info); }
+.head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 12px; }
+.head h3 { margin: 0; font-size: 0.95rem; display: inline-flex; align-items: center; gap: 6px; }
+.who { margin: 2px 0 6px; font-size: 0.74rem; color: var(--color-text-tertiary); }
+.actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 6px; font-size: 0.82rem; }
+.orderLink { display: inline-flex; align-items: center; gap: 6px; padding: 0; font: inherit; font-size: 0.8rem; color: var(--color-text-secondary); background: none; border: 0; cursor: pointer; }
+.orderLink:hover { color: var(--color-info); }
+.transfers { display: flex; flex-wrap: wrap; gap: 6px; width: 100%; }
+.chip { padding: 3px 9px; font-size: 0.72rem; border: 1px dashed var(--color-warning); border-radius: 999px; color: var(--color-text-secondary); }
+.chip.ok { border-style: solid; border-color: var(--color-border); }
+.badge { padding: 3px 10px; font-size: 0.76rem; font-weight: 600; border-radius: 999px; background: var(--color-warning-light); color: var(--color-warning); }
+.sub { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; font-size: 0.76rem; border-radius: 999px; border: 1px solid var(--color-border); }

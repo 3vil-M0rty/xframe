@@ -28,6 +28,10 @@ export const getSeries = async (companyId) => data(await api.get(`/production/se
 export const createSeries = async (body) => data(await api.post("/production/series", body));
 export const updateSeries = async (id, body) => data(await api.put(`/production/series/${id}`, body));
 export const deleteSeries = async (id) => (await api.delete(`/production/series/${id}`)).data;
+// Profile types of a series ↔ articles (Technique › Données techniques)
+export const getProfileTypeSuggestions = async (companyId) => data(await api.get(`/production/profile-types/suggestions?${qs({ companyId })}`));
+export const attachProfileTypes = async (body) => data(await api.post("/production/profile-types/attach", body));
+export const detachProfileTypes = async (body) => data(await api.post("/production/profile-types/detach", body));
 
 export const getCatalog = async () => data(await api.get("/production/catalog"));
 export const getTemplate = async (key) => data(await api.get(`/production/catalog/${key}`));
@@ -72,4 +76,25 @@ export const addProjectItem = async (projectId, body) => data(await api.post(`/p
 export const updateProjectItem = async (projectId, itemId, body) => data(await api.put(`/projects/${projectId}/items/${itemId}`, body));
 export const deleteProjectItem = async (projectId, itemId) => (await api.delete(`/projects/${projectId}/items/${itemId}`)).data;
 export const getProjectProduction = async (projectId) => data(await api.get(`/projects/${projectId}/production`));
-export const planProjectProduction = async (projectId) => data(await api.post(`/projects/${projectId}/production/plan`));
+export const planProjectProduction = async (projectId, body = {}) => data(await api.post(`/projects/${projectId}/production/plan`, body));
+
+// ---- glass compositions (vitrages: "44.2 / 10 / 6" and the plateaux each layer may be cut from) ----
+export const getGlassTypes = async (companyId, params = {}) => data(await api.get(`/production/glass-types?${qs({ companyId, ...params })}`)) || [];
+export const createGlassType = async (body) => data(await api.post("/production/glass-types", body));
+export const updateGlassType = async (id, body) => data(await api.put(`/production/glass-types/${id}`, body));
+export const deleteGlassType = async (id) => (await api.delete(`/production/glass-types/${id}`)).data;
+
+// ---- débit (bar cutting plans, glass plateau layouts, accessories, powder) ----
+// `overrides` = { kerf, trim, endTrim, spacing, edgeTrim, gap, allowRotation } — recompute without saving the settings.
+export const getProjectCutting = async (projectId, overrides = {}) => data(await api.get(`/projects/${projectId}/production/cutting?${qs(overrides)}`));
+export const getWorkOrderCutting = async (id, overrides = {}) => data(await api.get(`/production-orders/${id}/cutting?${qs(overrides)}`));
+
+async function openPdf(url) {
+  const res = await api.get(url, { responseType: "blob" });
+  const blobUrl = URL.createObjectURL(new Blob([res.data], { type: "application/pdf" }));
+  window.open(blobUrl, "_blank", "noopener");
+  setTimeout(() => URL.revokeObjectURL(blobUrl), 60000);
+}
+/** One paper per material: section = bars | accessories | powder | glass */
+export const openProjectSectionPdf = (projectId, section, overrides = {}) => openPdf(`/projects/${projectId}/production/pdf?${qs({ section, ...overrides })}`);
+export const openWorkOrderSectionPdf = (id, section, overrides = {}) => openPdf(`/production-orders/${id}/pdf?${qs({ section, ...overrides })}`);

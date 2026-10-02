@@ -50,7 +50,7 @@ const uploadImage = (buffer, folder) => {
  * change, the account-level fix is: Cloudinary Console → Settings
  * → Security → enable "Allow delivery of PDF and ZIP files".
  */
-const uploadFile = (buffer, folder, originalName, mimetype) => {
+const uploadFile = (buffer, folder, originalName, mimetype, { private: isPrivate = false } = {}) => {
   const isPdf = mimetype === "application/pdf";
 
   return new Promise((resolve, reject) => {
@@ -68,6 +68,11 @@ const uploadFile = (buffer, folder, originalName, mimetype) => {
         // uploads resolve to an extensionless URL that browsers
         // don't reliably know how to render inline.
         format: isPdf ? "pdf" : undefined,
+        // Private files (HR documents, supplier invoices...): stored
+        // as "authenticated" — no public URL works for them; the app
+        // hands out a link that expires after a few minutes instead
+        // (see privateFileUrl below and routes/files.js).
+        ...(isPrivate ? { type: "authenticated" } : {}),
       },
       (error, result) => {
         if (error) {
@@ -110,10 +115,55 @@ const deleteFile = async (publicId) => {
 
   if (first?.result === "ok") return first;
 
+  // Private uploads live under type "authenticated".
+  const priv = await cloudinary.uploader.destroy(publicId, { resource_type: "image", type: "authenticated" });
+  if (priv?.result === "ok") return priv;
+  const privRaw = await cloudinary.uploader.destroy(publicId, { resource_type: "raw", type: "authenticated" });
+  if (privRaw?.result === "ok") return privRaw;
+
   return cloudinary.uploader.destroy(publicId, { resource_type: "raw" });
 };
 
+/**
+ * Uploads a document privately and returns what to store on the
+ * record. `url` is left empty on purpose: the only way to open the
+ * file is a short-lived signed link from privateFileUrl().
+ */
+const uploadPrivateFile = async (buffer, folder, originalName, mimetype) => {
+  const result = await uploadFile(buffer, folder, originalName, mimetype, { private: true });
+  return {
+    url: "",
+    publicId: result.public_id,
+    originalName,
+    private: true,
+    resourceType: result.resource_type,
+    format: result.format || "",
+  };
+};
+
+/** Default lifetime of a signed file link, in seconds. */
+const FILE_LINK_TTL_SECONDS = 5 * 60;
+
+/**
+ * A link to open a stored file. Private files get a signed link that
+ * stops working after `ttlSeconds`; files uploaded before private
+ * storage existed keep their original URL.
+ */
+const privateFileUrl = (file, { ttlSeconds = FILE_LINK_TTL_SECONDS } = {}) => {
+  if (!file) return null;
+  if (!file.private) return file.url || null;
+  if (!file.publicId) return null;
+  return cloudinary.utils.private_download_url(file.publicId, file.format || "", {
+    resource_type: file.resourceType || "image",
+    type: "authenticated",
+    expires_at: Math.floor(Date.now() / 1000) + ttlSeconds,
+  });
+};
+
 module.exports = {
+  uploadPrivateFile,
+  privateFileUrl,
+  FILE_LINK_TTL_SECONDS,
   uploadImage,
   uploadFile,
   deleteImage,

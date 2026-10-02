@@ -1,6 +1,11 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const Department = require('../models/Department');
+const Workshop = require('../models/Workshop');
+const Employee = require('../models/Employee');
+const { computeEffective } = require('../services/permissionService');
+const { bindRequest, tenantContext, PLATFORM } = require('../services/tenantScope');
+const { companyIdsForTenant, accountAccessProblem } = require('../services/tenantService');
 
 /**
  * ============================================================
@@ -44,6 +49,9 @@ const Department = require('../models/Department');
 const BLOCKED_STATUSES = new Set(['inactive', 'suspended']);
 
 const auth = async (req, res, next) => {
+  // Already authenticated earlier in this request (router-level auth +
+  // a route that repeats it): nothing to redo, we're inside its context.
+  if (req._authenticated && req.user) return next();
   try {
     const token = req.headers.authorization?.split(' ')[1];
 
@@ -68,7 +76,7 @@ const auth = async (req, res, next) => {
     }
 
     const user = await User.findById(decoded.id)
-      .select('email role department hrRole employee status')
+      .select('email role department hrRole employee status tenant showFinancials permissionsMode permissions')
       .lean();
 
     if (!user) {
@@ -79,25 +87,84 @@ const auth = async (req, res, next) => {
       return res.status(401).json({ message: 'This account has been deactivated' });
     }
 
-    // Departments this person runs (Department.manager) — powers the
-    // department-wide approval rights in permissions/permissions.js
-    // and the "My department" page. Only looked up for accounts
-    // linked to an employee, since only employees can manage one.
-    const managedDepartments = user.employee
-      ? (await Department.find({ manager: user.employee }).select('_id').lean()).map((d) => String(d._id))
-      : [];
+    // Client (tenant) checks — a suspended client, or an account not
+    // attached to any client, is cut off here even mid-session.
+    // 401 (not 403): the session itself is no longer valid, so the
+    // app logs the person out — same as a deactivated account.
+    const clientProblem = await accountAccessProblem(user);
+    if (clientProblem) {
+      return res.status(401).json({ message: clientProblem.message });
+    }
 
-    req.user = {
-      id: String(user._id),
-      email: user.email,
-      role: user.role,
-      department: user.department,
-      hrRole: user.hrRole,
-      employee: user.employee ? String(user.employee) : null,
-      managedDepartments,
-    };
+    // The isolation context every query of this request runs under
+    // (services/tenantScope.js). A platform_admin gets the platform
+    // context: no client business data unless a platform route opts
+    // in explicitly.
+    const isPlatform = user.role === 'platform_admin';
+    const ctx = isPlatform
+      ? PLATFORM
+      : tenantContext({
+          tenantId: user.tenant,
+          companyIds: await companyIdsForTenant(user.tenant),
+          userId: String(user._id),
+        });
 
-    next();
+    return bindRequest(req, ctx, async () => {
+      try {
+        // Departments this person runs (Department.manager) — powers the
+        // department-wide approval rights in permissions/permissions.js
+        // and the "My department" page. Only looked up for accounts
+        // linked to an employee, since only employees can manage one.
+        const managedRows = user.employee && !isPlatform
+          ? await Department.find({ manager: user.employee }).select('_id permissionKey').lean()
+          : [];
+        const managedDepartments = managedRows.map((d) => String(d._id));
+        // People reporting to this login's employee → they can hand out
+        // (their own) permissions to their team.
+        const hasReports = user.employee && !isPlatform
+          ? !!(await Employee.exists({ manager: user.employee }))
+          : false;
+
+        // Workshops (ateliers) this person runs or works in — gives the
+        // workshop screens to people outside the production department.
+        let workshops = [];
+        let managedWorkshops = [];
+        if (user.employee && !isPlatform) {
+          const rows = await Workshop.find({ $or: [{ manager: user.employee }, { members: user.employee }] }).select('_id manager').lean();
+          workshops = rows.map((w) => String(w._id));
+          managedWorkshops = rows.filter((w) => String(w.manager) === String(user.employee)).map((w) => String(w._id));
+        }
+
+        req.user = {
+          id: String(user._id),
+          email: user.email,
+          role: user.role,
+          department: user.department,
+          hrRole: user.hrRole,
+          showFinancials: user.showFinancials === true,
+          employee: user.employee ? String(user.employee) : null,
+          tenant: user.tenant ? String(user.tenant) : null,
+          managedDepartments,
+          workshops,
+          managedWorkshops,
+          permissionsMode: user.permissionsMode || 'role',
+        };
+        // Every permission check reads this set (services/permissionService.js).
+        req.user.perms = isPlatform ? new Set() : computeEffective(user, {
+          workshops,
+          managedWorkshops,
+          managedDepartmentKeys: managedRows.map((d) => d.permissionKey).filter(Boolean),
+          managedDepartmentCount: managedRows.length,
+          hasReports,
+        });
+
+        req._authenticated = true;
+        next();
+      } catch (error) {
+        console.error('Auth middleware error:', error);
+        res.status(500).json({ message: 'Authentication check failed' });
+      }
+    });
   } catch (error) {
     console.error('Auth middleware error:', error);
     res.status(500).json({ message: 'Authentication check failed' });

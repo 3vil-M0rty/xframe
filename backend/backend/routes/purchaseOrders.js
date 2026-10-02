@@ -2,6 +2,7 @@ const express = require("express");
 const mongoose = require("mongoose");
 const multer = require("multer");
 
+const { loadTree, effectiveAccounting } = require("../services/categoryTree");
 const router = express.Router();
 
 const PurchaseOrder = require("../models/PurchaseOrder");
@@ -13,15 +14,26 @@ const { fetchLogoBuffer } = require("../services/pdfHelpers");
 const { generatePurchaseOrderPdf } = require("../services/purchasingPdfService");
 const InventoryCategory = require("../models/InventoryCategory");
 const auth = require("../middleware/auth");
+const { guard } = require("../middleware/permissionGuard");
+const { ownsCompany } = require("../permissions/permissions");
+const { ROUTE_PERMISSIONS } = require("../config/routePermissions");
 const { requirePurchasingAccess } = require("../middleware/permissionMiddleware");
 const { logAudit } = require("../services/auditLogger");
 const { applyMovement } = require("../services/inventoryService");
-const { uploadFile, deleteFile } = require("../services/cloudinaryService");
+const { uploadPrivateFile, deleteFile } = require("../services/cloudinaryService");
 const { createWithNumber } = require("../services/documentNumberService");
-const { notifyMany, getProductionRecipientIds } = require("../services/notificationService");
+const { notify, notifyMany, getProductionRecipientIds } = require("../services/notificationService");
+const Department = require("../models/Department");
+const User = require("../models/User");
+const Employee = require("../models/Employee");
+const { sendMail, pdfToBuffer, isEmail } = require("../services/mailService");
+const reports = require("../services/purchasingReports");
+const exportsXlsx = require("../services/purchasingExports");
+const PurchaseRequestModel = require("../models/PurchaseRequest");
 const { OPEN } = require("../services/purchaseRequestWorkflow");
 const {
   round2, lineOutstanding, validateReception, applyReceptionToLines, deriveReceptionStatus,
+  derivePaymentStatus, allocateInvoices, computeTotals,
 } = require("../services/purchaseOrderCalc");
 
 /**
@@ -35,6 +47,8 @@ const {
  * ============================================================
  */
 
+// Fine-grained permissions of every endpoint: config/routePermissions.js
+router.use(auth, guard(ROUTE_PERMISSIONS.purchaseOrders));
 router.use(auth, requirePurchasingAccess);
 
 const uploadDoc = multer({
@@ -50,16 +64,89 @@ const withUpload = (req, res, next) =>
 
 const bad = (res, message, status = 400) => res.status(status).json({ success: false, message });
 const isId = (v) => mongoose.Types.ObjectId.isValid(v);
+// Goods received (fully or partly) but no supplier invoice recorded yet
+// — credit notes don't count as an invoice.
+const MISSING_INVOICE_QUERY = {
+  status: { $in: ["partially_received", "received"] },
+  invoices: { $not: { $elemMatch: { type: { $ne: "credit_note" } } } },
+};
+
 const escapeRegex = (s) => String(s).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+// ---------- purchase order approval ----------
+// Orders at or above Company.settings.purchaseApprovalThreshold (TTC)
+// need an approver before they can be marked as ordered.
+const approvalThreshold = (company) => Number(company?.settings?.purchaseApprovalThreshold) || 0;
+// Always computed from the lines — never trust a stored total that may
+// not have been recalculated yet.
+const orderTotalTTC = (order) => computeTotals(order.lines || []).totalTTC;
+function needsApproval(order, company) {
+  const threshold = approvalThreshold(company);
+  const total = orderTotalTTC(order);
+  if (threshold <= 0 || total < threshold) return false;
+  const approved = order.approval?.approvedAt && order.approval.approvedAmount !== null
+    && order.approval.approvedAmount >= total - 0.005;
+  return !approved;
+}
+
+/** Departments with the purchasing module whose manager is `employeeId`. */
+async function managesPurchasing(user, companyId) {
+  const ids = user.managedDepartments || [];
+  if (!ids.length) return false;
+  return !!(await Department.exists({ _id: { $in: ids }, company: companyId, permissionKey: "purchasing" }));
+}
+
+/** Admins, the company owner, and the purchasing department's manager. */
+async function canApprove(user, company) {
+  if (user.role === "admin") return true;
+  if (user.role === "owner" && ownsCompany(user, company)) return true;
+  return managesPurchasing(user, company._id);
+}
+
+async function approverIds(company, excludeUserId) {
+  const ids = new Set();
+  (await User.find({ role: "admin" }).select("_id").lean()).forEach((u) => ids.add(String(u._id)));
+  if (company.owner) ids.add(String(company.owner));
+  const depts = await Department.find({ company: company._id, permissionKey: "purchasing", manager: { $ne: null } }).select("manager").lean();
+  if (depts.length) {
+    const users = await User.find({ employee: { $in: depts.map((d) => d.manager) } }).select("_id").lean();
+    users.forEach((u) => ids.add(String(u._id)));
+  }
+  ids.delete(String(excludeUserId || ""));
+  return [...ids];
+}
+
+async function requestApproval(order, company, userId) {
+  order.status = "pending_approval";
+  order.approval = { ...(order.approval?.toObject?.() || order.approval || {}), requestedAt: new Date(), requestedBy: userId,
+    approvedAt: null, approvedBy: null, approvedAmount: null, rejectedAt: null, rejectedBy: null, rejectReason: undefined };
+  await notifyMany(await approverIds(company, userId), {
+    type: "purchase_request_pending",
+    title: "Purchase order awaiting approval",
+    message: `${order.number} — ${round2(order.totalTTC)} MAD TTC`,
+    link: `/purchasing/orders/${order._id}`,
+  });
+}
 
 async function storeFile(file, companyId) {
   if (!file) return undefined;
-  const result = await uploadFile(file.buffer, `purchasing/${companyId}`, file.originalname, file.mimetype);
-  return { url: result.secure_url, publicId: result.public_id, originalName: file.originalname };
+  // Private: opened only through a short-lived link (routes/files.js).
+  return uploadPrivateFile(file.buffer, `purchasing/${companyId}`, file.originalname, file.mimetype);
+}
+
+// Optional project link (Production → Projects): null when not given,
+// false when the id isn't a project of this company.
+async function projectFor(projectId, companyId) {
+  if (!projectId) return null;
+  const Project = require("../models/Project");
+  if (!isId(projectId)) return false;
+  const p = await Project.findOne({ _id: projectId, company: companyId }).select("_id").lean();
+  return p ? p._id : false;
 }
 
 const DETAIL_POPULATE = [
-  { path: "supplier", select: "name contactName phone email paymentTerms" },
+  { path: "project", select: "number name" },
+  { path: "supplier", select: "name contactName phone email paymentTerms paymentDays" },
   { path: "lines.product", select: "name internalReference unit quantity" },
   { path: "purchaseRequests", select: "requestedQuantity status product", populate: { path: "product", select: "name" } },
   { path: "receptions.by", select: "firstName lastName" },
@@ -136,11 +223,18 @@ async function updateLinkedRequests(order, requestIds, status, note, actorId, on
 // ======================================================
 router.get("/", async (req, res) => {
   try {
-    const { companyId, status, paymentStatus, supplier, search, from, to, page = 1, limit = 20 } = req.query;
+    const { companyId, status, paymentStatus, supplier, search, from, to, late, missingInvoice, page = 1, limit = 20 } = req.query;
     if (!companyId || !isId(companyId)) return bad(res, "A valid companyId is required");
 
     const filter = { company: companyId };
     if (status) filter.status = { $in: String(status).split(",") };
+    // received but not invoiced yet
+    if (missingInvoice === "true") Object.assign(filter, MISSING_INVOICE_QUERY);
+    // late = ordered, not fully received, expected delivery date passed
+    if (late === "true") {
+      filter.status = { $in: ["sent", "partially_received"] };
+      filter.expectedDate = { $ne: null, $lt: new Date() };
+    }
     if (paymentStatus) filter.paymentStatus = { $in: String(paymentStatus).split(",") };
     if (supplier && isId(supplier)) filter.supplier = supplier;
     if (search) filter.number = new RegExp(escapeRegex(search.trim()), "i");
@@ -154,7 +248,7 @@ router.get("/", async (req, res) => {
     const currentLimit = Math.min(Math.max(Number(limit) || 20, 1), 100);
     const [orders, total] = await Promise.all([
       PurchaseOrder.find(filter)
-        .select("number supplier date expectedDate status totalHT totalTTC amountPaid paymentStatus lines.quantity lines.receivedQuantity lines.returnedQuantity invoices.number")
+        .select("number supplier date expectedDate status totalHT totalTTC amountPaid paymentStatus lines.quantity lines.receivedQuantity lines.returnedQuantity invoices.number invoices.type")
         .populate("supplier", "name")
         .sort({ date: -1, number: -1 })
         .skip((currentPage - 1) * currentLimit)
@@ -180,7 +274,7 @@ router.get("/summary", async (req, res) => {
     const { companyId } = req.query;
     if (!companyId || !isId(companyId)) return bad(res, "A valid companyId is required");
     const orders = await PurchaseOrder.find({ company: companyId, status: { $ne: "cancelled" } })
-      .select("status totalTTC amountPaid paymentStatus invoices.dueDate").lean();
+      .select("status totalTTC amountPaid amountDue paymentStatus invoices payments").lean();
     const now = new Date();
     const byStatus = {};
     let totalOrdered = 0;
@@ -190,11 +284,13 @@ router.get("/summary", async (req, res) => {
       byStatus[o.status] = (byStatus[o.status] || 0) + 1;
       if (o.status !== "draft") totalOrdered += o.totalTTC || 0;
       totalPaid += o.amountPaid || 0;
-      if (o.paymentStatus !== "paid" && (o.invoices || []).some((i) => i.dueDate && new Date(i.dueDate) < now)) overdueOrders += 1;
+      if (allocateInvoices(o, now).some((r) => r.overdue)) overdueOrders += 1;
     }
+    const missingInvoice = await PurchaseOrder.countDocuments({ company: companyId, ...MISSING_INVOICE_QUERY });
     res.json({
       success: true,
       data: {
+        missingInvoice,
         byStatus,
         totalOrdered: round2(totalOrdered),
         totalPaid: round2(totalPaid),
@@ -204,6 +300,158 @@ router.get("/summary", async (req, res) => {
     });
   } catch (error) {
     res.status(500).json({ success: false, message: "Error building the summary", error: error.message });
+  }
+});
+
+// ======================================================
+// REPORTS — files for the accountant and the tax return
+// GET /api/purchase-orders/reports/vat-deductions?companyId=&from=&to=&format=xlsx|json
+// GET /api/purchase-orders/reports/accounting?companyId=&from=&to=
+// GET /api/purchase-orders/reports/aged-balance?companyId=&format=xlsx|json
+// GET /api/purchase-orders/reports/restock?companyId=
+// ======================================================
+const sendXlsx = (res, buffer, filename) => {
+  res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+  res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+  res.send(buffer);
+};
+async function loadReportOrders(companyId) {
+  const orders = await PurchaseOrder.find({ company: companyId, status: { $ne: "cancelled" } })
+    .select("number status supplier lines totalHT totalVAT totalTTC invoices payments")
+    .populate("supplier", "name identifiantFiscal ice")
+    // each line's article category carries its accounting account
+    .populate({ path: "lines.product", select: "category", populate: { path: "category", select: "accountingAccount isFixedAsset" } })
+    .lean();
+  // A sub-category without its own account uses its parent's.
+  const accounting = effectiveAccounting(await loadTree(companyId));
+  for (const o of orders) {
+    for (const l of o.lines || []) {
+      const cat = l.product?.category;
+      const eff = cat?._id ? accounting.get(String(cat._id)) : null;
+      if (eff) Object.assign(cat, eff);
+    }
+  }
+  return orders;
+}
+
+router.get("/reports/vat-deductions", async (req, res) => {
+  try {
+    const { companyId, from, to, format } = req.query;
+    if (!companyId || !isId(companyId)) return bad(res, "A valid companyId is required");
+    const orders = await loadReportOrders(companyId);
+    const rows = reports.vatDeductionRows(orders, { from, to });
+    // payments with no invoice to deduct from — shown so the report
+    // never looks mysteriously empty
+    const withoutInvoice = reports.paymentsWithoutInvoice(orders, { from, to });
+    if (format !== "xlsx") return res.json({ success: true, data: rows, withoutInvoice });
+    const company = await Company.findById(companyId).select("name ice taxId");
+    sendXlsx(res, await exportsXlsx.vatDeductionXlsx(rows, { company, from, to, withoutInvoice }), `releve-deductions-tva${from ? `-${from}` : ""}.xlsx`);
+  } catch (error) {
+    console.error("GET vat deductions error:", error);
+    res.status(500).json({ success: false, message: "Error building the VAT deduction listing", error: error.message });
+  }
+});
+
+router.get("/reports/accounting", async (req, res) => {
+  try {
+    const { companyId, from, to } = req.query;
+    if (!companyId || !isId(companyId)) return bad(res, "A valid companyId is required");
+    const company = await Company.findById(companyId).select("name settings");
+    const entries = reports.accountingEntries(await loadReportOrders(companyId), {
+      from, to, accounts: { purchases: company?.settings?.purchaseDefaultAccount },
+    });
+    sendXlsx(res, await exportsXlsx.accountingXlsx(entries, { company, from, to }), `journal-achats${from ? `-${from}` : ""}.xlsx`);
+  } catch (error) {
+    console.error("GET accounting export error:", error);
+    res.status(500).json({ success: false, message: "Error building the accounting export", error: error.message });
+  }
+});
+
+router.get("/reports/aged-balance", async (req, res) => {
+  try {
+    const { companyId, format } = req.query;
+    if (!companyId || !isId(companyId)) return bad(res, "A valid companyId is required");
+    const rows = reports.agedBalance(await loadReportOrders(companyId));
+    if (format !== "xlsx") return res.json({ success: true, data: rows });
+    const company = await Company.findById(companyId).select("name");
+    sendXlsx(res, await exportsXlsx.agedBalanceXlsx(rows, { company }), "balance-agee-fournisseurs.xlsx");
+  } catch (error) {
+    res.status(500).json({ success: false, message: "Error building the aged balance", error: error.message });
+  }
+});
+
+router.get("/reports/restock", async (req, res) => {
+  try {
+    const { companyId } = req.query;
+    if (!companyId || !isId(companyId)) return bad(res, "A valid companyId is required");
+    const [products, openOrders, openRequests] = await Promise.all([
+      Product.find({ company: companyId }).select("name internalReference unit quantity threshold prices").lean(),
+      PurchaseOrder.find({ company: companyId, status: { $in: ["draft", "pending_approval", "sent", "partially_received"] } }).select("status lines").lean(),
+      PurchaseRequestModel.find({ company: companyId, status: { $in: ["pending", "delayed"] } }).select("product requestedQuantity").lean(),
+    ]);
+    res.json({ success: true, data: reports.restockSuggestions(products, openOrders, openRequests) });
+  } catch (error) {
+    res.status(500).json({ success: false, message: "Error building restocking suggestions", error: error.message });
+  }
+});
+
+// ======================================================
+// SUPPLIER INVOICES — the échéancier (every invoice, every order)
+// GET /api/purchase-orders/invoices?companyId=&filter=unpaid|overdue|all&supplier=
+// ======================================================
+router.get("/invoices", async (req, res) => {
+  try {
+    const { companyId, filter = "unpaid", supplier } = req.query;
+    if (!companyId || !isId(companyId)) return bad(res, "A valid companyId is required");
+    const query = { company: companyId, status: { $ne: "cancelled" }, "invoices.0": { $exists: true } };
+    if (supplier && isId(supplier)) query.supplier = supplier;
+    const orders = await PurchaseOrder.find(query)
+      .select("number supplier invoices payments")
+      .populate("supplier", "name")
+      .lean();
+
+    const now = new Date();
+    let rows = [];
+    for (const order of orders) {
+      for (const r of allocateInvoices(order, now)) {
+        rows.push({
+          orderId: order._id,
+          orderNumber: order.number,
+          supplier: order.supplier,
+          invoiceId: r.invoice._id,
+          number: r.invoice.number,
+          date: r.invoice.date,
+          dueDate: r.invoice.dueDate,
+          file: r.invoice.file,
+          amount: r.amount,
+          paid: r.paid,
+          remaining: r.remaining,
+          status: r.status,
+          overdue: r.overdue,
+          daysOverdue: r.daysOverdue,
+          termDays: r.termDays,
+          legal: r.legal,
+        });
+      }
+    }
+    if (filter === "unpaid") rows = rows.filter((r) => r.status !== "paid");
+    if (filter === "overdue") rows = rows.filter((r) => r.overdue);
+    rows.sort((a, b) => (a.dueDate ? new Date(a.dueDate) : Infinity) - (b.dueDate ? new Date(b.dueDate) : Infinity));
+
+    const open = rows.filter((r) => r.status !== "paid");
+    res.json({
+      success: true,
+      data: rows,
+      totals: {
+        remaining: round2(open.reduce((s, r) => s + r.remaining, 0)),
+        overdue: round2(open.filter((r) => r.overdue).reduce((s, r) => s + r.remaining, 0)),
+        overdueCount: open.filter((r) => r.overdue).length,
+        dueIn30: round2(open.filter((r) => !r.overdue && r.dueDate && new Date(r.dueDate) - now <= 30 * 864e5).reduce((s, r) => s + r.remaining, 0)),
+      },
+    });
+  } catch (error) {
+    console.error("GET supplier invoices error:", error);
+    res.status(500).json({ success: false, message: "Error fetching supplier invoices", error: error.message });
   }
 });
 
@@ -295,6 +543,8 @@ router.post("/", async (req, res) => {
   try {
     const { company, supplier, date, expectedDate, notes, send, purchaseRequestIds } = req.body;
     if (!company || !isId(company)) return bad(res, "A valid company is required");
+    const project = await projectFor(req.body.project, company);
+    if (project === false) return bad(res, "Project not found in this company");
     if (!supplier || !isId(supplier)) return bad(res, "Choose a supplier");
     const supplierDoc = await Supplier.findOne({ _id: supplier, company });
     if (!supplierDoc) return bad(res, "Supplier not found in this company");
@@ -309,6 +559,7 @@ router.post("/", async (req, res) => {
       expectedDate: expectedDate || null,
       lines,
       notes,
+      project: project || null,
       status: send ? "sent" : "draft",
       createdBy: req.user.id,
       updatedBy: req.user.id,
@@ -355,11 +606,43 @@ router.put("/:id", async (req, res) => {
     if (expectedDate !== undefined) order.expectedDate = expectedDate || null;
     if (notes !== undefined) order.notes = notes;
     order.updatedBy = req.user.id;
+    await order.validate(); // recompute totals before the approval check
+    // Loophole guard: an order approved at 10 000 then edited up to
+    // 100 000 must be approved again.
+    let message;
+    if (order.status === "sent") {
+      const company = await Company.findById(order.company).select("owner settings");
+      if (needsApproval(order, company)) {
+        await requestApproval(order, company, req.user.id);
+        message = "approval_requested";
+      }
+    }
     await order.save();
-    res.json({ success: true, data: await PurchaseOrder.findById(order._id).populate(DETAIL_POPULATE) });
+    res.json({ success: true, message, data: await PurchaseOrder.findById(order._id).populate(DETAIL_POPULATE) });
   } catch (error) {
     console.error("PUT purchase order error:", error);
     res.status(500).json({ success: false, message: "Error updating purchase order", error: error.message });
+  }
+});
+
+// ======================================================
+// PROJECT LINK  PATCH /api/purchase-orders/:id/project  { project: id | null }
+// Any time (even after reception): the order's cost counts in that project.
+// ======================================================
+router.patch("/:id/project", async (req, res) => {
+  try {
+    if (!isId(req.params.id)) return bad(res, "Invalid purchase order ID");
+    const order = await PurchaseOrder.findById(req.params.id);
+    if (!order) return bad(res, "Purchase order not found", 404);
+    const project = await projectFor(req.body.project, order.company);
+    if (project === false) return bad(res, "Project not found in this company");
+    order.project = project || null;
+    order.updatedBy = req.user.id;
+    await order.save();
+    res.json({ success: true, data: await PurchaseOrder.findById(order._id).populate(DETAIL_POPULATE) });
+  } catch (error) {
+    console.error("PATCH purchase order project error:", error);
+    res.status(500).json({ success: false, message: "Error updating the project link", error: error.message });
   }
 });
 
@@ -373,11 +656,18 @@ router.patch("/:id/status", async (req, res) => {
     if (!order) return bad(res, "Purchase order not found", 404);
     const { status, reason } = req.body;
 
+    let message;
     if (status === "sent") {
       if (order.status !== "draft") return bad(res, "Only a draft can be marked as sent");
-      order.status = "sent";
+      const company = await Company.findById(order.company).select("owner settings");
+      if (needsApproval(order, company)) {
+        await requestApproval(order, company, req.user.id);
+        message = "approval_requested";
+      } else {
+        order.status = "sent";
+      }
     } else if (status === "cancelled") {
-      if (!["draft", "sent"].includes(order.status) || order.receptions.length) {
+      if (!["draft", "pending_approval", "sent"].includes(order.status) || order.receptions.length) {
         return bad(res, "An order that has already been (partly) received can't be cancelled — record a return instead");
       }
       if (!reason || !String(reason).trim()) return bad(res, "Please give the reason for cancelling");
@@ -390,10 +680,102 @@ router.patch("/:id/status", async (req, res) => {
     }
     order.updatedBy = req.user.id;
     await order.save();
-    res.json({ success: true, data: await PurchaseOrder.findById(order._id).populate(DETAIL_POPULATE) });
+    res.json({ success: true, message, data: await PurchaseOrder.findById(order._id).populate(DETAIL_POPULATE) });
   } catch (error) {
     console.error("PATCH purchase order status error:", error);
     res.status(500).json({ success: false, message: "Error updating the order status", error: error.message });
+  }
+});
+
+// ======================================================
+// APPROVAL  PATCH /api/purchase-orders/:id/approve
+//           PATCH /api/purchase-orders/:id/reject-approval  { reason }
+// ======================================================
+async function decideApproval(req, res, approve) {
+  try {
+    if (!isId(req.params.id)) return bad(res, "Invalid purchase order ID");
+    const order = await PurchaseOrder.findById(req.params.id);
+    if (!order) return bad(res, "Purchase order not found", 404);
+    if (order.status !== "pending_approval") return bad(res, "This order isn't waiting for approval");
+    const company = await Company.findById(order.company).select("owner settings name");
+    if (!(await canApprove(req.user, company))) {
+      return bad(res, "Only an admin, the company owner or the purchasing manager can approve purchase orders", 403);
+    }
+    const isOwnRequest = String(order.approval?.requestedBy) === String(req.user.id);
+    if (isOwnRequest && req.user.role !== "admin" && req.user.role !== "owner") {
+      return bad(res, "You can't approve or refuse your own purchase order", 403);
+    }
+
+    const reason = String(req.body?.reason || "").trim();
+    if (!approve && !reason) return bad(res, "Please give the reason for refusing");
+
+    if (approve) {
+      order.status = "sent";
+      order.approval.approvedAt = new Date();
+      order.approval.approvedBy = req.user.id;
+      order.approval.approvedAmount = orderTotalTTC(order);
+    } else {
+      order.status = "draft";
+      order.approval.rejectedAt = new Date();
+      order.approval.rejectedBy = req.user.id;
+      order.approval.rejectReason = reason.slice(0, 500);
+    }
+    order.updatedBy = req.user.id;
+    await order.save();
+
+    if (order.approval.requestedBy && !isOwnRequest) {
+      await notify(order.approval.requestedBy, {
+        type: "purchase_request_reviewed",
+        title: approve ? "Purchase order approved" : "Purchase order refused",
+        message: approve ? `${order.number} can be sent to the supplier` : `${order.number} — ${reason}`,
+        link: `/purchasing/orders/${order._id}`,
+      });
+    }
+    await logAudit(req, { company: order.company, action: "review", resourceType: "PurchaseOrder", resourceId: order._id,
+      resourceLabel: `${order.number} — ${approve ? "approuvé" : `refusé : ${reason}`}` });
+    res.json({ success: true, data: await PurchaseOrder.findById(order._id).populate(DETAIL_POPULATE) });
+  } catch (error) {
+    console.error("PATCH purchase order approval error:", error);
+    res.status(500).json({ success: false, message: "Error recording the approval", error: error.message });
+  }
+}
+router.patch("/:id/approve", (req, res) => decideApproval(req, res, true));
+router.patch("/:id/reject-approval", (req, res) => decideApproval(req, res, false));
+
+// ======================================================
+// EMAIL THE BON DE COMMANDE  POST /api/purchase-orders/:id/email
+// body: { to, cc?, message? } — the PDF is attached
+// ======================================================
+router.post("/:id/email", async (req, res) => {
+  try {
+    if (!isId(req.params.id)) return bad(res, "Invalid purchase order ID");
+    const order = await PurchaseOrder.findById(req.params.id)
+      .populate("supplier")
+      .populate("lines.product", "name internalReference unit prices");
+    if (!order) return bad(res, "Purchase order not found", 404);
+    if (["draft", "pending_approval", "cancelled"].includes(order.status)) {
+      return bad(res, "Only an order marked as ordered can be sent to the supplier");
+    }
+    const to = String(req.body?.to || "").trim();
+    const cc = String(req.body?.cc || "").trim();
+    if (!isEmail(to)) return bad(res, "Enter a valid recipient email");
+    if (cc && !cc.split(",").every((x) => isEmail(x))) return bad(res, "Invalid CC email");
+
+    const company = await Company.findById(order.company);
+    const logoBuffer = await fetchLogoBuffer(company);
+    const pdf = await pdfToBuffer(generatePurchaseOrderPdf({ order, company, supplier: order.supplier, logoBuffer }));
+    const subject = `Bon de commande ${order.number} — ${company.name}`;
+    const text = String(req.body?.message || "").trim()
+      || `Bonjour,\n\nVeuillez trouver ci-joint notre bon de commande ${order.number}.\nMerci de nous confirmer sa bonne réception et le délai de livraison.\n\nCordialement,\n${company.name}`;
+
+    const result = await sendMail({ to, cc, subject, text, attachments: [{ filename: `${order.number}.pdf`, content: pdf, contentType: "application/pdf" }] },
+      { company: company._id, relatedType: "PurchaseOrder", relatedId: order._id, sentBy: req.user.id });
+    order.emails.push({ to, cc, subject, by: req.user.id, simulated: result.status === "simulated" });
+    await order.save();
+    res.json({ success: true, simulated: result.status === "simulated", data: await PurchaseOrder.findById(order._id).populate(DETAIL_POPULATE) });
+  } catch (error) {
+    console.error("POST purchase order email error:", error);
+    res.status(502).json({ success: false, message: `The email could not be sent: ${error.message}` });
   }
 });
 
@@ -486,6 +868,53 @@ router.post("/:id/receptions", withUpload, async (req, res) => {
 });
 
 // ======================================================
+// CLOSE / REOPEN A LINE ("solder la ligne")
+// PATCH /api/purchase-orders/:id/lines/:lineId/close   { reason? }
+// PATCH /api/purchase-orders/:id/lines/:lineId/reopen
+// ======================================================
+// Real deliveries are often short: 70 ordered, 69 delivered, and the
+// last one isn't coming. Closing the line accepts what was received as
+// final — nothing more is expected, and once every line is received or
+// closed the order is "received" (its purchase requests close too).
+async function setLineClosed(req, res, closed) {
+  try {
+    if (!isId(req.params.id)) return bad(res, "Invalid purchase order ID");
+    const order = await PurchaseOrder.findById(req.params.id);
+    if (!order) return bad(res, "Purchase order not found", 404);
+    if (!["sent", "partially_received", "received"].includes(order.status)) {
+      return bad(res, "Only an order sent to the supplier can have lines closed or reopened");
+    }
+    const line = order.lines.id(req.params.lineId);
+    if (!line) return bad(res, "Order line not found", 404);
+    if (closed && line.closed) return bad(res, "This line is already closed");
+    if (!closed && !line.closed) return bad(res, "This line isn't closed");
+
+    line.closed = closed;
+    line.closedAt = closed ? new Date() : null;
+    line.closedBy = closed ? req.user.id : null;
+    line.closeReason = closed ? String(req.body?.reason || "").trim().slice(0, 300) : undefined;
+    const before = order.status;
+    order.status = deriveReceptionStatus(order);
+    order.updatedBy = req.user.id;
+    await order.save();
+
+    if (order.status === "received" && before !== "received") {
+      await updateLinkedRequests(order, order.purchaseRequests, "received", `Ligne soldée : ${line.description}`, req.user.id);
+    }
+    await logAudit(req, {
+      company: order.company, action: "update", resourceType: "PurchaseOrder", resourceId: order._id,
+      resourceLabel: `${order.number} — ligne ${closed ? "soldée" : "rouverte"} : ${line.description}`,
+    });
+    res.json({ success: true, data: await PurchaseOrder.findById(order._id).populate(DETAIL_POPULATE) });
+  } catch (error) {
+    console.error("PATCH line close/reopen error:", error);
+    res.status(500).json({ success: false, message: "Error updating the line", error: error.message });
+  }
+}
+router.patch("/:id/lines/:lineId/close", (req, res) => setLineClosed(req, res, true));
+router.patch("/:id/lines/:lineId/reopen", (req, res) => setLineClosed(req, res, false));
+
+// ======================================================
 // ADD A TYPED-IN LINE TO THE INVENTORY
 // POST /api/purchase-orders/:id/lines/:lineId/create-article
 // body: { category (required), internalReference?, unit?, threshold? }
@@ -570,17 +999,60 @@ router.post("/:id/invoices", withUpload, async (req, res) => {
     if (!order) return bad(res, "Purchase order not found", 404);
     if (order.status === "cancelled") return bad(res, "This order was cancelled");
 
+    const type = req.body.type === "credit_note" ? "credit_note" : "invoice";
     const number = String(req.body.number || "").trim();
-    const amountTTC = Number(req.body.amountTTC);
-    if (!number) return bad(res, "Enter the invoice number");
-    if (!req.body.date) return bad(res, "Enter the invoice date");
-    if (!Number.isFinite(amountTTC) || amountTTC < 0) return bad(res, "Enter the invoice amount");
+
+    // Exact VAT as printed on the invoice: [{ rate, baseHT, vat }] (sent
+    // as JSON in the multipart form). When given, it must add up to the
+    // invoice total; the total can also be left to be computed from it.
+    let vatBreakdown = [];
+    if (req.body.vatBreakdown) {
+      try {
+        vatBreakdown = typeof req.body.vatBreakdown === "string" ? JSON.parse(req.body.vatBreakdown) : req.body.vatBreakdown;
+      } catch {
+        return bad(res, "Invalid VAT breakdown");
+      }
+      if (!Array.isArray(vatBreakdown)) return bad(res, "Invalid VAT breakdown");
+      vatBreakdown = vatBreakdown
+        .map((r) => ({ rate: Number(r.rate), baseHT: round2(Number(r.baseHT)), vat: round2(Number(r.vat)) }))
+        .filter((r) => r.baseHT || r.vat);
+      if (vatBreakdown.some((r) => !Number.isFinite(r.rate) || r.rate < 0 || r.rate > 100 || !Number.isFinite(r.baseHT) || !Number.isFinite(r.vat))) {
+        return bad(res, "Each VAT line needs a rate, an amount excl. VAT and a VAT amount");
+      }
+      if (new Set(vatBreakdown.map((r) => r.rate)).size !== vatBreakdown.length) return bad(res, "The same VAT rate appears twice");
+    }
+    const breakdownTTC = round2(vatBreakdown.reduce((sum, r) => sum + r.baseHT + r.vat, 0));
+    const amountTTC = req.body.amountTTC !== undefined && req.body.amountTTC !== "" ? Number(req.body.amountTTC) : breakdownTTC;
+    if (vatBreakdown.length && Math.abs(breakdownTTC - amountTTC) > 0.05) {
+      return bad(res, `The VAT lines add up to ${breakdownTTC} TTC, not ${amountTTC}`);
+    }
+    if (!number) return bad(res, type === "credit_note" ? "Enter the credit note number" : "Enter the invoice number");
+    if (!req.body.date) return bad(res, "Enter the date");
+    if (!Number.isFinite(amountTTC) || amountTTC <= 0) return bad(res, "Enter an amount greater than zero");
+
+    // Due date: as entered, else invoice date + the supplier's payment
+    // days — or the legal 60 days (Loi 69-21) when the supplier has
+    // none, reported back so the UI can say so. Credit notes have none.
+    let dueDate = null;
+    let dueDateInfo = null;
+    if (type === "invoice") {
+      if (req.body.dueDate) {
+        dueDate = req.body.dueDate;
+        dueDateInfo = { source: "manual" };
+      } else {
+        const supplierDoc = await Supplier.findById(order.supplier).select("paymentDays");
+        const hasDays = Number.isFinite(supplierDoc?.paymentDays);
+        const days = hasDays ? supplierDoc.paymentDays : 60;
+        dueDate = new Date(new Date(req.body.date).getTime() + days * 24 * 60 * 60 * 1000);
+        dueDateInfo = { source: hasDays ? "supplier" : "legal_default", days };
+      }
+    }
 
     const file = await storeFile(req.file, order.company);
-    order.invoices.push({ number, date: req.body.date, dueDate: req.body.dueDate || null, amountTTC, notes: req.body.notes, file, by: req.user.id });
+    order.invoices.push({ type, number, date: req.body.date, dueDate, amountTTC, vatBreakdown, notes: req.body.notes, file, by: req.user.id });
     order.updatedBy = req.user.id;
     await order.save();
-    res.status(201).json({ success: true, data: await PurchaseOrder.findById(order._id).populate(DETAIL_POPULATE) });
+    res.status(201).json({ success: true, dueDate, dueDateInfo, data: await PurchaseOrder.findById(order._id).populate(DETAIL_POPULATE) });
   } catch (error) {
     console.error("POST invoice error:", error);
     res.status(500).json({ success: false, message: "Error adding the invoice", error: error.message });
@@ -617,10 +1089,16 @@ router.post("/:id/payments", async (req, res) => {
     if (!Number.isFinite(amount) || amount <= 0) return bad(res, "Enter an amount greater than zero");
     if (!PurchaseOrder.PAYMENT_METHODS.includes(req.body.method)) return bad(res, "Choose a payment method");
     if (!req.body.date) return bad(res, "Enter the payment date");
-    const remaining = round2(order.totalTTC - order.amountPaid);
-    if (amount > remaining + 0.01) return bad(res, `This is more than what's left to pay (${remaining})`);
+    const { amountDue } = derivePaymentStatus(order);
+    if (amount > amountDue + 0.01) return bad(res, `This is more than what's left to pay (${amountDue})`);
+    let invoiceId = null;
+    if (req.body.invoiceId) {
+      const inv = order.invoices.id(req.body.invoiceId);
+      if (!inv || inv.type === "credit_note") return bad(res, "That invoice isn't on this order");
+      invoiceId = inv._id;
+    }
 
-    order.payments.push({ date: req.body.date, amount, method: req.body.method, reference: req.body.reference, notes: req.body.notes, by: req.user.id });
+    order.payments.push({ date: req.body.date, amount, method: req.body.method, reference: req.body.reference, notes: req.body.notes, invoiceId, by: req.user.id });
     order.updatedBy = req.user.id;
     await order.save();
     res.status(201).json({ success: true, data: await PurchaseOrder.findById(order._id).populate(DETAIL_POPULATE) });
@@ -641,6 +1119,75 @@ router.delete("/:id/payments/:paymentId", async (req, res) => {
     res.json({ success: true, data: await PurchaseOrder.findById(order._id).populate(DETAIL_POPULATE) });
   } catch (error) {
     res.status(500).json({ success: false, message: "Error deleting the payment", error: error.message });
+  }
+});
+
+// ======================================================
+// SUPPLIER PAYMENT  POST /api/purchase-orders/supplier-payments
+// One transfer / cheque settling several invoices, possibly on several
+// orders of the same supplier.
+// body: { company, supplier, date, method, reference?, notes?,
+//         allocations: [{ orderId, invoiceId, amount }] }
+// Everything is validated BEFORE anything is saved, so a bad line
+// can't leave a half-recorded payment.
+// ======================================================
+router.post("/supplier-payments", async (req, res) => {
+  try {
+    const { company, supplier, date, method, reference, notes, allocations } = req.body;
+    if (!company || !isId(company)) return bad(res, "A valid company is required");
+    if (!supplier || !isId(supplier)) return bad(res, "Choose a supplier");
+    if (!date) return bad(res, "Enter the payment date");
+    if (!PurchaseOrder.PAYMENT_METHODS.includes(method)) return bad(res, "Choose a payment method");
+    if (!Array.isArray(allocations) || allocations.length === 0) return bad(res, "Choose at least one invoice to settle");
+
+    const orders = new Map();
+    const plan = [];
+    for (const a of allocations) {
+      const amount = round2(Number(a.amount));
+      if (!Number.isFinite(amount) || amount <= 0) return bad(res, "Every amount must be greater than zero");
+      if (!isId(a.orderId)) return bad(res, "Invalid purchase order");
+      let order = orders.get(String(a.orderId));
+      if (!order) {
+        // eslint-disable-next-line no-await-in-loop
+        order = await PurchaseOrder.findById(a.orderId);
+        if (!order || String(order.company) !== String(company) || String(order.supplier) !== String(supplier)) {
+          return bad(res, "An invoice doesn't belong to this supplier");
+        }
+        if (order.status === "cancelled") return bad(res, `${order.number} was cancelled`);
+        orders.set(String(a.orderId), order);
+      }
+      const inv = order.invoices.id(a.invoiceId);
+      if (!inv || inv.type === "credit_note") return bad(res, `Invoice not found on ${order.number}`);
+      plan.push({ order, inv, amount });
+    }
+
+    // amounts vs what's left on each invoice (several lines may target the same invoice)
+    const wanted = new Map();
+    for (const p of plan) wanted.set(String(p.inv._id), round2((wanted.get(String(p.inv._id)) || 0) + p.amount));
+    for (const order of orders.values()) {
+      for (const row of allocateInvoices(order)) {
+        const w = wanted.get(String(row.invoice._id));
+        if (w && w > row.remaining + 0.01) return bad(res, `Invoice ${row.invoice.number}: only ${row.remaining} left to pay`);
+      }
+    }
+
+    const batchRef = String(reference || "").trim() || `REG-${Date.now().toString(36).toUpperCase()}`;
+    for (const p of plan) {
+      p.order.payments.push({ date, amount: p.amount, method, reference: String(reference || "").trim() || undefined,
+        notes, invoiceId: p.inv._id, batchRef, by: req.user.id });
+    }
+    for (const order of orders.values()) {
+      order.updatedBy = req.user.id;
+      // eslint-disable-next-line no-await-in-loop
+      await order.save();
+    }
+    const total = round2(plan.reduce((sum, p) => sum + p.amount, 0));
+    await logAudit(req, { company, action: "create", resourceType: "PurchaseOrder", resourceId: [...orders.values()][0]._id,
+      resourceLabel: `Règlement fournisseur ${batchRef} — ${total} MAD sur ${plan.length} facture(s)` });
+    res.status(201).json({ success: true, data: { batchRef, total, invoices: plan.length, orders: orders.size } });
+  } catch (error) {
+    console.error("POST supplier payment error:", error);
+    res.status(500).json({ success: false, message: "Error recording the supplier payment", error: error.message });
   }
 });
 

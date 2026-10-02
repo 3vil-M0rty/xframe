@@ -10,6 +10,8 @@ const User = require("../models/User");
 const Department = require("../models/Department");
 
 const auth = require("../middleware/auth");
+const { guard } = require("../middleware/permissionGuard");
+const { ROUTE_PERMISSIONS } = require("../config/routePermissions");
 const { requireHRAccess } = require("../middleware/permissionMiddleware");
 const { attachTranslationRoutes } = require("../utils/translationRoutes");
 const { findMatchingEmployeeIds } = require("../utils/employeeSearch");
@@ -24,6 +26,8 @@ const { notify, notifyMany, getHRRecipientIds } = require("../services/notificat
 // Only auth at the router level — see routes/absences.js for why
 // (the review endpoint needs to also allow a requester's manager
 // through, not just full HR access).
+// Fine-grained permissions of every endpoint: config/routePermissions.js
+router.use(auth, guard(ROUTE_PERMISSIONS.advances));
 router.use(auth);
 
 const canManage = (req, company) => canAccessHRForCompany(req.user, company);
@@ -405,7 +409,7 @@ router.patch("/:id/review", async (req, res) => {
       !!advance.employee.manager ||
       (!!advanceDepartment?.manager && String(advanceDepartment.manager) !== String(advance.employee._id));
     const sequential = !!advance.company.settings?.requireSequentialApproval && hasManagerStep;
-    const capacity = reviewerRole(req.user, advance.company, advance.employee);
+    const capacity = reviewerRole(req.user, advance.company, advance.employee, "advances");
 
     let newStatus = requestedStatus;
 

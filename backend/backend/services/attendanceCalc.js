@@ -39,7 +39,10 @@ const isSet = (v) => v !== undefined && v !== null && v !== "";
  * workHours after the start.
  */
 function resolveDaySchedule(dayConfig = {}) {
-  const cfg = { ...DEFAULTS, ...dayConfig };
+  // Accept a Mongoose subdocument too: spreading one copies its
+  // internals, not its fields (see models/WorkSchedule.js getDayConfig).
+  const plain = dayConfig && typeof dayConfig.toObject === "function" ? dayConfig.toObject() : dayConfig || {};
+  const cfg = { ...DEFAULTS, ...plain };
   const start = toMinutes(cfg.startHour, cfg.startMinute);
   const split = !!cfg.splitShift && isSet(cfg.breakStartHour) && isSet(cfg.breakEndHour);
 

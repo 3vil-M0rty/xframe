@@ -1,7 +1,9 @@
 import { lazy, Suspense } from 'react'
-import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate, useParams } from 'react-router-dom'
 import { I18nProvider } from './context/i18nContext'
 import { AuthProvider } from './context/AuthContext'
+import { ThemeProvider } from './context/ThemeContext'
+import { DialogProvider } from './components/useful/DialogProvider'
 import ProtectedRoute from './components/ProtectedRoute'
 import Layout from './components/Layout'
 import { canAccessHR, canSelfService, canManageCompanySettings, canAccessProduction, canOverseeDepartments, canAccessPurchasing, isPlatformAdmin, canAccessSales, canViewProjects, canUseWorkshops, canAccessLogistics, can, canViewCatalog, canConfigureProduction, canManageInventory, canManageTeamPermissions } from './utils/permissions'
@@ -75,6 +77,20 @@ const WorkOrderDetail = lazy(() => import('./pages/production/WorkOrderDetail'))
 const Catalog = lazy(() => import('./pages/production/Catalog'))
 const ChassisModelEditor = lazy(() => import('./pages/production/ChassisModelEditor'))
 const ProductionConfig = lazy(() => import('./pages/production/ProductionConfig'))
+const Glazing = lazy(() => import('./pages/production/Glazing'))
+const Offcuts = lazy(() => import('./pages/production/Offcuts'))
+// TECHNIQUE — everything that configures the products (catalogue, glass
+// compositions, technical data of articles, finishes, calculation settings)
+const GlassTypesPage = lazy(() => import('./pages/technical/GlassTypesPage'))
+const TechDataPage = lazy(() => import('./pages/technical/TechDataPage'))
+const FinishesPage = lazy(() => import('./pages/technical/FinishesPage'))
+const CalcSettingsPage = lazy(() => import('./pages/technical/CalcSettingsPage'))
+
+// Old Production addresses of the technical pages (bookmarks, links)
+function OldModelRedirect() {
+  const { id } = useParams()
+  return <Navigate to={`/technical/catalog/models/${id}`} replace />
+}
 const TrackingOverview = lazy(() => import('./pages/logistics/TrackingOverview'))
 const ToDeliver = lazy(() => import('./pages/logistics/ToDeliver'))
 const DeliveryNotes = lazy(() => import('./pages/logistics/DeliveryNotes'))
@@ -128,7 +144,9 @@ function RouteFallback() {
 export default function App() {
   return (
     <I18nProvider>
+      <DialogProvider>
       <AuthProvider>
+      <ThemeProvider>
         <BrowserRouter
           future={{
             v7_startTransition: true,
@@ -233,8 +251,10 @@ export default function App() {
                 <Route path="/production/planning" element={projectsRoute(<Planning />)} />
                 <Route path="/production/workshops" element={workshopsRoute(<Workshops />)} />
                 <Route path="/production/orders/:id" element={workshopsRoute(<WorkOrderDetail />)} />
-                <Route path="/production/catalog" element={<ProtectedRoute permission={canViewCatalog}><Catalog /></ProtectedRoute>} />
-                <Route path="/production/catalog/models/:id" element={<ProtectedRoute permission={canViewCatalog}><ChassisModelEditor /></ProtectedRoute>} />
+                <Route path="/production/catalog" element={<Navigate to="/technical/catalog" replace />} />
+                <Route path="/production/catalog/models/:id" element={<OldModelRedirect />} />
+                <Route path="/production/offcuts" element={<ProtectedRoute permission={(u) => can(u, "production.flow.offcuts") || can(u, "production.flow.issueBars") || canUseWorkshops(u)}><Offcuts /></ProtectedRoute>} />
+                <Route path="/production/glazing" element={<ProtectedRoute permission={(u) => canViewCatalog(u) || canConfigureProduction(u) || canViewProjects(u)}><Glazing /></ProtectedRoute>} />
                 <Route path="/production/configuration" element={<ProtectedRoute permission={canConfigureProduction}><ProductionConfig /></ProtectedRoute>} />
                 <Route path="/production/tracking" element={<ProtectedRoute permission={(u) => can(u, "production.tracking.view") || canViewProjects(u)}><TrackingOverview /></ProtectedRoute>} />
                 <Route path="/logistics/to-deliver" element={logisticsRoute(<ToDeliver />)} />
@@ -281,7 +301,16 @@ export default function App() {
                 {/* Production module */}
                 <Route path="/production/inventory" element={<ProtectedRoute permission={(u) => can(u, "inventory.articles.view") || canAccessProduction(u)}><Inventory /></ProtectedRoute>} />
                 <Route path="/production/purchase-requests" element={<ProtectedRoute permission={(u) => can(u, "inventory.requests.view") || canAccessProduction(u)}><PurchaseRequests /></ProtectedRoute>} />
-                <Route path="/production/settings" element={<ProtectedRoute permission={canManageInventory}><InventorySettings /></ProtectedRoute>} />
+                <Route path="/production/settings" element={<Navigate to="/technical/categories" replace />} />
+
+                {/* TECHNIQUE */}
+                <Route path="/technical/catalog" element={<ProtectedRoute permission={canViewCatalog}><Catalog /></ProtectedRoute>} />
+                <Route path="/technical/catalog/models/:id" element={<ProtectedRoute permission={canViewCatalog}><ChassisModelEditor /></ProtectedRoute>} />
+                <Route path="/technical/glass-types" element={<ProtectedRoute permission={(u) => canViewCatalog(u) || canConfigureProduction(u)}><GlassTypesPage /></ProtectedRoute>} />
+                <Route path="/technical/articles" element={<ProtectedRoute permission={(u) => can(u, "inventory.articles.view") || canManageInventory(u) || canConfigureProduction(u)}><TechDataPage /></ProtectedRoute>} />
+                <Route path="/technical/finishes" element={<ProtectedRoute permission={canConfigureProduction}><FinishesPage /></ProtectedRoute>} />
+                <Route path="/technical/categories" element={<ProtectedRoute permission={canManageInventory}><InventorySettings /></ProtectedRoute>} />
+                <Route path="/technical/settings" element={<ProtectedRoute permission={canConfigureProduction}><CalcSettingsPage /></ProtectedRoute>} />
 
                 {/* Unmatched routes (including the organization sidebar's
                     not-yet-built placeholder links — Departments, Job
@@ -291,7 +320,9 @@ export default function App() {
             </Routes>
           </Suspense>
         </BrowserRouter>
+      </ThemeProvider>
       </AuthProvider>
+      </DialogProvider>
     </I18nProvider>
   )
 }

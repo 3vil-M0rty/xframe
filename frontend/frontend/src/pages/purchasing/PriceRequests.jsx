@@ -14,6 +14,7 @@ import LinesEditor, { emptyLine } from "./LinesEditor";
 import { useCompanyPicker, useCompanyProducts, formatDate, formatMoney, lineTotals, PILL } from "./shared";
 import styles from "./Purchasing.module.css";
 import FileLink from "../../components/useful/FileLink";
+import { useDialog } from "../../components/useful/DialogProvider";
 
 const toPayloadLines = (lines) => lines.map((l) => ({
   product: l.product?._id || l.product || null,
@@ -30,6 +31,7 @@ const toPayloadLines = (lines) => lines.map((l) => ({
  * bon de commande at those prices — or reject it.
  */
 export default function PriceRequests() {
+  const dialog = useDialog();
   const { t } = useI18n();
   const navigate = useNavigate();
   const { companyId, setCompanyId, options: companyOptions } = useCompanyPicker();
@@ -126,7 +128,7 @@ export default function PriceRequests() {
   };
 
   const remove = async (doc) => {
-    if (!window.confirm(t("purchasing.priceRequests.deleteConfirm"))) return;
+    if (!(await dialog.confirm(t("purchasing.priceRequests.deleteConfirm")))) return;
     const ok = await run(() => deletePriceRequest(doc._id));
     if (ok) setList((l) => l.filter((x) => x._id !== doc._id));
   };

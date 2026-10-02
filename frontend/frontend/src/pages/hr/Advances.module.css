@@ -31,7 +31,7 @@
     border: 1px solid rgba(255, 80, 80, 0.25);
     border-radius: 10px;
     background: rgba(255, 80, 80, 0.06);
-    color: #ff8585;
+    color: var(--tone-ff8585);
     font-size: 0.82rem;
 }
 

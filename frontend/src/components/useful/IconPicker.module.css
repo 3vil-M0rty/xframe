@@ -71,7 +71,7 @@
 }
 
 .iconBtnSelected {
-    color: #4c8dff;
+    color: var(--tone-4c8dff);
     background: rgba(76, 141, 255, 0.12);
     border-color: rgba(76, 141, 255, 0.35);
 }

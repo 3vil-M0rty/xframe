@@ -8,8 +8,11 @@ const router = express.Router();
 const PublicHoliday = require("../models/PublicHoliday");
 const Company = require("../models/Company");
 const auth = require("../middleware/auth");
+const { guard } = require("../middleware/permissionGuard");
+const { ROUTE_PERMISSIONS } = require("../config/routePermissions");
 const { requireHRAccess } = require("../middleware/permissionMiddleware");
-const { canAccessHRForCompany, canManageEmployeeRecords } = require("../permissions/permissions");
+const { canAccessHRForCompany } = require("../permissions/permissions");
+const { hasAny: hasAnyPerm } = require("../services/permissionService");
 const { logAudit } = require("../services/auditLogger");
 const { parseHolidayFile, toDayKey } = require("../services/holidayImportService");
 const { MOROCCO_FIXED_HOLIDAYS } = require("../config/moroccoFixedHolidays");
@@ -26,6 +29,8 @@ const { MOROCCO_FIXED_HOLIDAYS } = require("../config/moroccoFixedHolidays");
  * ============================================================
  */
 
+// Fine-grained permissions of every endpoint: config/routePermissions.js
+router.use(auth, guard(ROUTE_PERMISSIONS.holidays));
 router.use(auth, requireHRAccess);
 
 const uploadHolidayFile = multer({
@@ -55,7 +60,7 @@ async function loadCompany(req, res, companyId) {
 }
 
 function requireEditor(req, res) {
-  if (!canManageEmployeeRecords(req.user)) {
+  if (!hasAnyPerm(req.user, ["hr.holidays.create", "hr.holidays.edit", "hr.holidays.delete", "hr.holidays.import"])) {
     res.status(403).json({ success: false, message: "Managing public holidays requires Chargé RH authority or higher" });
     return false;
   }

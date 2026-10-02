@@ -201,7 +201,9 @@ async function createLoginForEmployee(employee, actorId) {
 
   const normalizedEmail = employee.workEmail.trim().toLowerCase();
 
-  const existingByEmail = await User.findOne({ email: normalizedEmail });
+  // Emails are unique across the whole platform, so look outside the
+  // caller's client too (services/tenantScope.js).
+  const existingByEmail = await User.findOne({ email: normalizedEmail }).setOptions({ skipTenantScope: true });
   if (existingByEmail) {
     const error = new Error(
       `A user account already exists with the email ${normalizedEmail}.`

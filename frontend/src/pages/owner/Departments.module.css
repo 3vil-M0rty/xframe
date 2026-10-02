@@ -19,7 +19,7 @@
     border: 1px solid rgba(255, 80, 80, 0.25);
     border-radius: 10px;
     background: rgba(255, 80, 80, 0.06);
-    color: #ff8585;
+    color: var(--tone-ff8585);
     font-size: 0.82rem;
 }
 
@@ -122,7 +122,7 @@
     align-items: center;
     gap: 4px;
     padding: 3px 8px;
-    color: #4c8dff;
+    color: var(--tone-4c8dff);
     background: rgba(76, 141, 255, 0.1);
     border-radius: 999px;
     font-size: 0.66rem;
@@ -215,8 +215,8 @@
 
     padding: 1.25rem;
 
-    background: rgba(15, 15, 15, 0.96);
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(var(--surface-rgb), 0.96);
+    border: 1px solid rgba(var(--overlay-rgb),  0.1);
     border-radius: 14px;
     box-shadow: 0 25px 80px rgba(0, 0, 0, 0.6);
 }
@@ -232,7 +232,7 @@
     display: flex;
     align-items: center;
     gap: 8px;
-    color: #fff;
+    color: var(--color-text-primary);
 }
 
 .defaultsModalTitle h3 {
@@ -248,7 +248,7 @@
     width: 28px;
     height: 28px;
     padding: 0;
-    color: #666;
+    color: var(--color-text-muted);
     background: transparent;
     border: none;
     border-radius: 8px;
@@ -256,8 +256,8 @@
 }
 
 .defaultsModalClose:hover {
-    color: #fff;
-    background: rgba(255, 255, 255, 0.06);
+    color: var(--color-text-primary);
+    background: rgba(var(--overlay-rgb),  0.06);
 }
 
 .defaultsList {
@@ -270,7 +270,7 @@
     gap: 4px;
 
     padding: 4px;
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(var(--overlay-rgb),  0.08);
     border-radius: 10px;
 }
 
@@ -281,7 +281,7 @@
 
     padding: 0.45rem 0.55rem;
 
-    color: #ddd;
+    color: var(--color-text-secondary);
     font-size: 0.82rem;
 
     border-radius: 7px;
@@ -289,7 +289,7 @@
 }
 
 .defaultsItem:hover {
-    background: rgba(255, 255, 255, 0.05);
+    background: rgba(var(--overlay-rgb),  0.05);
 }
 
 .spinner {

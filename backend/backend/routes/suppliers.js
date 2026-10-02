@@ -4,18 +4,29 @@ const mongoose = require("mongoose");
 const router = express.Router();
 const Supplier = require("../models/Supplier");
 const PurchaseOrder = require("../models/PurchaseOrder");
+const Company = require("../models/Company");
+const multer = require("multer");
+const { uploadPrivateFile, deleteFile } = require("../services/cloudinaryService");
+const { supplierStatement } = require("../services/purchasingReports");
+const { statementXlsx } = require("../services/purchasingExports");
 const auth = require("../middleware/auth");
-const { requirePurchasingAccess } = require("../middleware/permissionMiddleware");
+const { guard } = require("../middleware/permissionGuard");
+const { ROUTE_PERMISSIONS } = require("../config/routePermissions");
+const { requirePurchasingAccess, requireInventoryViewAccess } = require("../middleware/permissionMiddleware");
 
-// Suppliers (fournisseurs) — purchasing module.
-router.use(auth, requirePurchasingAccess);
+// Suppliers (fournisseurs) — purchasing module. Production may READ the
+// list (to pick a supplier for an article's prices in the inventory);
+// creating/editing suppliers stays with purchasing.
+// Fine-grained permissions of every endpoint: config/routePermissions.js
+router.use(auth, guard(ROUTE_PERMISSIONS.suppliers));
+router.use(auth);
 
-const FIELDS = ["name", "contactName", "email", "phone", "address", "city", "ice", "identifiantFiscal", "rc", "paymentTerms", "notes", "isActive"];
+const FIELDS = ["name", "contactName", "email", "phone", "address", "city", "ice", "identifiantFiscal", "rc", "paymentTerms", "paymentDays", "notes", "isActive"];
 const pick = (body) => Object.fromEntries(FIELDS.filter((f) => body[f] !== undefined).map((f) => [f, body[f]]));
 const escapeRegex = (s) => String(s).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 // GET /api/suppliers?companyId=&search=&active=true
-router.get("/", async (req, res) => {
+router.get("/", requireInventoryViewAccess, async (req, res) => {
   try {
     const { companyId, search, active } = req.query;
     if (!companyId || !mongoose.Types.ObjectId.isValid(companyId)) {
@@ -34,7 +45,7 @@ router.get("/", async (req, res) => {
   }
 });
 
-router.get("/:id", async (req, res) => {
+router.get("/:id", requirePurchasingAccess, async (req, res) => {
   try {
     if (!mongoose.Types.ObjectId.isValid(req.params.id)) return res.status(400).json({ success: false, message: "Invalid supplier ID" });
     const supplier = await Supplier.findById(req.params.id);
@@ -45,7 +56,7 @@ router.get("/:id", async (req, res) => {
   }
 });
 
-router.post("/", async (req, res) => {
+router.post("/", requirePurchasingAccess, async (req, res) => {
   try {
     const { company } = req.body;
     if (!company || !mongoose.Types.ObjectId.isValid(company)) {
@@ -59,7 +70,7 @@ router.post("/", async (req, res) => {
   }
 });
 
-router.put("/:id", async (req, res) => {
+router.put("/:id", requirePurchasingAccess, async (req, res) => {
   try {
     if (!mongoose.Types.ObjectId.isValid(req.params.id)) return res.status(400).json({ success: false, message: "Invalid supplier ID" });
     const supplier = await Supplier.findById(req.params.id);
@@ -73,9 +84,86 @@ router.put("/:id", async (req, res) => {
   }
 });
 
+// ======================================================
+// STATEMENT (relevé fournisseur)  GET /api/suppliers/:id/statement?from=&to=&format=xlsx|json
+// Invoices, credit notes and payments with a running balance.
+// ======================================================
+router.get("/:id/statement", requirePurchasingAccess, async (req, res) => {
+  try {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) return res.status(400).json({ success: false, message: "Invalid supplier ID" });
+    const supplier = await Supplier.findById(req.params.id);
+    if (!supplier) return res.status(404).json({ success: false, message: "Supplier not found" });
+    const { from, to, format } = req.query;
+    const orders = await PurchaseOrder.find({ supplier: supplier._id, status: { $ne: "cancelled" } })
+      .select("number status invoices payments").lean();
+    const statement = supplierStatement(orders, { from, to });
+    if (format !== "xlsx") return res.json({ success: true, data: statement });
+    const company = await Company.findById(supplier.company).select("name");
+    const buffer = await statementXlsx(statement, { company, supplier, from, to });
+    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    res.setHeader("Content-Disposition", 'attachment; filename="releve-fournisseur.xlsx"');
+    res.send(buffer);
+  } catch (error) {
+    console.error("GET supplier statement error:", error);
+    res.status(500).json({ success: false, message: "Error building the supplier statement", error: error.message });
+  }
+});
+
+// ======================================================
+// SUPPLIER DOCUMENTS (attestation fiscale, RC, CNSS, RIB...)
+// POST   /api/suppliers/:id/documents  (multipart: file?, type, label?, number?, issueDate?, expiryDate?)
+// DELETE /api/suppliers/:id/documents/:docId
+// ======================================================
+const uploadDoc = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 10 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    const ok = ["application/pdf", "image/jpeg", "image/png", "image/webp"].includes(file.mimetype);
+    cb(ok ? null : new Error("Upload a PDF or an image (JPG, PNG, WEBP)"), ok);
+  },
+});
+const DOC_TYPES = ["attestation_fiscale", "rc", "cnss", "rib", "patente", "other"];
+
+router.post("/:id/documents", requirePurchasingAccess, (req, res, next) =>
+  uploadDoc.single("file")(req, res, (err) => (err ? res.status(400).json({ success: false, message: err.message }) : next())), async (req, res) => {
+  try {
+    const supplier = mongoose.Types.ObjectId.isValid(req.params.id) ? await Supplier.findById(req.params.id) : null;
+    if (!supplier) return res.status(404).json({ success: false, message: "Supplier not found" });
+    const { type, label, number, issueDate, expiryDate } = req.body;
+    if (!DOC_TYPES.includes(type)) return res.status(400).json({ success: false, message: "Choose a document type" });
+    let file;
+    if (req.file) {
+      // Private: opened only through a short-lived link (routes/files.js).
+      file = await uploadPrivateFile(req.file.buffer, `purchasing/${supplier.company}/suppliers`, req.file.originalname, req.file.mimetype);
+    }
+    supplier.documents.push({ type, label, number, issueDate: issueDate || null, expiryDate: expiryDate || null, file, uploadedBy: req.user.id });
+    supplier.updatedBy = req.user.id;
+    await supplier.save();
+    res.status(201).json({ success: true, data: supplier });
+  } catch (error) {
+    console.error("POST supplier document error:", error);
+    res.status(500).json({ success: false, message: "Error adding the document", error: error.message });
+  }
+});
+
+router.delete("/:id/documents/:docId", requirePurchasingAccess, async (req, res) => {
+  try {
+    const supplier = mongoose.Types.ObjectId.isValid(req.params.id) ? await Supplier.findById(req.params.id) : null;
+    if (!supplier) return res.status(404).json({ success: false, message: "Supplier not found" });
+    const doc = supplier.documents.id(req.params.docId);
+    if (!doc) return res.status(404).json({ success: false, message: "Document not found" });
+    if (doc.file?.publicId) await deleteFile(doc.file.publicId).catch(() => {});
+    doc.deleteOne();
+    await supplier.save();
+    res.json({ success: true, data: supplier });
+  } catch (error) {
+    res.status(500).json({ success: false, message: "Error deleting the document", error: error.message });
+  }
+});
+
 // A supplier with orders is deactivated, never deleted — the order
 // history must keep pointing at a real supplier.
-router.delete("/:id", async (req, res) => {
+router.delete("/:id", requirePurchasingAccess, async (req, res) => {
   try {
     if (!mongoose.Types.ObjectId.isValid(req.params.id)) return res.status(400).json({ success: false, message: "Invalid supplier ID" });
     const supplier = await Supplier.findById(req.params.id);

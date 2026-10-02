@@ -61,7 +61,7 @@ describe("receptions and returns", () => {
 describe("payment status", () => {
   it("unpaid -> partially_paid -> paid", () => {
     expect(calc.derivePaymentStatus({ totalTTC: 1200, payments: [] }).paymentStatus).toBe("unpaid");
-    expect(calc.derivePaymentStatus({ totalTTC: 1200, payments: [{ amount: 500 }] })).toEqual({ amountPaid: 500, paymentStatus: "partially_paid" });
+    expect(calc.derivePaymentStatus({ totalTTC: 1200, payments: [{ amount: 500 }] })).toMatchObject({ amountPaid: 500, amountDue: 700, paymentStatus: "partially_paid" });
     expect(calc.derivePaymentStatus({ totalTTC: 1200, payments: [{ amount: 500 }, { amount: 700 }] }).paymentStatus).toBe("paid");
   });
 });

@@ -1,5 +1,9 @@
 /* ========================================
-   GLOBAL CSS RESET - DARK MODE ONLY
+   GLOBAL CSS RESET — DARK (default) + LIGHT THEMES
+   The theme is chosen per user (context/ThemeContext.jsx): their own
+   choice, else the company's "Thème sombre" setting. It is applied as
+   <html data-theme="dark|light">. Every colour below is a token; the
+   light values are under :root[data-theme="light"].
    ======================================== */
 
 * {
@@ -17,23 +21,52 @@ body {
     'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background-color: #1a1a1a;
-  color: #ffffff;
+  background-color: var(--color-bg-primary);
+  color: var(--color-text-primary);
   transition: background-color 0.3s ease, color 0.3s ease;
 }
 
-/* Dark Mode Only - Remove Light Mode Completely */
+/* Dark theme (default) */
 :root {
+  color-scheme: dark;
+  --color-scheme: dark;
   /* Backgrounds */
   --color-bg-primary: #1a1a1a;
   --color-bg-secondary: #242424;
   --color-bg-tertiary: #2f2f2f;
   --color-bg-hover: #3a3a3a;
+  --color-bg-deep: #111111;
+
+  /* Translucent overlays (hover, subtle borders): white on dark */
+  --overlay-rgb: 255, 255, 255;
+  /* Translucent panels (modals, menus): near-black on dark */
+  --surface-rgb: 15, 15, 15;
+
+  /* "Inverted" buttons / active tabs: white on dark, ink on light */
+  --color-inverse-bg: #ffffff;
+  --color-inverse-fg: #000000;
+  --color-inverse-hover: #e8e8e8;
+
+  /* Status text colours (pastel on dark, deeper on light) */
+  --tone-e8b93f: #e8b93f;
+  --tone-f5b544: #f5b544;
+  --tone-facc15: #facc15;
+  --tone-4cc38a: #4cc38a;
+  --tone-4ade80: #4ade80;
+  --tone-6ea8fe: #6ea8fe;
+  --tone-93c5fd: #93c5fd;
+  --tone-4c8dff: #4c8dff;
+  --tone-f87171: #f87171;
+  --tone-ff8585: #ff8585;
+  --tone-ff6b6b: #ff6b6b;
+  --tone-fca5a5: #fca5a5;
+  --tone-ff9b9b: #ff9b9b;
   
   /* Text */
   --color-text-primary: #ffffff;
   --color-text-secondary: #cccccc;
   --color-text-tertiary: #999999;
+  --color-text-muted: #777777;
   
   /* Borders & Shadows */
   --color-border: #333333;
@@ -122,6 +155,81 @@ body {
   --color-error: var(--color-danger);
 }
 
+
+/* ========================================
+   LIGHT THEME
+   ======================================== */
+:root[data-theme="light"] {
+  color-scheme: light;
+  --color-scheme: light;
+
+  --color-bg-primary: #f4f5f7;
+  --color-bg-secondary: #ffffff;
+  --color-bg-tertiary: #eef0f3;
+  --color-bg-hover: #e5e8ed;
+  --color-bg-deep: #e9ecf0;
+
+  --color-text-primary: #111827;
+  --color-text-secondary: #374151;
+  --color-text-tertiary: #5b6472;
+  --color-text-muted: #7b8390;
+
+  --color-border: #dde1e7;
+  --color-border-light: #e9ecf0;
+  --color-shadow: rgba(15, 23, 42, 0.08);
+  --color-shadow-lg: rgba(15, 23, 42, 0.12);
+  --color-shadow-xl: rgba(15, 23, 42, 0.18);
+
+  --color-success: #059669;
+  --color-warning: #d97706;
+  --color-danger: #dc2626;
+  --color-info: #2563eb;
+
+  --color-success-light: #e6f6ef;
+  --color-warning-light: #fdf3e2;
+  --color-danger-light: #fdecec;
+  --color-info-light: #e8f0fe;
+
+  --color-grey-50: #fafafa;
+  --color-grey-100: #f4f5f7;
+  --color-grey-200: #eef0f3;
+  --color-grey-300: #dde1e7;
+  --color-grey-400: #c4cad3;
+  --color-grey-500: #9aa1ab;
+  --color-grey-600: #7b8390;
+  --color-grey-700: #5b6472;
+  --color-grey-800: #374151;
+  --color-grey-900: #111827;
+
+  --color-primary-dark: #1d4ed8;
+
+  --overlay-rgb: 15, 23, 42;
+  --surface-rgb: 255, 255, 255;
+
+  --color-inverse-bg: #111827;
+  --color-inverse-fg: #ffffff;
+  --color-inverse-hover: #1f2937;
+
+  --tone-e8b93f: #a16207;
+  --tone-f5b544: #a16207;
+  --tone-facc15: #a16207;
+  --tone-4cc38a: #15803d;
+  --tone-4ade80: #15803d;
+  --tone-6ea8fe: #1d4ed8;
+  --tone-93c5fd: #1d4ed8;
+  --tone-4c8dff: #1d4ed8;
+  --tone-f87171: #dc2626;
+  --tone-ff8585: #dc2626;
+  --tone-ff6b6b: #dc2626;
+  --tone-fca5a5: #b91c1c;
+  --tone-ff9b9b: #dc2626;
+}
+
+:root[data-theme="light"] ::selection {
+  background: #bfdbfe;
+  color: #111827;
+}
+
 /* Typography */
 h1, h2, h3, h4, h5, h6 {
   color: var(--color-text-primary);
@@ -130,8 +238,8 @@ h1, h2, h3, h4, h5, h6 {
   margin-bottom: var(--spacing-md);
 }
 ::selection {
-  background: rgba(0, 0, 0, 1);
-  color: #fff;
+  background: rgb(28, 85, 138);
+  color: #ffffff;
 }
 h1 { font-size: var(--font-4xl); }
 h2 { font-size: var(--font-3xl); }
@@ -216,8 +324,8 @@ input[type="file"]::file-selector-button {
   margin-right: 0.75rem;
   height: 28px;
   padding: 0 0.9rem;
-  color: #000;
-  background: #fff;
+  color: var(--color-inverse-fg);
+  background: var(--color-inverse-bg);
   border: none;
   border-radius: 7px;
   font-size: 0.8rem;
@@ -228,7 +336,7 @@ input[type="file"]::file-selector-button {
 }
 
 input[type="file"]::file-selector-button:hover {
-  background: #e8e8e8;
+  background: var(--color-inverse-hover);
 }
 
 input[type="file"]:disabled {
@@ -355,7 +463,7 @@ input[type="file"]:disabled::file-selector-button {
 .pageShell {
   width: 100%;
   padding: 2rem;
-  color: #fff;
+  color: var(--color-text-primary);
 }
 
 .pageHeader {
@@ -378,7 +486,7 @@ input[type="file"]:disabled::file-selector-button {
 }
 
 .pageTitleRow svg {
-  color: #aaa;
+  color: var(--color-text-tertiary);
 }
 
 .pageTitleRow h1 {
@@ -389,7 +497,7 @@ input[type="file"]:disabled::file-selector-button {
 
 .pageSubtitle {
   margin: 0.5rem 0 0;
-  color: #777;
+  color: var(--color-text-muted);
   font-size: 0.9rem;
 }
 
@@ -416,45 +524,45 @@ input[type="file"]:disabled::file-selector-button {
 }
 
 .btnPrimary {
-  color: #000;
-  background: #fff;
-  border: 1px solid #fff;
+  color: var(--color-inverse-fg);
+  background: var(--color-inverse-bg);
+  border: 1px solid var(--color-inverse-bg);
 }
 
 .btnPrimary:hover {
-  background: #e8e8e8;
+  background: var(--color-inverse-hover);
   transform: translateY(-1px);
 }
 
 .btnEdit {
-  color: #fff;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: var(--color-text-primary);
+  background: rgba(var(--overlay-rgb),  0.05);
+  border: 1px solid rgba(var(--overlay-rgb),  0.1);
 }
 
 .btnEdit:hover {
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(var(--overlay-rgb),  0.08);
 }
 
 .btnCancel {
-  color: #aaa;
+  color: var(--color-text-tertiary);
   background: transparent;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(var(--overlay-rgb),  0.1);
 }
 
 .btnCancel:hover {
-  color: #fff;
-  background: rgba(255, 255, 255, 0.05);
+  color: var(--color-text-primary);
+  background: rgba(var(--overlay-rgb),  0.05);
 }
 
 .btnDelete {
-  color: #ff8585;
+  color: var(--tone-ff8585);
   background: rgba(255, 80, 80, 0.06);
   border: 1px solid rgba(255, 80, 80, 0.2);
 }
 
 .btnDelete:hover {
-  color: #fff;
+  color: var(--color-text-primary);
   background: rgba(255, 60, 60, 0.15);
   border-color: rgba(255, 70, 70, 0.45);
 }
@@ -471,7 +579,7 @@ input[type="file"]:disabled::file-selector-button {
   min-height: 40px;
   margin-bottom: 1.5rem;
   padding: 0.5rem 0;
-  color: #888;
+  color: var(--color-text-muted);
   background: transparent;
   border: 0;
   font-size: 0.85rem;
@@ -481,7 +589,7 @@ input[type="file"]:disabled::file-selector-button {
 }
 
 .btnBack:hover {
-  color: #fff;
+  color: var(--color-text-primary);
 }
 
 
@@ -496,9 +604,9 @@ input[type="file"]:disabled::file-selector-button {
   min-height: 420px;
   padding: 3rem;
   text-align: center;
-  border: 1px dashed rgba(255, 255, 255, 0.12);
+  border: 1px dashed rgba(var(--overlay-rgb),  0.12);
   border-radius: 14px;
-  background: rgba(255, 255, 255, 0.015);
+  background: rgba(var(--overlay-rgb),  0.015);
 }
 
 .emptyStateIcon {
@@ -508,9 +616,9 @@ input[type="file"]:disabled::file-selector-button {
   width: 64px;
   height: 64px;
   margin-bottom: 1.25rem;
-  color: #aaa;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: var(--color-text-tertiary);
+  background: rgba(var(--overlay-rgb),  0.04);
+  border: 1px solid rgba(var(--overlay-rgb),  0.08);
   border-radius: 50%;
 }
 
@@ -523,7 +631,7 @@ input[type="file"]:disabled::file-selector-button {
 .emptyStateBlock p {
   max-width: 420px;
   margin: 0 0 1.5rem;
-  color: #777;
+  color: var(--color-text-muted);
   font-size: 0.9rem;
   line-height: 1.6;
 }
@@ -532,19 +640,19 @@ input[type="file"]:disabled::file-selector-button {
 
 .detailCard {
   overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(var(--overlay-rgb),  0.08);
   border-radius: 14px;
-  background: rgba(255, 255, 255, 0.02);
+  background: rgba(var(--overlay-rgb),  0.02);
 }
 
 .detailSection {
   padding: 1.5rem;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+  border-bottom: 1px solid rgba(var(--overlay-rgb),  0.07);
 }
 
 .detailSection h2 {
   margin: 0 0 1.25rem;
-  color: #aaa;
+  color: var(--color-text-tertiary);
   font-size: 0.75rem;
   font-weight: 600;
   text-transform: uppercase;
@@ -564,12 +672,12 @@ input[type="file"]:disabled::file-selector-button {
 }
 
 .detailInfo span {
-  color: #666;
+  color: var(--color-text-muted);
   font-size: 0.75rem;
 }
 
 .detailInfo strong {
-  color: #eee;
+  color: var(--color-text-primary);
   font-size: 0.9rem;
   font-weight: 500;
   word-break: break-word;
@@ -588,7 +696,7 @@ input[type="file"]:disabled::file-selector-button {
   align-items: center;
   justify-content: center;
   min-height: 400px;
-  color: #777;
+  color: var(--color-text-muted);
   font-size: 0.9rem;
 }
 
@@ -598,7 +706,7 @@ input[type="file"]:disabled::file-selector-button {
   display: flex;
   justify-content: flex-end;
   padding: 1.5rem;
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  border-top: 1px solid rgba(var(--overlay-rgb),  0.08);
 }
 
 /* ---------- Toolbar spacing (search bar row above a grid) ---------- */
@@ -652,9 +760,9 @@ input[type="file"]:disabled::file-selector-button {
   justify-content: center;
   flex-shrink: 0;
   overflow: hidden;
-  color: #aaa;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: var(--color-text-tertiary);
+  background: rgba(var(--overlay-rgb),  0.05);
+  border: 1px solid rgba(var(--overlay-rgb),  0.08);
   border-radius: 50%;
 }
 
@@ -725,13 +833,13 @@ input[type="file"]:disabled::file-selector-button {
 }
 
 .cardActionIconBtnDanger {
-  color: #ff6b6b;
+  color: var(--tone-ff6b6b);
   background: rgba(255, 80, 80, 0.06);
   border-color: rgba(255, 80, 80, 0.2);
 }
 
 .cardActionIconBtnDanger:hover {
-  color: #ff8585;
+  color: var(--tone-ff8585);
   background: rgba(255, 80, 80, 0.12);
   border-color: rgba(255, 80, 80, 0.35);
 }
@@ -779,11 +887,11 @@ input[type="file"]:disabled::file-selector-button {
 }
 
 .cardFooterActionBtnDanger {
-  color: #ff8585;
+  color: var(--tone-ff8585);
 }
 
 .cardFooterActionBtnDanger:hover {
-  color: #fff;
+  color: var(--color-text-primary);
   background: rgba(255, 60, 60, 0.15);
   border-color: rgba(255, 70, 70, 0.45);
 }
@@ -832,7 +940,7 @@ input[type="file"]:disabled::file-selector-button {
   /* Native date-picker inputs render their own icon/affordance —
      force the color-scheme so it isn't a jarring light-on-light
      browser default inside this app's dark UI. */
-  color-scheme: dark;
+  color-scheme: var(--color-scheme);
 }
 
 /* ---------- Responsive ---------- */
@@ -962,25 +1070,25 @@ input[type="file"]:disabled::file-selector-button {
 }
 
 .statusPillPending {
-  color: #e8b93f;
+  color: var(--tone-e8b93f);
   background: rgba(232, 185, 63, 0.1);
   border-color: rgba(232, 185, 63, 0.3);
 }
 
 .statusPillAccepted {
-  color: #4cc38a;
+  color: var(--tone-4cc38a);
   background: rgba(76, 195, 138, 0.1);
   border-color: rgba(76, 195, 138, 0.3);
 }
 
 .statusPillRejected {
-  color: #ff6b6b;
+  color: var(--tone-ff6b6b);
   background: rgba(255, 80, 80, 0.1);
   border-color: rgba(255, 80, 80, 0.25);
 }
 
 .statusPillManagerApproved {
-  color: #6ea8fe;
+  color: var(--tone-6ea8fe);
   background: rgba(59, 130, 246, 0.1);
   border-color: rgba(59, 130, 246, 0.3);
 }
@@ -1017,14 +1125,14 @@ input[type="file"]:disabled::file-selector-button {
 }
 
 .tableActionBtnAccept:hover {
-  color: #4cc38a;
+  color: var(--tone-4cc38a);
   background: rgba(76, 195, 138, 0.12);
   border-color: rgba(76, 195, 138, 0.35);
 }
 
 .tableActionBtnReject:hover,
 .tableActionBtnDanger:hover {
-  color: #ff8585;
+  color: var(--tone-ff8585);
   background: rgba(255, 60, 60, 0.15);
   border-color: rgba(255, 70, 70, 0.45);
 }
@@ -1065,7 +1173,7 @@ input[type="file"]:disabled::file-selector-button {
   padding: 0;
   border: 1px solid var(--color-border);
   border-radius: 999px;
-  background: var(--color-bg-secondary, #2a2a2a);
+  background: var(--color-bg-secondary, var(--color-bg-secondary));
   cursor: pointer;
   vertical-align: middle;
   transition: background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
@@ -1125,7 +1233,7 @@ input[type="file"]:disabled::file-selector-button {
   padding: 10px 14px;
   font-size: 0.84rem;
   line-height: 1.45;
-  color: #fca5a5;
+  color: var(--tone-fca5a5);
   border: 1px solid rgba(248, 113, 113, 0.45);
   border-radius: 10px;
   background: rgba(248, 113, 113, 0.08);

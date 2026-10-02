@@ -11,10 +11,12 @@ import {
   importTemplate, createChassisModel, duplicateChassisModel, deleteChassisModel,
 } from "../../services/productionService";
 import ChassisDrawing from "./ChassisDrawing";
+import ProfileTypesEditor, { typesToForm, typesFromForm } from "../technical/ProfileTypesEditor";
 import { useCompanyPicker, familyLabel } from "./prodShared";
 import purch from "../purchasing/Purchasing.module.css";
 import s from "../sales/Sales.module.css";
 import styles from "./Production.module.css";
+import { useDialog } from "../../components/useful/DialogProvider";
 
 /**
  * Chassis catalogue of the company: its MODELS (what it can build, with
@@ -22,6 +24,7 @@ import styles from "./Production.module.css";
  * LIBRARY of standard templates to start from.
  */
 export default function Catalog() {
+  const dialog = useDialog();
   const { t, language } = useI18n();
   const navigate = useNavigate();
   const { companyId, setCompanyId, options: companyOptions } = useCompanyPicker();
@@ -53,26 +56,26 @@ export default function Catalog() {
     setError("");
     try {
       const m = await importTemplate({ company: companyId, templateKey: importing.template.key, series: importing.series || null, name: importing.name || undefined });
-      navigate(`/production/catalog/models/${m._id}`);
+      navigate(`/technical/catalog/models/${m._id}`);
     } catch (err) { setError(err.response?.data?.message || t("prod.errors.save")); }
   };
   const newBlank = async () => {
     try {
       const m = await createChassisModel({ company: companyId, name: t("prod.catalog.newModelName"), family: "autre" });
-      navigate(`/production/catalog/models/${m._id}`);
+      navigate(`/technical/catalog/models/${m._id}`);
     } catch (err) { setError(err.response?.data?.message || t("prod.errors.save")); }
   };
   const duplicate = async (m) => {
-    try { const copy = await duplicateChassisModel(m._id); navigate(`/production/catalog/models/${copy._id}`); } catch (err) { setError(err.response?.data?.message || t("prod.errors.save")); }
+    try { const copy = await duplicateChassisModel(m._id); navigate(`/technical/catalog/models/${copy._id}`); } catch (err) { setError(err.response?.data?.message || t("prod.errors.save")); }
   };
   const remove = async (m) => {
-    if (!window.confirm(t("prod.catalog.deleteModel"))) return;
+    if (!(await dialog.confirm(t("prod.catalog.deleteModel")))) return;
     try { const r = await deleteChassisModel(m._id); setNotice(r.message || t("prod.deleted")); loadModels(); } catch (err) { setError(err.response?.data?.message || t("prod.errors.save")); }
   };
 
   return (
     <div className="pageShell">
-      <Breadcrumbs items={[{ label: t("sidebar.production"), href: "/production/workshops" }, { label: t("prod.catalog.title") }]} />
+      <Breadcrumbs items={[{ label: t("sidebar.technical"), href: "/technical/catalog" }, { label: t("prod.catalog.title") }]} />
       <div className="pageHeader">
         <div>
           <div className="pageTitleRow"><Boxes size={20} /><h1>{t("prod.catalog.title")}</h1></div>
@@ -121,7 +124,7 @@ export default function Catalog() {
               </div>
               {models.map((m) => (
                 <div key={m._id} className={`dataTableRow ${purch.clickableRow}`} style={{ gridTemplateColumns: "64px 2fr 1.2fr 1fr 1fr 90px", opacity: m.isActive ? 1 : 0.55 }}
-                  role="button" tabIndex={0} onClick={() => navigate(`/production/catalog/models/${m._id}`)} onKeyDown={(e) => e.key === "Enter" && navigate(`/production/catalog/models/${m._id}`)}>
+                  role="button" tabIndex={0} onClick={() => navigate(`/technical/catalog/models/${m._id}`)} onKeyDown={(e) => e.key === "Enter" && navigate(`/technical/catalog/models/${m._id}`)}>
                   <span><ChassisDrawing drawing={m.drawing} image={m.image?.url} L={1200} H={1000} width={56} height={44} params={{}} /></span>
                   <span><strong>{m.name}</strong>{m.code && <small className={s.muted} style={{ display: "block" }}>{m.code}</small>}</span>
                   <span className="dataTableCellMuted">{familyLabel(catalog.families, m.family, language)}</span>
@@ -138,6 +141,7 @@ export default function Catalog() {
         </>
       )}
 
+      {tab === "models" && filters.family === "vitrage" && <div className={purch.infoBanner}>{t("glazing.catalogHint")} <button type="button" className={purch.linkButton} onClick={() => navigate("/technical/glass-types")}>{t("glazing.catalogTab")}</button></div>}
       {tab === "series" && companyId && <SeriesTab companyId={companyId} series={series} families={catalog.families} reload={loadSeries} setError={setError} />}
 
       {tab === "library" && (
@@ -190,27 +194,39 @@ export default function Catalog() {
 }
 
 function SeriesTab({ companyId, series, families, reload, setError }) {
+  const dialog = useDialog();
+  const navigate = useNavigate();
   const { t, language } = useI18n();
   const [form, setForm] = useState(null);
-  const edit = (x) => setForm(x ? { _id: x._id, name: x.name, supplier: x.supplier || "", description: x.description || "", families: x.families || [], variables: (x.variables || []).map((v) => ({ ...v })) } : { name: "", supplier: "", description: "", families: [], variables: [] });
+  // The couvre-joint (series variable `cj`) has its own field: frame pieces are cut cote + cj per mitred end.
+  const edit = (x) => setForm(x
+    ? { _id: x._id, name: x.name, supplier: x.supplier || "", description: x.description || "", families: x.families || [], variables: (x.variables || []).map((v) => ({ ...v })), profileTypes: typesToForm(x.profileTypes), typeCounts: x.typeCounts || {}, applyCoverJoint: false }
+    : { name: "", supplier: "", description: "", families: [], variables: [], profileTypes: [], typeCounts: {}, applyCoverJoint: false });
+  const [notice, setNotice] = useState("");
   const save = async (e) => {
     e.preventDefault();
     setError("");
     try {
-      const body = { ...form, company: companyId, variables: form.variables.filter((v) => v.key).map((v) => ({ ...v, value: Number(v.value) })) };
-      if (form._id) await updateSeries(form._id, body); else await createSeries(body);
+      const { typeCounts, ...rest } = form;
+      const body = { ...rest, company: companyId, variables: form.variables.filter((v) => v.key).map((v) => ({ ...v, value: Number(v.value) })), profileTypes: typesFromForm(form.profileTypes) };
+      const r = form._id ? await updateSeries(form._id, body) : await createSeries(body);
+      setNotice([
+        form.applyCoverJoint ? t("cut.cj.applied").replace("{n}", r?.updatedModels ?? 0) : "",
+        r?.updatedArticles ? t("ptypes.propagated").replace("{n}", r.updatedArticles) : "",
+      ].filter(Boolean).join(" "));
       setForm(null);
       reload();
     } catch (err) { setError(err.response?.data?.message || t("prod.errors.save")); }
   };
   const remove = async (x) => {
-    if (!window.confirm(t("prod.catalog.deleteSeries"))) return;
+    if (!(await dialog.confirm(t("prod.catalog.deleteSeries")))) return;
     try { await deleteSeries(x._id); reload(); } catch (err) { setError(err.response?.data?.message || t("prod.errors.save")); }
   };
   const famLabel = useMemo(() => (k) => familyLabel(families, k, language), [families, language]);
   return (
     <>
       <p className={s.muted}>{t("prod.catalog.seriesHint")}</p>
+      {notice && <div className={purch.infoBanner}>{notice}</div>}
       <div className={purch.sectionHeader}><span /><button type="button" className="btnPrimary" onClick={() => edit(null)}><Plus size={15} /> {t("prod.catalog.newSeries")}</button></div>
       {form && (
         <form className={purch.panel} onSubmit={save}>
@@ -228,6 +244,19 @@ function SeriesTab({ companyId, series, families, reload, setError }) {
               })}
             </div>
           </div>
+          {form._id && (
+            <>
+              <h4 className={purch.subTitle}>{t("cut.cj.title")}</h4>
+              <p className={s.muted}>{t("cut.cj.hint")}</p>
+              <label className={purch.inlineCheck}><input type="checkbox" checked={form.applyCoverJoint} onChange={(e) => setForm({ ...form, applyCoverJoint: e.target.checked })} /> {t("cut.cj.apply")}</label>
+            </>
+          )}
+          <h4 className={purch.subTitle}>{t("ptypes.title")}</h4>
+          <p className={s.muted}>{t("ptypes.hint")}</p>
+          <ProfileTypesEditor rows={form.profileTypes} counts={form.typeCounts} onChange={(profileTypes) => setForm({ ...form, profileTypes })} />
+          {form._id && form.profileTypes.some((r) => r.key) && (
+            <button type="button" className={purch.linkButton} style={{ marginTop: 6 }} onClick={() => navigate(`/technical/articles?series=${form._id}`)}>{t("ptypes.attachLink")}</button>
+          )}
           <h4 className={purch.subTitle}>{t("prod.catalog.variables")}</h4>
           <p className={s.muted}>{t("prod.catalog.variablesHint")}</p>
           <VariablesEditor rows={form.variables} onChange={(variables) => setForm({ ...form, variables })} />
@@ -239,13 +268,16 @@ function SeriesTab({ companyId, series, families, reload, setError }) {
       )}
       <div className="dataTable">
         <div className="dataTableHead" style={{ gridTemplateColumns: "1.4fr 1.2fr 2fr 90px 80px" }}>
-          <span>{t("prod.series")}</span><span>{t("prod.catalog.supplier")}</span><span>{t("prod.catalog.variables")}</span><span>{t("prod.catalog.tabs.models")}</span><span />
+          <span>{t("prod.series")}</span><span>{t("prod.catalog.supplier")}</span><span>{t("ptypes.listHeader")}</span><span>{t("prod.catalog.tabs.models")}</span><span />
         </div>
         {series.map((x) => (
           <div key={x._id} className="dataTableRow" style={{ gridTemplateColumns: "1.4fr 1.2fr 2fr 90px 80px" }}>
             <span><strong>{x.name}</strong><small className={s.muted} style={{ display: "block" }}>{(x.families || []).map(famLabel).join(", ")}</small></span>
             <span className="dataTableCellMuted">{x.supplier || "—"}</span>
-            <span className={styles.chips}>{(x.variables || []).slice(0, 10).map((v) => <span key={v.key} className={styles.chip} title={v.label}><span className={styles.chipCode}>{v.key}</span> = {v.value}</span>)}{(x.variables || []).length > 10 && <span className={styles.chip}>+{x.variables.length - 10}</span>}</span>
+            <span className={styles.chips}>
+              {(x.profileTypes || []).map((pt) => <span key={pt.key} className={styles.chip} title={t("ptypes.chipTitle")}><strong>{pt.label}</strong>&nbsp;· {x.typeCounts?.[pt.key] || 0}</span>)}
+              {(x.variables || []).slice(0, 10).map((v) => <span key={v.key} className={styles.chip} title={v.label}><span className={styles.chipCode}>{v.key}</span> = {v.value}</span>)}{(x.variables || []).length > 10 && <span className={styles.chip}>+{x.variables.length - 10}</span>}
+            </span>
             <span>{x.modelCount || 0}</span>
             <span className="dataTableActions">
               <button type="button" className="tableActionBtn" onClick={() => edit(x)} title={t("common.edit")}><Pencil size={14} /></button>

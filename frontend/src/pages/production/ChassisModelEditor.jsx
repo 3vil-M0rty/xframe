@@ -12,7 +12,7 @@ import CustomSelect from "../../components/useful/CustomSelect";
 import SearchSelect from "../../components/useful/SearchSelect";
 import {
   getChassisModel, updateChassisModel, getSeries, getWorkshops, getFinishes, getCatalogArticles,
-  getChassisModels, getCatalog, testChassisModel, uploadChassisModelImage, deleteChassisModelImage,
+  getChassisModels, getGlassTypes, getCatalog, testChassisModel, uploadChassisModelImage, deleteChassisModelImage,
 } from "../../services/productionService";
 import { check, isValidVariableName } from "../../utils/formula";
 import ChassisDrawing from "./ChassisDrawing";
@@ -145,6 +145,7 @@ export default function ChassisModelEditor() {
   const [finishes, setFinishes] = useState([]);
   const [articles, setArticles] = useState([]);
   const [models, setModels] = useState([]);
+  const [glassTypes, setGlassTypes] = useState([]);
   const [families, setFamilies] = useState([]);
   const [open, setOpen] = useState({});
   const [error, setError] = useState("");
@@ -167,6 +168,7 @@ export default function ChassisModelEditor() {
       setFinishes(fi);
       setArticles(ar);
       setModels(ms.filter((x) => String(x._id) !== String(id)));
+      getGlassTypes(companyId, { active: "true" }).then(setGlassTypes).catch(() => setGlassTypes([]));
       setFamilies(cat.families);
       setTest((tst) => ({ ...tst, params: defaultParams(m) }));
       setDirty(false);
@@ -178,7 +180,10 @@ export default function ChassisModelEditor() {
 
   const patch = (p) => { setModel((m) => ({ ...m, ...p })); setDirty(true); };
   const seriesDoc = series.find((x) => String(x._id) === String(model?.series));
-  const knownBase = useMemo(() => (model ? ["L", "H", ...(seriesDoc?.variables || []).map((v) => v.key), ...(model.variables || []).map((v) => v.key), ...(model.parameters || []).map((p) => p.key)] : []), [model, seriesDoc]);
+  const knownBase = useMemo(() => (model ? [...new Set(["L", "H", "cj", ...(seriesDoc?.variables || []).map((v) => v.key), ...(model.variables || []).map((v) => v.key), ...(model.parameters || []).map((p) => p.key),
+    // Profile geometry of the articles (FPPRO-like): own ae/ai/ch/hp/lp and <g>_<role> of the other components.
+    "ae", "ai", "ch", "hp", "lp",
+    ...(model.components || []).filter((c) => c.role && c.kind !== "model").flatMap((c) => ["ae", "ai", "ch", "hp", "lp"].map((g) => `${g}_${String(c.role).replace(/[^A-Za-z0-9_]/g, "_")}`))])] : []), [model, seriesDoc]);
   const knownAll = useMemo(() => (model ? [...knownBase, ...(model.derived || []).map((d) => d.key)] : []), [knownBase, model]);
   const articleById = useMemo(() => new Map(articles.map((a) => [String(a._id), a])), [articles]);
   const workshopCodes = workshops.map((w) => ({ value: w.code, label: `${w.code} — ${w.name}` }));
@@ -239,14 +244,14 @@ export default function ChassisModelEditor() {
 
   return (
     <div className="pageShell">
-      <Breadcrumbs items={[{ label: t("sidebar.production"), href: "/production/workshops" }, { label: t("prod.catalog.title"), href: "/production/catalog" }, { label: model.name }]} />
+      <Breadcrumbs items={[{ label: t("sidebar.technical"), href: "/technical/catalog" }, { label: t("prod.catalog.title"), href: "/technical/catalog" }, { label: model.name }]} />
       <div className="pageHeader">
         <div>
           <div className="pageTitleRow"><Boxes size={20} /><h1>{model.name}</h1></div>
           <p className="pageSubtitle">{familyLabel(families, model.family, language)}{seriesDoc ? ` · ${t("prod.series")} ${seriesDoc.name}` : ""}{model.templateKey ? ` · ${t("prod.editor.fromTemplate")} ${model.templateKey}` : ""}</p>
         </div>
         <div className={purch.headerActions}>
-          <button type="button" className="btnCancel" onClick={() => navigate("/production/catalog")}>{t("common.back")}</button>
+          <button type="button" className="btnCancel" onClick={() => navigate("/technical/catalog")}>{t("common.back")}</button>
           <button type="button" className="btnPrimary" disabled={saving || !dirty} onClick={save}><Save size={15} /> {t("common.save")}</button>
         </div>
       </div>
@@ -302,7 +307,7 @@ export default function ChassisModelEditor() {
                         {p.type === "boolean" ? <CustomSelect value={String(Number(p.default) ? 1 : 0)} onSelect={(v) => setP({ default: Number(v) })} options={[{ value: "0", label: t("common.no") }, { value: "1", label: t("common.yes") }]} />
                           : p.type === "choice" ? <CustomSelect value={String(p.default ?? "")} onSelect={(v) => setP({ default: Number(v) })} options={(p.options || []).map((o) => ({ value: String(o.value), label: o.label }))} />
                             : p.type === "product" ? <SearchSelect value={p.default || ""} onSelect={(v) => setP({ default: v })} options={articles.filter((a) => !p.materialType || a.materialType === p.materialType).map((a) => ({ value: a._id, label: articleLabel(a) }))} icon={Package} placeholder={t("prod.pickArticle")} noResultsLabel={t("common.noResults")} />
-                              : p.type === "model" ? <CustomSelect value={p.default || ""} onSelect={(v) => setP({ default: v })} options={[{ value: "", label: "—" }, ...models.filter((m) => !p.family || m.family === p.family).map((m) => ({ value: m._id, label: m.name }))]} />
+                              : p.type === "model" ? <CustomSelect value={p.default || ""} onSelect={(v) => setP({ default: v })} options={[{ value: "", label: "—" }, ...models.filter((m) => !p.family || m.family === p.family).map((m) => ({ value: m._id, label: m.name })), ...(!p.family || p.family === "vitrage" ? glassTypes.map((g) => ({ value: g._id, label: `${t("glazing.composition")} ${g.name}` })) : [])]} />
                                 : <input className={purch.input} type="number" step="any" value={p.default ?? ""} onChange={(e) => setP({ default: e.target.value === "" ? 0 : Number(e.target.value) })} />}
                       </label>
                       <label>{t("prod.editor.min")}<input className={purch.input} type="number" step="any" value={p.min ?? ""} disabled={p.type !== "number"} onChange={(e) => setP({ min: e.target.value === "" ? null : Number(e.target.value) })} /></label>
@@ -499,7 +504,7 @@ export default function ChassisModelEditor() {
               <label key={p.key} className={purch.field}>{p.label || p.key}
                 {p.type === "boolean" ? <CustomSelect value={String(Number(test.params[p.key]) ? 1 : 0)} onSelect={(v) => setTest({ ...test, params: { ...test.params, [p.key]: Number(v) } })} options={[{ value: "0", label: t("common.no") }, { value: "1", label: t("common.yes") }]} />
                   : p.type === "choice" ? <CustomSelect value={String(test.params[p.key] ?? "")} onSelect={(v) => setTest({ ...test, params: { ...test.params, [p.key]: Number(v) } })} options={(p.options || []).map((o) => ({ value: String(o.value), label: o.label }))} />
-                    : p.type === "model" ? <CustomSelect value={test.params[p.key] || ""} onSelect={(v) => setTest({ ...test, params: { ...test.params, [p.key]: v } })} options={[{ value: "", label: "—" }, ...models.filter((m) => !p.family || m.family === p.family).map((m) => ({ value: m._id, label: m.name }))]} />
+                    : p.type === "model" ? <CustomSelect value={test.params[p.key] || ""} onSelect={(v) => setTest({ ...test, params: { ...test.params, [p.key]: v } })} options={[{ value: "", label: "—" }, ...models.filter((m) => !p.family || m.family === p.family).map((m) => ({ value: m._id, label: m.name })), ...(!p.family || p.family === "vitrage" ? glassTypes.map((g) => ({ value: g._id, label: `${t("glazing.composition")} ${g.name}` })) : [])]} />
                       : p.type === "product" ? <SearchSelect value={test.params[p.key] || ""} onSelect={(v) => setTest({ ...test, params: { ...test.params, [p.key]: v } })} options={articles.filter((a) => !p.materialType || a.materialType === p.materialType).map((a) => ({ value: a._id, label: articleLabel(a) }))} icon={Package} placeholder={t("prod.pickArticle")} noResultsLabel={t("common.noResults")} />
                         : <input className={purch.input} type="number" step="any" value={test.params[p.key] ?? ""} onChange={(e) => setTest({ ...test, params: { ...test.params, [p.key]: Number(e.target.value) } })} />}
               </label>

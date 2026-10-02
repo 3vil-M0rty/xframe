@@ -198,7 +198,10 @@ function generatePayslipPdf({ payslip, employee, company, ytdGross = 0, ytdNet =
   }
   tableRow(
     "Frais professionnels (déduits avant IR)",
-    `${(payrollConfig.PROFESSIONAL_EXPENSES.RATE * 100).toFixed(0)}%, plafond ${formatAmount(payrollConfig.PROFESSIONAL_EXPENSES.MONTHLY_CAP)}`,
+    // 35% up to 6,500 MAD/month gross, else 25% capped — show the rate that applied.
+    payslip.grossSalary * 12 <= payrollConfig.PROFESSIONAL_EXPENSES.ANNUAL_THRESHOLD
+      ? `${(payrollConfig.PROFESSIONAL_EXPENSES.RATE_UP_TO_THRESHOLD * 100).toFixed(0)}% du brut imposable`
+      : `${(payrollConfig.PROFESSIONAL_EXPENSES.RATE_ABOVE_THRESHOLD * 100).toFixed(0)}%, plafond ${formatAmount(payrollConfig.PROFESSIONAL_EXPENSES.ANNUAL_CAP_ABOVE_THRESHOLD / 12)}`,
     formatAmount(payslip.professionalExpenses)
   );
   tableRow(

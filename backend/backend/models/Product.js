@@ -1,3 +1,5 @@
+// Must load before the schema is compiled — registers the client-isolation plugin.
+require("../services/tenantScope");
 const mongoose = require("mongoose");
 const translatable = require("../plugins/translatable");
 
@@ -118,6 +120,54 @@ const productSchema = new mongoose.Schema(
       default: true,
     },
 
+    // ---------------- Aluminium joinery (technical data) ----------------
+    // What the article IS for the chassis catalogue / BOM engine.
+    materialType: {
+      type: String,
+      enum: ["profile", "powder", "glass", "accessory", "gasket", "panel", "consumable", "other", null],
+      default: null,
+      index: true,
+    },
+    // How it is counted in stock: unit (pieces / boxes / cartridges), bar
+    // (whole bars of `barLength`), meter, m2, sheet (whole sheets of
+    // sheetWidth × sheetHeight), kg.
+    stockMode: {
+      type: String,
+      enum: ["unit", "bar", "meter", "m2", "sheet", "kg"],
+      default: "unit",
+    },
+    barLength: { type: Number, default: null, min: 0 }, // mm
+    // Profile geometry (mm), like a profile library: épaisseur de chambre +
+    // ailette externe + ailette interne = hauteur totale (in the plane of the
+    // frame: mitres, talons, tête-bêche) ; largeur = depth into the wall.
+    // Formulas use them as ch / ae / ai / hp / lp (see services/chassisBom.js).
+    profileChamber: { type: Number, default: null, min: 0 },
+    profileOuterFin: { type: Number, default: null, min: 0 },
+    profileInnerFin: { type: Number, default: null, min: 0 },
+    profileHeight: { type: Number, default: null, min: 0 },
+    profileWidth: { type: Number, default: null, min: 0 },
+    profileDepth: { type: Number, default: null, min: 0 }, // legacy: mitre width before the geometry fields
+    sheetWidth: { type: Number, default: null, min: 0 }, // mm
+    sheetHeight: { type: Number, default: null, min: 0 }, // mm
+    // Base quantity contained in one stock unit (a 50 m roll → 50, a box of 100 → 100).
+    packSize: { type: Number, default: null, min: 0 },
+    weightPerMeter: { type: Number, default: null, min: 0 }, // kg/m (profiles)
+    perimeter: { type: Number, default: null, min: 0 }, // painted perimeter (développé), mm
+    paintSurface: { type: Number, default: null, min: 0 }, // m² painted per stock unit (overrides perimeter)
+    powderPerUnit: { type: Number, default: null, min: 0 }, // kg of powder per stock unit (method per_unit)
+    coverage: { type: Number, default: null, min: 0 }, // powder articles: kg per m²
+    thickness: { type: Number, default: null, min: 0 }, // mm (glass, sheets)
+    // Cost price (coût de revient) — weighted average, maintained when
+    // the Laquage workshop produces lacquered variants. When empty, the
+    // cheapest supplier price is used.
+    standardCost: { type: Number, default: null, min: 0 },
+    // Colour variant of a raw article ("Profilé 4020 — RAL 9016").
+    baseProduct: { type: mongoose.Schema.Types.ObjectId, ref: "Product", default: null, index: true },
+    finish: { type: mongoose.Schema.Types.ObjectId, ref: "Finish", default: null },
+    // Last "stock at or below the threshold" alert — cleared when the
+    // stock goes back above the threshold, so each drop alerts once.
+    lowStockNotifiedAt: { type: Date, default: null },
+
     createdBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
     updatedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
   },
@@ -129,6 +179,13 @@ const productSchema = new mongoose.Schema(
 // alongside the plain fields above, auto-populated on save; doesn't
 // change `name`/`notes` themselves in any way.
 productSchema.plugin(translatable, { fields: ["name", "notes"] });
+
+// Hauteur totale = chambre + ailettes (kept in sync whenever a part is given).
+productSchema.pre("save", function syncProfileHeight(next) {
+  const parts = [this.profileChamber, this.profileOuterFin, this.profileInnerFin];
+  if (parts.some((v) => v !== null && v !== undefined && v !== "")) this.profileHeight = parts.reduce((s, v) => s + (Number(v) || 0), 0);
+  next();
+});
 
 // One internal reference per company.
 // Partial, not plain: uniqueness only for articles that HAVE a

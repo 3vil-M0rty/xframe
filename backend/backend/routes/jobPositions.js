@@ -10,13 +10,18 @@ const Employee = require("../models/Employee");
 const Company = require("../models/Company");
 
 const auth = require("../middleware/auth");
+const { guard } = require("../middleware/permissionGuard");
+const { ROUTE_PERMISSIONS } = require("../config/routePermissions");
 const { canManageCompany } = require("../permissions/permissions");
 const { logAudit } = require("../services/auditLogger");
 const { attachTranslationRoutes } = require("../utils/translationRoutes");
 
+// Fine-grained permissions of every endpoint: config/routePermissions.js
+router.use(auth, guard(ROUTE_PERMISSIONS.jobPositions));
 router.use(auth);
 
-const canManage = (req, company) => canManageCompany(req.user, company);
+const { hasPrefix } = require("../services/permissionService");
+const canManage = (req, company) => canManageCompany(req.user, company) || (!!company && hasPrefix(req.user, "organization.positions"));
 
 // ======================================================
 // GET ALL JOB POSITIONS

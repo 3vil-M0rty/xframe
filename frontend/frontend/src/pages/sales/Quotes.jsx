@@ -101,7 +101,7 @@ export default function Quotes() {
               <span className="dataTableCellMuted">{q.subject || "—"}</span>
               <span>{formatMoney(q.totalTTC)}</span>
               <span className="dataTableCellMuted">{formatDate(q.validUntil)}</span>
-              <span><StatusPill status={SALES_PILL[q.status]} label={t(`sales.quoteStatus.${q.status}`)} /></span>
+              <span><StatusPill status={SALES_PILL[q.status]} label={q.status === "accepted" && q.project ? t("flow.launchedPill") : t(`sales.quoteStatus.${q.status}`)} /></span>
             </div>
           ))}
         </div>

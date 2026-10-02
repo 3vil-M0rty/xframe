@@ -21,6 +21,8 @@ const auditLogSchema = new mongoose.Schema(
       default: null,
       index: true,
     },
+    // Client this entry belongs to (set automatically — see services/tenantScope.js).
+    tenant: { type: mongoose.Schema.Types.ObjectId, ref: "Tenant", default: null, index: true },
 
     actor: {
       type: mongoose.Schema.Types.ObjectId,

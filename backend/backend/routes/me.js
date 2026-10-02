@@ -14,6 +14,7 @@ const Company = require("../models/Company");
 const auth = require("../middleware/auth");
 const { canSelfService } = require("../permissions/permissions");
 const { getLeaveBalance } = require("../services/leaveBalanceService");
+const { countAbsenceDays } = require("../services/workingDays");
 const { generatePayslipPdf, computeYtdTotals } = require("../services/payslipPdfService");
 const {
   notifyMany,
@@ -255,13 +256,12 @@ router.post("/absences", async (req, res) => {
       return res.status(404).json({ success: false, message: "Employee record not found" });
     }
 
-    const start = new Date(startDate);
-    const end = new Date(endDate);
-    start.setHours(0, 0, 0, 0);
-    end.setHours(0, 0, 0, 0);
-    const diffDays =
-      Math.round((end - start) / (1000 * 60 * 60 * 24)) + 1;
-    const daysCount = halfDay ? 0.5 : Math.max(diffDays, 1);
+    // Working days for leave (schedule + closed public holidays),
+    // calendar days for sick leave — services/workingDays.js.
+    const daysCount = await countAbsenceDays({ companyId: employee.company, employeeId: employee._id, type, startDate, endDate, halfDay: !!halfDay });
+    if (daysCount === 0) {
+      return res.status(400).json({ success: false, message: "This period contains no working day (weekly rest or closed public holiday)" });
+    }
 
     const absence = await Absence.create({
       company: employee.company,

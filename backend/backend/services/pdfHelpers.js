@@ -151,6 +151,7 @@ function drawLetterhead(doc, company, { colX = 40, pageWidth, logoBuffer } = {})
   if (company?.ice) legalIds.push(`ICE: ${company.ice}`);
   if (company?.taxId) legalIds.push(`IF: ${company.taxId}`);
   if (company?.registrationNumber) legalIds.push(`RC: ${company.registrationNumber}`);
+  if (company?.professionalTaxNumber) legalIds.push(`TP: ${company.professionalTaxNumber}`);
   if (company?.cnssNumber) legalIds.push(`CNSS: ${company.cnssNumber}`);
   if (legalIds.length) doc.text(legalIds.join("   |   "), colX, doc.y, { width: textWidth });
 

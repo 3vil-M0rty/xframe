@@ -5,10 +5,10 @@
   height: 100vh;
   background: var(--color-bg-primary);
   background-image:
-    linear-gradient(rgb(255, 255, 255, 0.56) 1px, transparent 1px),
-    linear-gradient(90deg, rgb(255, 255, 255, 0.56) 1px, transparent 1px),
-    linear-gradient(rgb(255, 255, 255, 0.56) 0.5px, transparent 0.5px),
-    linear-gradient(90deg, rgb(255, 255, 255, 0.56) 0.5px, var(--color-bg-primary) 0.5px);
+    linear-gradient(rgba(var(--overlay-rgb),  0.56) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(var(--overlay-rgb),  0.56) 1px, transparent 1px),
+    linear-gradient(rgba(var(--overlay-rgb),  0.56) 0.5px, transparent 0.5px),
+    linear-gradient(90deg, rgba(var(--overlay-rgb),  0.56) 0.5px, var(--color-bg-primary) 0.5px);
   background-size: 50px 50px, 50px 50px, 10px 10px, 10px 10px;
   background-position: -1px -1px, -1px -1px, -0.5px -0.5px, -0.5px -0.5px;
 }
@@ -97,7 +97,7 @@
     margin-bottom: 4px;
     padding: 0.6rem 0.75rem;
 
-    color: #93c5fd;
+    color: var(--tone-93c5fd);
     font-size: 0.8rem;
     line-height: 1.4;
     text-align: left;
@@ -122,7 +122,7 @@
 
 .linkButton {
     padding: 0;
-    color: #999;
+    color: var(--color-text-tertiary);
     font-size: 0.78rem;
     background: transparent;
     border: none;
@@ -131,5 +131,5 @@
 }
 
 .linkButton:hover {
-    color: #ddd;
+    color: var(--color-text-secondary);
 }

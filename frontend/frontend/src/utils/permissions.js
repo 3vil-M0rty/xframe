@@ -105,7 +105,9 @@ export function canAccessHR(actor) {
 export const PRODUCTION_DEPARTMENT = "production";
 
 export function canAccessProduction(actor) {
-  if (hasList(actor)) return isAdmin(actor) || can(actor, "production.orders.edit");
+  // Every workshop: production manager. A chef d'atelier holds the work-order
+  // permissions only for his own workshop(s) — mirrors the backend.
+  if (hasList(actor)) return isAdmin(actor) || can(actor, "production.workshops.all") || (can(actor, "production.orders.edit") && !(actor?.workshops || []).length);
   return isAdmin(actor) || actor?.department === PRODUCTION_DEPARTMENT;
 }
 

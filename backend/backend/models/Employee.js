@@ -1,3 +1,5 @@
+// Must load before the schema is compiled — registers the client-isolation plugin.
+require("../services/tenantScope");
 const mongoose = require("mongoose");
 const translatable = require("../plugins/translatable");
 
@@ -366,6 +368,20 @@ const employeeSchema = new mongoose.Schema(
                 type: Boolean,
                 default: false,
             },
+        },
+
+        // =========================================================
+        // PAID LEAVE — OPENING BALANCE
+        // =========================================================
+        // Days the employee still had on `asOf` when the company
+        // started using the app (from the previous system/paper).
+        // Leave then accrues from `asOf` instead of the hire date;
+        // seniority still counts from the hire date. Empty = accrue
+        // from the hire date. See services/leaveBalanceService.js.
+        leaveOpeningBalance: {
+            days: { type: Number, default: null },
+            asOf: { type: Date, default: null },
+            note: { type: String, trim: true, maxlength: 300 },
         },
 
         // =========================================================

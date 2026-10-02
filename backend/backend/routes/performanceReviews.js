@@ -9,8 +9,11 @@ const Company = require("../models/Company");
 const User = require("../models/User");
 
 const auth = require("../middleware/auth");
+const { guard } = require("../middleware/permissionGuard");
+const { ROUTE_PERMISSIONS } = require("../config/routePermissions");
 const { requireHRAccess } = require("../middleware/permissionMiddleware");
-const { canAccessHRForCompany, canManageEmployeeRecords, canApproveHRRequests } = require("../permissions/permissions");
+const { canAccessHRForCompany } = require("../permissions/permissions");
+const { has: hasPerm } = require("../services/permissionService");
 const { logAudit } = require("../services/auditLogger");
 const { attachTranslationRoutes } = require("../utils/translationRoutes");
 const { notify } = require("../services/notificationService");
@@ -24,6 +27,8 @@ const { notify } = require("../services/notificationService");
 // its own internal "is this actually your own review" check ever
 // ran — the acknowledge feature was unreachable for the exact
 // people it was built for.
+// Fine-grained permissions of every endpoint: config/routePermissions.js
+router.use(auth, guard(ROUTE_PERMISSIONS.performanceReviews));
 router.use(auth);
 
 const canManage = (req, company) => canAccessHRForCompany(req.user, company);
@@ -154,7 +159,7 @@ router.post("/", requireHRAccess, async (req, res) => {
     const companyDoc = await Company.findById(company);
     if (!companyDoc) return res.status(404).json({ success: false, message: "Company not found" });
     if (!canManage(req, companyDoc)) return res.status(403).json({ success: false, message: "Not authorized" });
-    if (!canManageEmployeeRecords(req.user)) {
+    if (!hasPerm(req.user, "hr.reviews.create")) {
       return res.status(403).json({ success: false, message: "Creating performance reviews requires Chargé RH authority or higher" });
     }
 
@@ -207,7 +212,7 @@ router.put("/:id", requireHRAccess, async (req, res) => {
     const review = await PerformanceReview.findById(req.params.id).populate("company");
     if (!review) return res.status(404).json({ success: false, message: "Review not found" });
     if (!canManage(req, review.company)) return res.status(403).json({ success: false, message: "Not authorized" });
-    if (!canManageEmployeeRecords(req.user)) {
+    if (!hasPerm(req.user, "hr.reviews.edit")) {
       return res.status(403).json({ success: false, message: "Editing performance reviews requires Chargé RH authority or higher" });
     }
 
@@ -315,7 +320,7 @@ router.delete("/:id", requireHRAccess, async (req, res) => {
     const review = await PerformanceReview.findById(req.params.id).populate("company");
     if (!review) return res.status(404).json({ success: false, message: "Review not found" });
     if (!canManage(req, review.company)) return res.status(403).json({ success: false, message: "Not authorized" });
-    if (!canApproveHRRequests(req.user)) {
+    if (!hasPerm(req.user, "hr.reviews.delete")) {
       return res.status(403).json({ success: false, message: "Deleting a performance review requires Responsable RH authority or higher" });
     }
 

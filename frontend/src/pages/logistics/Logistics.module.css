@@ -11,9 +11,9 @@
 .pipeStep .mini > i { display: block; height: 100%; }
 
 .unitTable { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
-.unitTable th { padding: 7px 8px; font-size: 0.7rem; font-weight: 600; text-align: left; text-transform: uppercase; color: var(--color-text-tertiary); border-bottom: 1px solid var(--color-border); position: sticky; top: 0; background: var(--color-bg-secondary, #1b1b1b); z-index: 1; }
+.unitTable th { padding: 7px 8px; font-size: 0.7rem; font-weight: 600; text-align: left; text-transform: uppercase; color: var(--color-text-tertiary); border-bottom: 1px solid var(--color-border); position: sticky; top: 0; background: var(--color-bg-secondary, var(--color-bg-primary)); z-index: 1; }
 .unitTable td { padding: 7px 8px; vertical-align: top; border-bottom: 1px solid var(--color-border-light, var(--color-border)); }
-.unitTable tr.groupRow td { padding-top: 12px; font-weight: 700; background: rgba(255, 255, 255, 0.02); }
+.unitTable tr.groupRow td { padding-top: 12px; font-weight: 700; background: rgba(var(--overlay-rgb),  0.02); }
 .unitTable tr.cancelledRow { opacity: 0.5; }
 .unitTable input[type="checkbox"] { width: 15px; height: 15px; cursor: pointer; }
 .parts { display: flex; flex-wrap: wrap; gap: 5px; }
@@ -21,8 +21,8 @@
 .partChip small { color: var(--color-text-tertiary); }
 .partChipSelected { border-color: #6ea8fe; background: rgba(110, 168, 254, 0.12); }
 .partChipCancelled { opacity: 0.45; text-decoration: line-through; cursor: default; }
-.flag { display: inline-flex; align-items: center; gap: 3px; margin-left: 6px; padding: 1px 6px; font-size: 0.68rem; font-weight: 600; color: #e8b93f; border: 1px solid rgba(232, 185, 63, 0.45); border-radius: 999px; }
-.flagBad { color: #f87171; border-color: rgba(248, 113, 113, 0.45); }
+.flag { display: inline-flex; align-items: center; gap: 3px; margin-left: 6px; padding: 1px 6px; font-size: 0.68rem; font-weight: 600; color: var(--tone-e8b93f); border: 1px solid rgba(232, 185, 63, 0.45); border-radius: 999px; }
+.flagBad { color: var(--tone-f87171); border-color: rgba(248, 113, 113, 0.45); }
 .actionBar { position: sticky; bottom: 0; z-index: 5; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 10px; padding: 10px 12px; border: 1px solid #3b82f6; border-radius: 12px; background: var(--color-bg-primary); box-shadow: 0 -6px 16px rgba(0, 0, 0, 0.25); }
 .actionBar :global(button) { display: inline-flex; align-items: center; gap: 6px; }
 .filters { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
@@ -37,5 +37,5 @@
 .timeline strong { color: var(--color-text-primary); }
 .modeTabs { display: inline-flex; gap: 4px; padding: 3px; margin-bottom: 10px; border: 1px solid var(--color-border); border-radius: 10px; }
 .modeTabs button { padding: 6px 12px; font-size: 0.8rem; color: var(--color-text-secondary); border: none; border-radius: 7px; background: transparent; cursor: pointer; }
-.modeTabs button.on { color: #111; background: #fff; font-weight: 600; }
+.modeTabs button.on { color: var(--color-inverse-fg); background: var(--color-inverse-bg); font-weight: 600; }
 @media (max-width: 900px) { .pipeline { grid-template-columns: repeat(2, minmax(0, 1fr)); } }

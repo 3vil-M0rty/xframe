@@ -63,15 +63,15 @@
 }
 
 .pageButtonActive {
-    color: #000;
-    background: #fff;
-    border-color: #fff;
+    color: var(--color-inverse-fg);
+    background: var(--color-inverse-bg);
+    border-color: var(--color-inverse-bg);
 }
 
 .pageButtonActive:hover {
-    color: #000;
-    background: #e8e8e8;
-    border-color: #e8e8e8;
+    color: var(--color-inverse-fg);
+    background: var(--color-inverse-hover);
+    border-color: var(--color-inverse-hover);
 }
 
 .ellipsis {

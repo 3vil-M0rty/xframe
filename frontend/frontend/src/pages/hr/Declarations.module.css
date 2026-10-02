@@ -35,11 +35,11 @@
 
 .tab:hover {
     color: var(--color-text-primary);
-    background: rgba(255, 255, 255, 0.04);
+    background: rgba(var(--overlay-rgb),  0.04);
 }
 
 .tabActive {
-    color: #fff;
+    color: var(--color-text-primary);
     background: var(--color-bg-secondary);
     border-color: var(--color-border);
     border-bottom-color: var(--color-bg-secondary);
@@ -112,19 +112,19 @@
     display: flex;
     align-items: center;
     gap: 8px;
-    color: #4cc38a;
+    color: var(--tone-4cc38a);
     background: rgba(76, 195, 138, 0.08);
     border: 1px solid rgba(76, 195, 138, 0.25);
 }
 
 .problemBox {
-    color: #ff9b9b;
+    color: var(--tone-ff9b9b);
     background: rgba(239, 68, 68, 0.07);
     border: 1px solid rgba(239, 68, 68, 0.35);
 }
 
 .warningBox {
-    color: #f5b544;
+    color: var(--tone-f5b544);
     background: rgba(245, 158, 11, 0.06);
     border: 1px solid rgba(245, 158, 11, 0.3);
 }
@@ -170,7 +170,7 @@
 
 .inlineField input {
     padding: 7px 10px;
-    color-scheme: dark;
+    color-scheme: var(--color-scheme);
 }
 
 .hint,

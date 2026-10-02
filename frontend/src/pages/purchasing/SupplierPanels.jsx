@@ -9,6 +9,7 @@ import {
 import { formatMoney, formatDate } from "./shared";
 import styles from "./Purchasing.module.css";
 import FileLink from "../../components/useful/FileLink";
+import { useDialog } from "../../components/useful/DialogProvider";
 
 export const DOC_TYPES = ["attestation_fiscale", "rc", "cnss", "rib", "patente", "other"];
 const DAY = 86400000;
@@ -108,6 +109,7 @@ export function SupplierStatementModal({ supplier, onClose }) {
 // Documents (attestation fiscale, RC, CNSS, RIB...) with expiry
 // ------------------------------------------------------------
 export function SupplierDocumentsModal({ supplier, onClose, onChanged }) {
+  const dialog = useDialog();
   const { t } = useI18n();
   const [current, setCurrent] = useState(supplier);
   const [form, setForm] = useState({ type: "attestation_fiscale", label: "", number: "", issueDate: "", expiryDate: "", file: null });
@@ -130,7 +132,7 @@ export function SupplierDocumentsModal({ supplier, onClose, onChanged }) {
   };
 
   const remove = async (doc) => {
-    if (!window.confirm(t("purchasing.supplierDocs.deleteConfirm"))) return;
+    if (!(await dialog.confirm(t("purchasing.supplierDocs.deleteConfirm")))) return;
     try { apply(await deleteSupplierDocument(current._id, doc._id)); } catch (err) { setError(err.response?.data?.message || t("purchasing.errors.save")); }
   };
 

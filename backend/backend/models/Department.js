@@ -1,3 +1,5 @@
+// Must load before the schema is compiled — registers the client-isolation plugin.
+require("../services/tenantScope");
 const mongoose = require("mongoose");
 const translatable = require("../plugins/translatable");
 
@@ -54,7 +56,7 @@ const departmentSchema = new mongoose.Schema(
     // should unlock a given module.
     permissionKey: {
       type: String,
-      enum: ["hr", "production", "purchasing", null],
+      enum: ["hr", "production", "purchasing", "sales", "logistics", null],
       default: null,
     },
 
@@ -70,6 +72,14 @@ const departmentSchema = new mongoose.Schema(
       ref: "Employee",
       default: null,
       index: true,
+    },
+
+    // The work schedule of this department's staff (null = the
+    // company's default schedule) — see services/scheduleResolver.js.
+    workSchedule: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "WorkSchedule",
+      default: null,
     },
 
     // A broader business-function tag than permissionKey — same

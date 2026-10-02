@@ -28,7 +28,9 @@ describe("GET /companies — visibility for HR/production department users", () 
   beforeEach(() => {
     vi.restoreAllMocks();
     vi.spyOn(Company, "find").mockImplementation((filter) => ({
-      sort: () => Promise.resolve(companies.filter((c) => !filter.owner || c.owner === filter.owner)),
+      sort: () => Promise.resolve(companies.filter((c) => (filter.$or
+        ? filter.$or.some((f) => (f.owner && c.owner === f.owner) || (f._id && f._id.$in.includes(c._id)))
+        : !filter.owner || c.owner === filter.owner))),
     }));
     vi.spyOn(Employee, "aggregate").mockResolvedValue([]);
   });
@@ -65,14 +67,26 @@ describe("GET /companies — visibility for HR/production department users", () 
     expect(res.body.data.length).toBe(2);
   });
 
-  it("a real owner is unaffected — still scoped to only their own company", async () => {
+  it("an owner sees every company of their client (a client can have several companies)", async () => {
+    // The client boundary itself is enforced by tenant isolation (tenantIsolation.test.js).
     const res = await callAs({ id: "owner1", role: "owner" });
-    expect(res.body.data.length).toBe(1);
-    expect(res.body.data[0].name).toBe("Atlas Industries");
+    expect(res.body.data.length).toBe(2);
   });
 
   it("a non-HR, non-production department user does not get over-exposed to companies they don't own", async () => {
-    const res = await callAs({ id: "salesUser1", role: "user", department: "sales" });
+    const res = await callAs({ id: "qualityUser1", role: "user", department: "quality" });
     expect(res.body.data.length).toBe(0);
+  });
+
+  it("a workshop member (no module department) sees only the companies of their workshops", async () => {
+    const Workshop = require("../models/Workshop");
+    vi.spyOn(Workshop, "distinct").mockResolvedValue(["c2"]);
+    const res = await callAs({ id: "glazier1", role: "user", department: "quality_control", workshops: ["w1"] });
+    expect(res.body.data.map((c) => c._id)).toEqual(["c2"]);
+  });
+
+  it("a sales department user sees the tenant's companies (they issue devis/factures for them)", async () => {
+    const res = await callAs({ id: "salesUser1", role: "user", department: "sales" });
+    expect(res.body.data.length).toBe(2);
   });
 });

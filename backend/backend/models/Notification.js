@@ -33,12 +33,21 @@ const notificationSchema = new mongoose.Schema(
         "payslip_available",
         "purchase_request_pending",
         "purchase_request_reviewed",
+        "production",
+        "sales",
+        "project",
+        "stock_low",
         "other",
       ],
       required: true,
     },
 
     title: { type: String, required: true, trim: true },
+    // Translatable notifications: the bell shows
+    // notificationEvents.<key>.title / .message (with {params})
+    // in the reader's language; `title`/`message` are the fallback.
+    key: { type: String, trim: true, default: null },
+    params: { type: mongoose.Schema.Types.Mixed, default: undefined },
     message: { type: String, trim: true },
 
     // Frontend route to navigate to when the notification is

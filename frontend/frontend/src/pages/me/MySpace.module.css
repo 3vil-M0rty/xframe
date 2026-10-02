@@ -323,7 +323,7 @@
     display: block;
     margin-top: 6px;
     font-size: 0.78rem;
-    color: #fca5a5;
+    color: var(--tone-fca5a5);
 }
 
 .clockDone {
@@ -336,7 +336,7 @@
     margin: 2px 0 4px;
     font-size: 0.8rem;
     font-weight: 600;
-    color: #e8b93f;
+    color: var(--tone-e8b93f);
 }
 
 /* ---------- manager: team's pending requests ---------- */
@@ -386,13 +386,13 @@
     transition: background-color 0.15s ease;
 }
 .teamAccept {
-    color: #4cc38a;
+    color: var(--tone-4cc38a);
     background: rgba(76, 195, 138, 0.1);
     border: 1px solid rgba(76, 195, 138, 0.35);
 }
 .teamAccept:hover:not(:disabled) { background: rgba(76, 195, 138, 0.2); }
 .teamReject {
-    color: #f87171;
+    color: var(--tone-f87171);
     background: rgba(248, 113, 113, 0.08);
     border: 1px solid rgba(248, 113, 113, 0.35);
 }

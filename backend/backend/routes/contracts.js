@@ -8,12 +8,16 @@ const Employee = require("../models/Employee");
 const Company = require("../models/Company");
 
 const auth = require("../middleware/auth");
+const { guard } = require("../middleware/permissionGuard");
+const { ROUTE_PERMISSIONS } = require("../config/routePermissions");
 const { requireHRAccess } = require("../middleware/permissionMiddleware");
 const { canAccessHRForCompany } = require("../permissions/permissions");
 const { logAudit } = require("../services/auditLogger");
 const { attachTranslationRoutes } = require("../utils/translationRoutes");
 const { findMatchingEmployeeIds } = require("../utils/employeeSearch");
 
+// Fine-grained permissions of every endpoint: config/routePermissions.js
+router.use(auth, guard(ROUTE_PERMISSIONS.contracts));
 router.use(auth, requireHRAccess);
 
 const canManage = (req, company) => canAccessHRForCompany(req.user, company);

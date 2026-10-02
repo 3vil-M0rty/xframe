@@ -1,3 +1,5 @@
+// Must load before the schema is compiled — registers the client-isolation plugin.
+require("../services/tenantScope");
 const mongoose = require("mongoose");
 
 /**
@@ -37,10 +39,21 @@ const priceRequestSchema = new mongoose.Schema(
       }],
       validate: [(v) => v.length > 0, "A price request needs at least one line"],
     },
-    quoteFile: { url: String, publicId: String, originalName: String },
+    quoteFile: { url: String, publicId: String, originalName: String, private: Boolean, resourceType: String, format: String },
     notes: { type: String, trim: true, maxlength: 2000 },
     purchaseOrder: { type: mongoose.Schema.Types.ObjectId, ref: "PurchaseOrder", default: null },
     purchaseRequests: [{ type: mongoose.Schema.Types.ObjectId, ref: "PurchaseRequest" }],
+    // Same request sent to several suppliers at once shares a group, so
+    // their answers can be compared side by side (GET /compare/:group).
+    comparisonGroup: { type: String, default: null, index: true },
+    emails: [{
+      to: String,
+      cc: String,
+      subject: String,
+      at: { type: Date, default: Date.now },
+      by: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+      simulated: Boolean,
+    }],
     createdBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
     updatedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
   },

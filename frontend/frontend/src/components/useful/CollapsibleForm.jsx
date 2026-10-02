@@ -275,7 +275,12 @@ export default function CollapsibleForm({
         <form onSubmit={handleSubmit}>
 
           <div className={styles.fields}>
-            {fields.map((field) => (
+            {fields.map((field) => (field.type === "section" ? (
+              <div key={field.name} className={styles.sectionHeading}>
+                <span>{field.label}</span>
+                {field.helpText && <small>{field.helpText}</small>}
+              </div>
+            ) : (
               <div
                 key={field.name}
                 className={`${styles.field} ${field.fullWidth ? styles.fullWidth : ""
@@ -408,6 +413,10 @@ export default function CollapsibleForm({
                       value={formData[field.name] ?? ""}
                       onChange={handleChange}
                       required={field.required}
+                      min={field.min}
+                      max={field.max}
+                      step={field.step}
+                      maxLength={field.maxLength}
                     />
                   )}
 
@@ -417,7 +426,7 @@ export default function CollapsibleForm({
                   </small>
                 )}
               </div>
-            ))}
+            )))}
           </div>
 
           {buttons.length > 0 && (

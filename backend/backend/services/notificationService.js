@@ -1,5 +1,18 @@
 const Notification = require("../models/Notification");
 const User = require("../models/User");
+const { tenantOfCompany } = require("./tenantService");
+
+/**
+ * Restricts a recipient query to the company's client. Inside a
+ * request the isolation plugin already does this; background jobs
+ * run unscoped (system context), so without this an admin of client
+ * A would get client B's alerts.
+ */
+async function forCompanyClient(company, filter) {
+  const tenant = await tenantOfCompany(company);
+  // Unknown client → nobody (never "everybody").
+  return { $and: [filter, { tenant: tenant || null }, { role: { $ne: "platform_admin" } }] };
+}
 
 /**
  * Finds the User accounts that should be notified about HR events
@@ -9,13 +22,13 @@ const User = require("../models/User");
  * function says can manage this company's HR data.)
  */
 async function getHRRecipientIds(company) {
-  const users = await User.find({
+  const users = await User.find(await forCompanyClient(company, {
     $or: [
       { role: "admin" },
       { _id: company?.owner },
       { department: "hr" },
     ],
-  }).select("_id");
+  })).select("_id");
 
   return users.map((u) => u._id.toString());
 }
@@ -29,12 +42,12 @@ async function getHRRecipientIds(company) {
  * purchase request doesn't get notified about their own submission.
  */
 async function getProductionRecipientIds(company, excludeUserId) {
-  const users = await User.find({
+  const users = await User.find(await forCompanyClient(company, {
     $or: [
       { role: "admin" },
       { department: "production" },
     ],
-  }).select("_id");
+  })).select("_id");
 
   return users
     .map((u) => u._id.toString())
@@ -48,7 +61,7 @@ async function getProductionRecipientIds(company, excludeUserId) {
  * routes through this function already, so nothing else needs to
  * change when that's added.
  */
-async function notify(userId, { type, title, message, link }) {
+async function notify(userId, { type, title, message, link, key, params }) {
   if (!userId) return null;
 
   try {
@@ -58,6 +71,7 @@ async function notify(userId, { type, title, message, link }) {
       title,
       message,
       link,
+      ...(key ? { key, params } : {}),
     });
   } catch (error) {
     console.error("Notification create failed:", error);
@@ -78,8 +92,29 @@ async function notifyMany(userIds = [], payload) {
 
 /** Everyone who works purchase requests: admins + purchasing department. */
 async function getPurchasingRecipientIds(company, excludeUserId) {
-  const users = await User.find({ $or: [{ role: "admin" }, { department: "purchasing" }] }).select("_id");
+  const users = await User.find(
+    await forCompanyClient(company, { $or: [{ role: "admin" }, { department: "purchasing" }] })
+  ).select("_id");
   return users.map((u) => u._id.toString()).filter((id) => id !== String(excludeUserId || ""));
 }
 
-module.exports = { notify, notifyMany, getHRRecipientIds, getProductionRecipientIds, getPurchasingRecipientIds };
+/** Admins + users of a department ("sales", "production"…) of the company's client. */
+async function getDepartmentRecipientIds(company, department, excludeUserId) {
+  const users = await User.find(
+    await forCompanyClient(company, { $or: [{ role: "admin" }, { department }] })
+  ).select("_id");
+  return users.map((u) => u._id.toString()).filter((id) => id !== String(excludeUserId || ""));
+}
+
+/** Login accounts linked to these employees (workshop managers/members, project managers). */
+async function getUserIdsForEmployees(employeeIds = [], excludeUserId) {
+  const ids = [...new Set(employeeIds.filter(Boolean).map(String))];
+  if (!ids.length) return [];
+  const users = await User.find({ employee: { $in: ids }, status: { $nin: ["inactive", "suspended"] } }).select("_id");
+  return users.map((u) => u._id.toString()).filter((id) => id !== String(excludeUserId || ""));
+}
+
+module.exports = {
+  notify, notifyMany, getHRRecipientIds, getProductionRecipientIds, getPurchasingRecipientIds,
+  getDepartmentRecipientIds, getUserIdsForEmployees,
+};

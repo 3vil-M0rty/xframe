@@ -1,4 +1,4 @@
-const { ROLES, canAccessHR, canAccessProduction, canAccessPurchasing, canViewInventory } = require("../permissions/permissions");
+const { ROLES, canAccessHR, canAccessProduction, canAccessPurchasing, canViewInventory, canAccessSales, canViewProjects, canUseWorkshops, canViewCatalog, canAccessLogistics } = require("../permissions/permissions");
 
 /**
  * requireRole('admin', 'owner')
@@ -76,6 +76,46 @@ const requirePurchasingAccess = (req, res, next) => {
   next();
 };
 
+/** Sales (ventes): admins, owners, "sales" department. */
+const requireSalesAccess = (req, res, next) => {
+  if (!canAccessSales(req.user)) {
+    return res.status(403).json({ success: false, message: "You do not have permission to access the Sales module" });
+  }
+  next();
+};
+
+/** Projects: production and sales can view; production (and owners) manage. */
+const requireProjectsView = (req, res, next) => {
+  if (!canViewProjects(req.user)) {
+    return res.status(403).json({ success: false, message: "You do not have permission to access projects" });
+  }
+  next();
+};
+
+/** Workshop screens: production, or anyone who runs / works in a workshop. */
+const requireWorkshopAccess = (req, res, next) => {
+  if (!canUseWorkshops(req.user)) {
+    return res.status(403).json({ success: false, message: "You do not have access to the workshops" });
+  }
+  next();
+};
+
+/** Chassis catalogue (read): production, workshops, sales, projects. */
+const requireCatalogView = (req, res, next) => {
+  if (!canViewCatalog(req.user)) {
+    return res.status(403).json({ success: false, message: "You do not have access to the chassis catalogue" });
+  }
+  next();
+};
+
+/** Logistics: delivery notes, chassis to deliver. */
+const requireLogisticsAccess = (req, res, next) => {
+  if (!canAccessLogistics(req.user)) {
+    return res.status(403).json({ success: false, message: "You do not have access to logistics" });
+  }
+  next();
+};
+
 /** Reading inventory: production OR purchasing (writing stays production-only). */
 const requireInventoryViewAccess = (req, res, next) => {
   if (!canViewInventory(req.user)) {
@@ -91,5 +131,10 @@ module.exports = {
   requireHRAccess,
   requireProductionAccess,
   requirePurchasingAccess,
+  requireSalesAccess,
+  requireProjectsView,
   requireInventoryViewAccess,
+  requireWorkshopAccess,
+  requireCatalogView,
+  requireLogisticsAccess,
 };

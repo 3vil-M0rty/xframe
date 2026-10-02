@@ -11,14 +11,21 @@ const User = require("../models/User");
 const { syncLinkedUserPermissions } = require("../services/employeeAccountService");
 
 const auth = require("../middleware/auth");
+const { guard } = require("../middleware/permissionGuard");
+const { ROUTE_PERMISSIONS } = require("../config/routePermissions");
 const { canManageCompany } = require("../permissions/permissions");
 const { logAudit } = require("../services/auditLogger");
 const { attachTranslationRoutes } = require("../utils/translationRoutes");
 const { DEFAULT_DEPARTMENTS } = require("../config/defaultDepartments");
 
+// Fine-grained permissions of every endpoint: config/routePermissions.js
+router.use(auth, guard(ROUTE_PERMISSIONS.departments));
 router.use(auth);
 
-const canManage = (req, company) => canManageCompany(req.user, company);
+const { hasPrefix } = require("../services/permissionService");
+// Admins / owners, or anyone given the "Organisation › Départements" permissions
+// (the guard checks the exact action — config/routePermissions.js).
+const canManage = (req, company) => canManageCompany(req.user, company) || (!!company && hasPrefix(req.user, "organization.departments"));
 
 // ======================================================
 // GET ALL DEPARTMENTS
@@ -75,7 +82,8 @@ router.get("/managed", async (req, res) => {
     if (req.user.role === "admin") {
       filter = {};
     } else if (req.user.role === "owner") {
-      const owned = await Company.find({ owner: req.user.id }).select("_id").lean();
+      // Every company of the owner's client (tenant-scoped query).
+      const owned = await Company.find({}).select("_id").lean();
       filter = { $or: [{ company: { $in: owned.map((c) => c._id) } }, { _id: { $in: ids } }] };
     } else {
       if (ids.length === 0) return res.json({ success: true, data: [] });
@@ -325,6 +333,19 @@ router.put("/:id", async (req, res) => {
     if (name !== undefined) department.name = name;
     if (description !== undefined) department.description = description;
     if (permissionKey !== undefined) department.permissionKey = permissionKey || null;
+    // Its work schedule (null = the company's default one).
+    if (req.body.workSchedule !== undefined) {
+      if (req.body.workSchedule) {
+        const WorkSchedule = require("../models/WorkSchedule");
+        const ws = mongoose.Types.ObjectId.isValid(req.body.workSchedule)
+          ? await WorkSchedule.findOne({ _id: req.body.workSchedule, company: department.company._id || department.company }).select("isDefault").lean()
+          : null;
+        if (!ws) return res.status(400).json({ success: false, message: "Unknown work schedule" });
+        department.workSchedule = ws.isDefault ? null : ws._id;
+      } else {
+        department.workSchedule = null;
+      }
+    }
     if (category !== undefined) department.category = category || null;
     department.updatedBy = req.user.id;
 

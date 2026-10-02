@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { ClipboardList, Play, CheckCircle2, XCircle, FileText, Package, Lock, ArrowRight } from "lucide-react";
+import { ClipboardList, Play, CheckCircle2, XCircle, FileText, Package, Lock, ArrowRight, Scissors, PackageCheck, PaintBucket, Send } from "lucide-react";
+import CuttingPlans from "./CuttingPlans";
+import { ReceiveModal, FinishLaquageModal } from "../../components/flow/FlowModals";
+import { getTransfers, finishVitrage, framesDone, offcutsFromPlan } from "../../services/productionFlowService";
 
 import { useI18n } from "../../hooks/useI18n";
 import { useCan } from "../../hooks/useCan";
@@ -17,6 +20,7 @@ import { formatDate, formatMoney, ORDER_PILL, fmtQty, fmtMm, articleLabel } from
 import purch from "../purchasing/Purchasing.module.css";
 import s from "../sales/Sales.module.css";
 import styles from "./Production.module.css";
+import { useDialog } from "../../components/useful/DialogProvider";
 
 /**
  * One work order (ordre de fabrication) as its workshop runs it:
@@ -26,6 +30,7 @@ import styles from "./Production.module.css";
 const MATERIAL_ORDER = ["profile", "accessory", "gasket", "glass", "panel", "powder", "consumable", "other"];
 
 export default function WorkOrderDetail() {
+  const dialog = useDialog();
   const can = useCan();
   const { id } = useParams();
   const { t } = useI18n();
@@ -40,10 +45,13 @@ export default function WorkOrderDetail() {
   const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState(false);
 
+  const [pending, setPending] = useState([]); // transfers waiting to be received here
+  const [flowModal, setFlowModal] = useState(null);
   const load = useCallback(async () => {
     try {
       const o = await getWorkOrder(id);
       setOrder(o);
+      getTransfers(o.company, { status: "sent" }).then((rows) => setPending(rows.filter((tr) => String(tr.toOrder?._id || tr.toOrder) === String(o._id)))).catch(() => setPending([]));
       if (!articles.length) getCatalogArticles(o.company, { variants: "true" }).then(setArticles).catch(() => {});
     } catch (err) { setError(err.response?.data?.message || t("prod.errors.load")); }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -73,17 +81,19 @@ export default function WorkOrderDetail() {
     return { items, done };
   }, [order]);
 
+  // Project laquage / vitrage orders finish through the flow (kg of powder, glass sent to Aluminium).
+  const flowFinish = !!order?.project && ["laquage", "vitrage"].includes(order?.kind);
   if (!order) return <div className="pageShell">{error && <div className="errorMessage">{error}</div>}</div>;
   const active = ["planned", "in_progress", "draft"].includes(order.status);
 
   const start = async () => {
     const r = await run(() => startWorkOrder(id), "prod.order.started");
-    if (r && r.pending && window.confirm(`${r.message}\n\n${t("prod.order.startAnyway")}`)) await run(() => startWorkOrder(id, true), "prod.order.started");
+    if (r && r.pending && (await dialog.confirm({ title: t("prod.order.start"), message: `${r.message}\n\n${t("prod.order.startAnyway")}` }))) await run(() => startWorkOrder(id, true), "prod.order.started");
   };
   const book = (lines) => run(() => consumeWorkOrder(id, { lines }), "prod.order.booked").then((ok) => { if (ok === true) setQty({}); });
   const bookAll = () => book(order.needs.filter((n) => n.product && remaining(n) > 0).map((n) => ({ need: n._id, quantity: Math.min(remaining(n), n.product.quantity ?? remaining(n)) })).filter((l) => l.quantity > 0));
   const cancel = async () => {
-    const reason = window.prompt(t("prod.order.cancelReason"));
+    const reason = await dialog.prompt({ title: t("common.cancel"), message: t("prod.order.cancelReason"), multiline: true });
     if (reason === null) return;
     await run(() => cancelWorkOrder(id, reason), "prod.order.cancelled");
   };
@@ -94,6 +104,16 @@ export default function WorkOrderDetail() {
   const needGroups = MATERIAL_ORDER
     .map((type) => ({ type, needs: order.needs.filter((n) => (MATERIAL_ORDER.includes(n.materialType || n.product?.materialType) ? (n.materialType || n.product?.materialType) : "other") === type) }))
     .filter((g) => g.needs.length);
+  // Which papers this order has: bars, glass, accessories, powder.
+  const typeOfNeed = (n) => {
+    const mt = n.materialType || n.product?.materialType;
+    if (n.kind === "powder" || mt === "powder") return "powder";
+    if (n.measure === "area" && (n.kind === "glass" || mt === "glass")) return "glass";
+    if (n.measure === "length" && n.hasCuts && (n.kind === "profile" || mt === "profile" || n.product?.stockMode === "bar")) return "bars";
+    return order.kind === "laquage" ? "powder" : "accessories";
+  };
+  const cutSections = [...new Set([...order.needs.map(typeOfNeed), ...(order.outputs?.length ? ["powder"] : []), ...(order.kind === "vitrage" ? ["glass"] : [])])];
+  const hasCutting = cutSections.length > 0;
   const plannedUnit = (n) => (n.barLength
     ? t("prodPlan.barsOf").replace("{length}", fmtQty(n.barLength))
     : n.unit);
@@ -118,12 +138,20 @@ export default function WorkOrderDetail() {
         <div className={purch.headerActions}>
           {can("production.orders.print") && <button type="button" className="btnEdit" onClick={() => openWorkOrderPdf(id).catch(() => setError(t("prod.errors.load")))}><FileText size={15} /> {t("prod.order.pdf")}</button>}
           {order.status === "planned" && can("production.orders.start") && <button type="button" className="btnEdit" disabled={busy} onClick={start}><Play size={15} /> {t("prod.order.start")}</button>}
-          {active && can("production.orders.complete") && <button type="button" className="btnPrimary" disabled={busy} onClick={() => setCompleting({ consumeRemaining: true, outputs: Object.fromEntries(order.outputs.map((o) => [o._id, { produced: o.quantity, rejected: 0 }])), note: "" })}><CheckCircle2 size={15} /> {t("prod.order.complete")}</button>}
+          {can("production.flow.receive") && pending.map((tr) => <button key={tr._id} type="button" className="btnPrimary" onClick={() => setFlowModal({ type: "receive", transfer: tr })}><PackageCheck size={15} /> {t(`flowUi.receiveCat.${tr.category}`)} · {tr.number}</button>)}
+          {flowFinish && order.status === "in_progress" && can("production.orders.complete") && order.kind === "laquage" && <button type="button" className="btnPrimary" disabled={busy || pending.length > 0} onClick={() => setFlowModal({ type: "laquage" })}><PaintBucket size={15} /> {t("flowUi.finishLaquage")}</button>}
+          {flowFinish && order.status === "in_progress" && can("production.orders.complete") && order.kind === "vitrage" && <button type="button" className="btnPrimary" disabled={busy} onClick={async () => { if (await dialog.confirm(t("flowUi.finishVitrageConfirm"))) run(() => finishVitrage(id), "flowUi.vitrageSent"); }}><Send size={15} /> {t("flowUi.finishVitrage")}</button>}
+          {order.project && order.kind === "aluminium" && order.status === "in_progress" && !order.framesDoneAt && can("production.orders.complete") && <button type="button" className="btnEdit" disabled={busy} onClick={() => run(() => framesDone(id), "flowUi.framesDoneNotice")}><CheckCircle2 size={15} /> {t("flowUi.framesDone")}</button>}
+          {order.kind === "aluminium" && can("production.flow.offcuts") && <button type="button" className="btnEdit" disabled={busy} onClick={() => run(() => offcutsFromPlan(id), "flowUi.offcutsSaved")}><Scissors size={15} /> {t("flowUi.offcutsFromPlan")}</button>}
+          {active && !flowFinish && can("production.orders.complete") && <button type="button" className="btnPrimary" disabled={busy} onClick={() => setCompleting({ consumeRemaining: true, outputs: Object.fromEntries(order.outputs.map((o) => [o._id, { produced: o.quantity, rejected: 0 }])), note: "" })}><CheckCircle2 size={15} /> {t("prod.order.complete")}</button>}
           {active && order.canManage && can("production.orders.cancel") && <button type="button" className="btnCancel" disabled={busy} onClick={cancel}><XCircle size={15} /> {t("common.cancel")}</button>}
         </div>
       </div>
       {error && <div className="errorMessage">{error}</div>}
       {notice && <div className={purch.infoBanner}>{notice}</div>}
+      {order.framesDoneAt && order.status !== "done" && <div className={purch.infoBanner}><CheckCircle2 size={14} /> {t("flowUi.madeWithoutGlassShort")}{order.glassReceivedAt ? ` · ${t("flowUi.glassReceived")}` : ` — ${t("flowUi.waitingGlass")}`}</div>}
+      {flowModal?.type === "receive" && <ReceiveModal transfer={flowModal.transfer} onClose={() => setFlowModal(null)} onDone={() => { setFlowModal(null); setNotice(t("flowUi.receivedNotice")); load(); }} />}
+      {flowModal?.type === "laquage" && <FinishLaquageModal order={{ ...order, powder: order.needs.filter((n) => n.kind === "powder" || n.materialType === "powder").map((n) => ({ _id: n._id, label: n.label, product: n.product?.name, theoretical: n.theoretical, consumed: n.consumed })) }} onClose={() => setFlowModal(null)} onDone={() => { setFlowModal(null); setNotice(t("flowUi.laquageSent")); load(); }} />}
 
       {order.dependsOn?.length > 0 && (
         <div className={styles.flow}>
@@ -187,6 +215,14 @@ export default function WorkOrderDetail() {
               ))}
             </tbody>
           </table>
+        </section>
+      )}
+
+      {hasCutting && (
+        <section className={purch.section}>
+          <h2><Scissors size={16} /> {t("cut.title")}</h2>
+          <p className={s.muted}>{t("cut.orderHint")}</p>
+          <CuttingPlans orderId={id} canPrint={can("production.orders.print")} sections={cutSections} initialTab={order.kind === "vitrage" ? "glass" : order.kind === "laquage" ? "powder" : "bars"} />
         </section>
       )}
 

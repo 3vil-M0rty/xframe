@@ -249,11 +249,11 @@
   background: transparent;
   cursor: pointer;
 
-  color: #777;
+  color: var(--color-text-muted);
 }
 
 .passwordToggle:hover {
-  color: #fff;
+  color: var(--color-text-primary);
 }
 
 
@@ -295,7 +295,7 @@
 
 .customSelectTriggerOpen {
   border-color: var(--color-text-secondary);
-  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.08);
+  box-shadow: 0 0 0 2px rgba(var(--overlay-rgb),  0.08);
 }
 
 .customSelectValue {
@@ -362,7 +362,7 @@
 }
 
 .customSelectOptionActive {
-  background: rgba(255, 255, 255, 0.12);
+  background: rgba(var(--overlay-rgb),  0.12);
   color: var(--color-text-primary);
   font-weight: var(--font-medium);
 }
@@ -390,3 +390,45 @@
     width: 100%;
   }
 }
+/* Section heading inside a long form (field.type === "section") */
+.sectionHeading {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-top: var(--spacing-md);
+  margin-top: var(--spacing-xs);
+  border-top: 1px solid var(--color-border, rgba(127, 127, 127, 0.25));
+}
+
+.sectionHeading:first-child {
+  border-top: none;
+  padding-top: 0;
+  margin-top: 0;
+}
+
+.sectionHeading span {
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-primary, #3b82f6);
+}
+
+.sectionHeading small {
+  font-size: 0.78rem;
+  opacity: 0.7;
+}
+
+/* Native color picker: keep a visible swatch instead of a flat line */
+.field input[type="color"] {
+  height: 38px;
+  padding: 3px;
+  cursor: pointer;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm, 6px);
+}
+
+.field input[type="color"]::-webkit-color-swatch-wrapper { padding: 0; }
+.field input[type="color"]::-webkit-color-swatch { border: none; border-radius: 4px; }
+.field input[type="color"]::-moz-color-swatch { border: none; border-radius: 4px; }

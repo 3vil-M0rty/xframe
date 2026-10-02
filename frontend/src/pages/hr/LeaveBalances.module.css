@@ -53,7 +53,7 @@
     margin-bottom: 14px;
     padding: 10px 14px;
     font-size: 0.82rem;
-    color: #4cc38a;
+    color: var(--tone-4cc38a);
     background: rgba(76, 195, 138, 0.08);
     border: 1px solid rgba(76, 195, 138, 0.25);
     border-radius: 8px;
@@ -65,18 +65,18 @@
 }
 
 .bonus {
-    color: #4cc38a;
+    color: var(--tone-4cc38a);
     font-size: 0.76rem;
 }
 
 .negative {
-    color: #ff8585;
+    color: var(--tone-ff8585);
 }
 
 .alert {
     display: inline-flex;
     margin-left: 6px;
-    color: #f5b544;
+    color: var(--tone-f5b544);
     vertical-align: middle;
 }
 
@@ -85,7 +85,7 @@
     padding: 12px 14px;
     border: 1px solid var(--color-border);
     border-radius: 10px;
-    background: rgba(255, 255, 255, 0.02);
+    background: rgba(var(--overlay-rgb),  0.02);
 }
 
 .editFields {
@@ -104,7 +104,7 @@
 
 .editFields input {
     padding: 8px 10px;
-    color-scheme: dark;
+    color-scheme: var(--color-scheme);
 }
 
 .noteField {

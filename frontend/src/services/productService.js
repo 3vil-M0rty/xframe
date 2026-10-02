@@ -6,6 +6,8 @@ export const getProducts = async ({
   search,
   lowStockOnly,
   asOfDate,
+  materialType,
+  profileSeries,
   page = 1,
   limit = 24,
 } = {}) => {
@@ -15,6 +17,8 @@ export const getProducts = async ({
   if (search) params.append("search", search);
   if (lowStockOnly) params.append("lowStockOnly", "true");
   if (asOfDate) params.append("asOfDate", asOfDate);
+  if (materialType) params.append("materialType", materialType);
+  if (profileSeries) params.append("profileSeries", profileSeries);
   params.append("page", page);
   params.append("limit", limit);
 

@@ -6,11 +6,13 @@ const router = express.Router();
 const Attendance = require("../models/Attendance");
 const Employee = require("../models/Employee");
 const Company = require("../models/Company");
-const WorkSchedule = require("../models/WorkSchedule");
+const { scheduleForEmployee, defaultSchedule } = require("../services/scheduleResolver");
 const { resolveDaySchedule, applyHoliday, nextPunch, punchDirection, computeDay } = require("../services/attendanceCalc");
 const PublicHoliday = require("../models/PublicHoliday");
 
 const auth = require("../middleware/auth");
+const { guard } = require("../middleware/permissionGuard");
+const { ROUTE_PERMISSIONS } = require("../config/routePermissions");
 const { attachTranslationRoutes } = require("../utils/translationRoutes");
 const {
   canAccessHRForCompany,
@@ -21,6 +23,8 @@ const {
 // the other HR routes — clock-in/clock-out has to be usable by any
 // employee with a linked User account (self-service), not just HR.
 // Each route below checks the right permission for what it does.
+// Fine-grained permissions of every endpoint: config/routePermissions.js
+router.use(auth, guard(ROUTE_PERMISSIONS.attendance));
 router.use(auth);
 
 // Used if a company hasn't configured a work schedule yet (see
@@ -35,8 +39,9 @@ const FALLBACK_DAY_CONFIG = {
   graceMinutes: 10,
 };
 
-async function getDayConfigForDate(companyId, date) {
-  const schedule = await WorkSchedule.findOne({ company: companyId });
+async function getDayConfigForDate(companyId, date, employee = null) {
+  // The employee's department schedule, else the company default (services/scheduleResolver.js).
+  const schedule = employee ? await scheduleForEmployee(employee, companyId) : await defaultSchedule(companyId, { create: false });
   if (!schedule) return FALLBACK_DAY_CONFIG;
   return schedule.getDayConfig(date) || FALLBACK_DAY_CONFIG;
 }
@@ -44,8 +49,8 @@ async function getDayConfigForDate(companyId, date) {
 // The day's resolved schedule WITH any public holiday applied (a
 // closed holiday becomes a non-working day; worked time on any
 // holiday is tracked separately — see services/attendanceCalc.js).
-async function getScheduleForDate(companyId, date) {
-  const schedule = resolveDaySchedule(await getDayConfigForDate(companyId, date));
+async function getScheduleForDate(companyId, date, employee = null) {
+  const schedule = resolveDaySchedule(await getDayConfigForDate(companyId, date, employee));
   if (!companyId) return schedule;
   const holiday = await PublicHoliday.findOne({ company: companyId, day: PublicHoliday.dayKey(date) }).lean();
   return applyHoliday(schedule, holiday);
@@ -81,7 +86,7 @@ async function punch(req, res, direction) {
     const now = new Date();
     const today = startOfDay(now);
     let record = await Attendance.findOne({ employee: employee._id, date: today });
-    const schedule = await getScheduleForDate(employee.company, today);
+    const schedule = await getScheduleForDate(employee.company, today, employee);
 
     const next = nextPunch(record || {}, schedule);
     if (!next) {
@@ -140,8 +145,8 @@ router.get("/today", async (req, res) => {
 
     // The day's schedule and which punch comes next, so My Space can
     // show the right button (and 4 punches on a split day).
-    const employee = await Employee.findById(req.user.employee).select("company");
-    const schedule = await getScheduleForDate(employee?.company, today);
+    const employee = await Employee.findById(req.user.employee).select("company department");
+    const schedule = await getScheduleForDate(employee?.company, today, employee);
 
     res.json({
       success: true,
@@ -251,7 +256,7 @@ router.put("/:id", async (req, res) => {
     // punches with the same rules as self clock-in (it used to only
     // update hoursWorked, leaving overtime and lateness stale).
     const dayStart = startOfDay(record.date);
-    const schedule = await getScheduleForDate(record.company._id, dayStart);
+    const schedule = await getScheduleForDate(record.company._id, dayStart, record.employee?._id || record.employee);
     const computed = computeDay(record, schedule, dayStart);
     // Only derive a status for records that actually have punches; an
     // explicit status from HR (absent, half day...) always wins.

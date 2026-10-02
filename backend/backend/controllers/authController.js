@@ -1,3 +1,4 @@
+const { accountAccessProblem } = require('../services/tenantService');
 const User = require('../models/User');
 const jwt = require('jsonwebtoken');
 
@@ -30,6 +31,13 @@ exports.login = async (req, res) => {
     // cuts off a session they already had open.
     if (user.status === 'inactive' || user.status === 'suspended') {
       return res.status(403).json({ message: 'This account has been deactivated' });
+    }
+
+    // The client (tenant) itself may be suspended — see
+    // services/tenantService.js. Same "after the password" rule.
+    const clientProblem = await accountAccessProblem(user);
+    if (clientProblem) {
+      return res.status(clientProblem.status).json({ message: clientProblem.message });
     }
 
     // --------------------------------------------------------

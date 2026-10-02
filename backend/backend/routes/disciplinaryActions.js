@@ -9,8 +9,11 @@ const Company = require("../models/Company");
 const User = require("../models/User");
 
 const auth = require("../middleware/auth");
+const { guard } = require("../middleware/permissionGuard");
+const { ROUTE_PERMISSIONS } = require("../config/routePermissions");
 const { requireHRAccess } = require("../middleware/permissionMiddleware");
-const { canAccessHRForCompany, canApproveHRRequests } = require("../permissions/permissions");
+const { canAccessHRForCompany } = require("../permissions/permissions");
+const { has: hasPerm } = require("../services/permissionService");
 const { logAudit } = require("../services/auditLogger");
 const { attachTranslationRoutes } = require("../utils/translationRoutes");
 const { notify } = require("../services/notificationService");
@@ -19,6 +22,8 @@ const { notify } = require("../services/notificationService");
 // applied per-route below instead of globally, so /mine and
 // /:id/acknowledge stay reachable by any logged-in employee. See
 // the identical fix and reasoning in routes/performanceReviews.js.
+// Fine-grained permissions of every endpoint: config/routePermissions.js
+router.use(auth, guard(ROUTE_PERMISSIONS.disciplinaryActions));
 router.use(auth);
 
 const canManage = (req, company) => canAccessHRForCompany(req.user, company);
@@ -29,7 +34,6 @@ const canManage = (req, company) => canAccessHRForCompany(req.user, company);
 // the list still only needs ordinary HR access (requireHRAccess
 // above), since a Chargé/Assistant RH may legitimately need to see
 // this history even if they can't add to it.
-const canManageDiscipline = canApproveHRRequests;
 
 // ======================================================
 // MY RECORDS (self-service)
@@ -148,7 +152,7 @@ router.post("/", requireHRAccess, async (req, res) => {
     const companyDoc = await Company.findById(company);
     if (!companyDoc) return res.status(404).json({ success: false, message: "Company not found" });
     if (!canManage(req, companyDoc)) return res.status(403).json({ success: false, message: "Not authorized" });
-    if (!canManageDiscipline(req.user)) {
+    if (!hasPerm(req.user, "hr.discipline.create")) {
       return res.status(403).json({ success: false, message: "Recording a disciplinary action requires Responsable RH authority or higher" });
     }
 
@@ -209,7 +213,7 @@ router.put("/:id", requireHRAccess, async (req, res) => {
     const action = await DisciplinaryAction.findById(req.params.id).populate("company");
     if (!action) return res.status(404).json({ success: false, message: "Record not found" });
     if (!canManage(req, action.company)) return res.status(403).json({ success: false, message: "Not authorized" });
-    if (!canManageDiscipline(req.user)) {
+    if (!hasPerm(req.user, "hr.discipline.edit")) {
       return res.status(403).json({ success: false, message: "Editing a disciplinary action requires Responsable RH authority or higher" });
     }
 
@@ -274,7 +278,7 @@ router.delete("/:id", requireHRAccess, async (req, res) => {
     const action = await DisciplinaryAction.findById(req.params.id).populate("company");
     if (!action) return res.status(404).json({ success: false, message: "Record not found" });
     if (!canManage(req, action.company)) return res.status(403).json({ success: false, message: "Not authorized" });
-    if (!canManageDiscipline(req.user)) {
+    if (!hasPerm(req.user, "hr.discipline.delete")) {
       return res.status(403).json({ success: false, message: "Deleting a disciplinary action requires Responsable RH authority or higher" });
     }
 

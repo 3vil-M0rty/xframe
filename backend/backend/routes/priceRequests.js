@@ -10,15 +10,21 @@ const Product = require("../models/Product");
 const Company = require("../models/Company");
 const { fetchLogoBuffer } = require("../services/pdfHelpers");
 const { generatePriceRequestPdf } = require("../services/purchasingPdfService");
+const { sendMail, pdfToBuffer, isEmail } = require("../services/mailService");
+const crypto = require("crypto");
 const auth = require("../middleware/auth");
+const { guard } = require("../middleware/permissionGuard");
+const { ROUTE_PERMISSIONS } = require("../config/routePermissions");
 const { requirePurchasingAccess } = require("../middleware/permissionMiddleware");
-const { uploadFile, deleteFile } = require("../services/cloudinaryService");
+const { uploadPrivateFile, deleteFile } = require("../services/cloudinaryService");
 const { createWithNumber } = require("../services/documentNumberService");
 
 /**
  * PRICE REQUESTS (demandes de prix) — purchasing module.
  *   draft -> sent -> answered -> accepted (converted to a BC) | rejected
  */
+// Fine-grained permissions of every endpoint: config/routePermissions.js
+router.use(auth, guard(ROUTE_PERMISSIONS.priceRequests));
 router.use(auth, requirePurchasingAccess);
 
 const uploadQuote = multer({
@@ -79,6 +85,67 @@ router.get("/", async (req, res) => {
   }
 });
 
+// COMPARE  GET /api/price-requests/compare/:group
+// The same request sent to several suppliers, side by side: per line,
+// each supplier's quoted price, the cheapest flagged; totals per supplier.
+router.get("/compare/:group", async (req, res) => {
+  try {
+    const docs = await PriceRequest.find({ comparisonGroup: req.params.group }).populate(POPULATE).sort({ number: 1 });
+    if (!docs.length) return bad(res, "Comparison not found", 404);
+    const lineCount = Math.max(...docs.map((d) => d.lines.length));
+    const lines = [];
+    for (let i = 0; i < lineCount; i += 1) {
+      const ref = docs[0].lines[i];
+      const quotes = docs.map((d) => ({ priceRequestId: d._id, supplier: d.supplier?.name, unitPrice: d.lines[i]?.quotedUnitPrice ?? null }));
+      const priced = quotes.filter((q) => q.unitPrice !== null);
+      const best = priced.length ? Math.min(...priced.map((q) => q.unitPrice)) : null;
+      lines.push({ description: ref?.description, quantity: ref?.quantity, unit: ref?.unit,
+        quotes: quotes.map((q) => ({ ...q, best: best !== null && q.unitPrice === best })) });
+    }
+    const totals = docs.map((d) => {
+      const complete = d.lines.every((l) => l.quotedUnitPrice !== null && l.quotedUnitPrice !== undefined);
+      const ht = d.lines.reduce((s, l) => s + (l.quotedUnitPrice || 0) * l.quantity, 0);
+      const ttc = d.lines.reduce((s, l) => s + (l.quotedUnitPrice || 0) * l.quantity * (1 + (l.vatRate || 0) / 100), 0);
+      return { priceRequestId: d._id, number: d.number, supplier: d.supplier?.name, status: d.status, complete,
+        totalHT: Math.round(ht * 100) / 100, totalTTC: Math.round(ttc * 100) / 100 };
+    });
+    const completeTotals = totals.filter((t) => t.complete);
+    const cheapest = completeTotals.length ? completeTotals.reduce((a, b) => (b.totalTTC < a.totalTTC ? b : a)) : null;
+    res.json({ success: true, data: { group: req.params.group, lines, totals, cheapestId: cheapest?.priceRequestId || null } });
+  } catch (error) {
+    res.status(500).json({ success: false, message: "Error building the comparison", error: error.message });
+  }
+});
+
+// EMAIL  POST /api/price-requests/:id/email  { to, cc?, message? } — PDF attached
+router.post("/:id/email", async (req, res) => {
+  try {
+    const doc = isId(req.params.id) ? await PriceRequest.findById(req.params.id).populate("supplier").populate("lines.product", "name internalReference unit prices") : null;
+    if (!doc) return bad(res, "Price request not found", 404);
+    if (["accepted", "rejected"].includes(doc.status)) return bad(res, "This price request is closed");
+    const to = String(req.body?.to || "").trim();
+    const cc = String(req.body?.cc || "").trim();
+    if (!isEmail(to)) return bad(res, "Enter a valid recipient email");
+    if (cc && !cc.split(",").every((x) => isEmail(x))) return bad(res, "Invalid CC email");
+
+    const company = await Company.findById(doc.company);
+    const logoBuffer = await fetchLogoBuffer(company);
+    const pdf = await pdfToBuffer(generatePriceRequestPdf({ priceRequest: doc, company, supplier: doc.supplier, logoBuffer }));
+    const subject = `Demande de prix ${doc.number} — ${company.name}`;
+    const text = String(req.body?.message || "").trim()
+      || `Bonjour,\n\nVeuillez trouver ci-joint notre demande de prix ${doc.number}.\nMerci de nous faire parvenir votre meilleure offre, avec vos délais et conditions de paiement.\n\nCordialement,\n${company.name}`;
+    const result = await sendMail({ to, cc, subject, text, attachments: [{ filename: `${doc.number}.pdf`, content: pdf, contentType: "application/pdf" }] },
+      { company: company._id, relatedType: "PriceRequest", relatedId: doc._id, sentBy: req.user.id });
+    doc.emails.push({ to, cc, subject, by: req.user.id, simulated: result.status === "simulated" });
+    if (doc.status === "draft") doc.status = "sent";
+    await doc.save();
+    res.json({ success: true, simulated: result.status === "simulated", data: await PriceRequest.findById(doc._id).populate(POPULATE) });
+  } catch (error) {
+    console.error("POST price request email error:", error);
+    res.status(502).json({ success: false, message: `The email could not be sent: ${error.message}` });
+  }
+});
+
 // PDF  GET /api/price-requests/:id/pdf — the demande de prix to send
 // Streams the document inline. The browser-side filename is set by the
 // frontend (downloadBlob); this header name is only an ASCII fallback.
@@ -116,17 +183,32 @@ router.get("/:id", async (req, res) => {
 
 router.post("/", async (req, res) => {
   try {
-    const { company, supplier, date, responseDeadline, notes } = req.body;
+    const { company, date, responseDeadline, notes } = req.body;
     if (!company || !isId(company)) return bad(res, "A valid company is required");
-    if (!supplier || !isId(supplier) || !(await Supplier.exists({ _id: supplier, company }))) return bad(res, "Choose a supplier of this company");
+    // One supplier (`supplier`) or several (`suppliers`): the same request
+    // goes to each, as separate demandes sharing a comparison group so
+    // the answers can be compared side by side.
+    const supplierIds = [...new Set((Array.isArray(req.body.suppliers) ? req.body.suppliers : [req.body.supplier]).filter(Boolean).map(String))];
+    if (supplierIds.length === 0) return bad(res, "Choose at least one supplier");
+    if (supplierIds.some((id) => !isId(id)) || (await Supplier.countDocuments({ _id: { $in: supplierIds }, company })) !== supplierIds.length) {
+      return bad(res, "Choose suppliers of this company");
+    }
     const { lines, error } = await normalizeLines(req.body.lines, company);
     if (error) return bad(res, error);
-    const doc = await createWithNumber(PriceRequest, {
-      company, supplier, date: date || new Date(), responseDeadline: responseDeadline || null, lines, notes,
-      purchaseRequests: (req.body.purchaseRequestIds || []).filter(isId),
-      createdBy: req.user.id, updatedBy: req.user.id,
-    }, "DP");
-    res.status(201).json({ success: true, data: await PriceRequest.findById(doc._id).populate(POPULATE) });
+    const comparisonGroup = supplierIds.length > 1 ? `CMP-${crypto.randomBytes(5).toString("hex")}` : null;
+
+    const created = [];
+    for (const supplier of supplierIds) {
+      // eslint-disable-next-line no-await-in-loop
+      created.push(await createWithNumber(PriceRequest, {
+        company, supplier, date: date || new Date(), responseDeadline: responseDeadline || null, lines, notes, comparisonGroup,
+        purchaseRequests: (req.body.purchaseRequestIds || []).filter(isId),
+        createdBy: req.user.id, updatedBy: req.user.id,
+      }, "DP"));
+    }
+    const docs = await PriceRequest.find({ _id: { $in: created.map((d) => d._id) } }).populate(POPULATE).sort({ number: 1 });
+    // single supplier: keep returning the document itself (unchanged API)
+    res.status(201).json({ success: true, data: docs.length === 1 ? docs[0] : docs, comparisonGroup });
   } catch (error) {
     console.error("POST price request error:", error);
     res.status(500).json({ success: false, message: "Error creating price request", error: error.message });
@@ -167,8 +249,8 @@ router.post("/:id/quote-file", (req, res, next) =>
     if (!doc) return bad(res, "Price request not found", 404);
     if (!req.file) return bad(res, "No file uploaded");
     if (doc.quoteFile?.publicId) await deleteFile(doc.quoteFile.publicId).catch(() => {});
-    const result = await uploadFile(req.file.buffer, `purchasing/${doc.company}`, req.file.originalname, req.file.mimetype);
-    doc.quoteFile = { url: result.secure_url, publicId: result.public_id, originalName: req.file.originalname };
+    // Private: opened only through a short-lived link (routes/files.js).
+    doc.quoteFile = await uploadPrivateFile(req.file.buffer, `purchasing/${doc.company}`, req.file.originalname, req.file.mimetype);
     if (doc.status === "sent" || doc.status === "draft") doc.status = "answered";
     doc.updatedBy = req.user.id;
     await doc.save();
@@ -203,6 +285,13 @@ router.post("/:id/convert", async (req, res) => {
     doc.purchaseOrder = order._id;
     doc.updatedBy = req.user.id;
     await doc.save();
+    // choosing one supplier closes the competing quotes of the comparison
+    if (doc.comparisonGroup) {
+      await PriceRequest.updateMany(
+        { comparisonGroup: doc.comparisonGroup, _id: { $ne: doc._id }, status: { $nin: ["accepted", "rejected"] } },
+        { $set: { status: "rejected", updatedBy: req.user.id } }
+      );
+    }
     res.status(201).json({ success: true, data: { priceRequest: await PriceRequest.findById(doc._id).populate(POPULATE), purchaseOrderId: order._id, purchaseOrderNumber: order.number } });
   } catch (error) {
     console.error("POST price request convert error:", error);

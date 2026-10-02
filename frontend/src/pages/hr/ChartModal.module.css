@@ -86,8 +86,8 @@
 }
 
 .toggleBtnActive {
-    color: #000;
-    background: #fff;
+    color: var(--color-inverse-fg);
+    background: var(--color-inverse-bg);
 }
 
 .hint {

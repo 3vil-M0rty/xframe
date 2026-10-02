@@ -10,9 +10,10 @@ const Salary = require("../models/Salary");
 const Company = require("../models/Company");
 const User = require("../models/User");
 const Advance = require("../models/Advance");
-const WorkSchedule = require("../models/WorkSchedule");
 
 const auth = require("../middleware/auth");
+const { guard } = require("../middleware/permissionGuard");
+const { ROUTE_PERMISSIONS } = require("../config/routePermissions");
 const { requireHRAccess } = require("../middleware/permissionMiddleware");
 const { canAccessHRForCompany } = require("../permissions/permissions");
 const { calculatePayslip } = require("../services/payrollCalculationService");
@@ -27,12 +28,15 @@ const {
 } = require("../services/notificationService");
 const { generatePayslipPdf, computeYtdTotals } = require("../services/payslipPdfService");
 const { getLeaveBalance } = require("../services/leaveBalanceService");
+const { countWorkingDays } = require("../services/workingDays");
 const {
   buildCnssExport,
   buildPayrollRegister,
   buildBankTransferExport,
 } = require("../services/payrollExportService");
 
+// Fine-grained permissions of every endpoint: config/routePermissions.js
+router.use(auth, guard(ROUTE_PERMISSIONS.payroll));
 router.use(auth, requireHRAccess);
 
 const canManage = (req, company) => canAccessHRForCompany(req.user, company);
@@ -115,8 +119,15 @@ async function generateRun({ company, month, year, actorId, existingRun }) {
     employmentStatus: "active",
   });
 
-  const workSchedule = await WorkSchedule.findOne({ company });
-  const hoursManagement = workSchedule?.hoursManagement;
+  // Hours policy (overtime, deductions, monthly hours) comes from each
+  // employee's schedule: their department's, else the company default.
+  const { scheduleForEmployee } = require("../services/scheduleResolver");
+  const scheduleCache = new Map();
+  const hoursManagementOf = async (employee) => {
+    const key = String(employee.department || "");
+    if (!scheduleCache.has(key)) scheduleCache.set(key, (await scheduleForEmployee(employee, company))?.hoursManagement);
+    return scheduleCache.get(key);
+  };
 
   const run =
     existingRun ||
@@ -155,8 +166,19 @@ async function generateRun({ company, month, year, actorId, existingRun }) {
       month,
       year,
       baseSalary: currentSalary.baseSalary,
-      hoursManagement,
+      hoursManagement: await hoursManagementOf(employee),
     });
+
+    // Days declared to CNSS: 26 for a full month (CNSS convention),
+    // the working days actually covered for a mid-month hire, minus
+    // unpaid days.
+    const monthStart = new Date(year, month - 1, 1);
+    const monthEnd = new Date(year, month, 0);
+    let coveredDays = 26;
+    if (employee.hireDate && new Date(employee.hireDate) > monthStart) {
+      coveredDays = new Date(employee.hireDate) > monthEnd ? 0 : Math.min(26, countWorkingDays(employee.hireDate, monthEnd));
+    }
+    const declaredDays = Math.max(0, Math.round(coveredDays - (adjustments.unpaidDays || 0)));
 
     const calc = calculatePayslip({
       baseSalary: currentSalary.baseSalary,
@@ -182,6 +204,8 @@ async function generateRun({ company, month, year, actorId, existingRun }) {
       holidayAmount: calc.holidayAmount,
       holidayHours: adjustments.holidayHours,
       unpaidDeduction: calc.unpaidDeduction,
+      unpaidDays: adjustments.unpaidDays || 0,
+      declaredDays,
       grossSalary: calc.grossSalary,
       cnssEmployee: calc.cnssEmployee,
       amoEmployee: calc.amoEmployee,

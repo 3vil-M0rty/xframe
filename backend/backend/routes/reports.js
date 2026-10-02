@@ -10,9 +10,13 @@ const Salary = require("../models/Salary");
 const Company = require("../models/Company");
 
 const auth = require("../middleware/auth");
+const { guard } = require("../middleware/permissionGuard");
+const { ROUTE_PERMISSIONS } = require("../config/routePermissions");
 const { requireHRAccess } = require("../middleware/permissionMiddleware");
 const { canAccessHRForCompany } = require("../permissions/permissions");
 
+// Fine-grained permissions of every endpoint: config/routePermissions.js
+router.use(auth, guard(ROUTE_PERMISSIONS.reports));
 router.use(auth, requireHRAccess);
 
 const { calculatePayslip } = require("../services/payrollCalculationService");

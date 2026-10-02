@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Settings, Plus, Edit, Trash2, BriefcaseBusiness, Languages, CornerDownRight, FolderPlus } from "lucide-react";
+import { Settings, Plus, Edit, Trash2, BriefcaseBusiness, Languages, CornerDownRight, FolderPlus, ChevronRight, ChevronDown, GripVertical, ChevronsDownUp, ChevronsUpDown } from "lucide-react";
 
 import { useI18n } from "../../hooks/useI18n";
 
@@ -188,9 +188,72 @@ export default function InventorySettings() {
     }
   };
 
+  // ---------- Tree: collapsible sub-categories + drag & drop to re-parent ----------
+  const [expanded, setExpanded] = useState(() => new Set());
+  const [dragId, setDragId] = useState(null);
+  const [dropTarget, setDropTarget] = useState(null);
+  const toggle = (id) => setExpanded((prev) => { const n = new Set(prev); if (n.has(id)) n.delete(id); else n.add(id); return n; });
+  // Articles of a category including its sub-categories.
+  const total = (cat) => categories.filter((c) => c._id === cat._id || (c.path || []).includes(cat._id)).reduce((a, c) => a + (c.productCount || 0), 0);
+  // Descendants of `rootId` whose every ancestor below the root is expanded (tree order is kept).
+  const visibleChildren = (rootId) => categories.filter((c) => {
+    const path = c.path || [];
+    const i = path.indexOf(rootId);
+    if (i < 0) return false;
+    return path.slice(i + 1).every((id) => expanded.has(id));
+  });
+  // Height of a category's own sub-tree (0 = no children) — max depth is 4 levels (0..3).
+  const subtreeHeight = (cat) => Math.max(0, ...categories.filter((c) => (c.path || []).includes(cat._id)).map((c) => (c.depth || 0) - (cat.depth || 0)));
+  const canDropOn = (target) => {
+    const dragged = categories.find((c) => c._id === dragId);
+    if (!dragged || !target || dragged._id === target._id) return false;
+    if ((target.path || []).includes(dragged._id)) return false; // into its own branch
+    if (String(dragged.parent || "") === String(target._id)) return false; // already there
+    return (target.depth || 0) + 1 + subtreeHeight(dragged) <= 3;
+  };
+  const moveTo = async (parentId) => {
+    const id = dragId;
+    setDragId(null);
+    setDropTarget(null);
+    if (!id) return;
+    try {
+      await updateInventoryCategory(id, { parent: parentId });
+      if (parentId) setExpanded((prev) => new Set(prev).add(parentId));
+      await reload();
+    } catch (error) {
+      setModal({ open: true, type: "error", title: t("common.fail"), message: error.response?.data?.message || t("inventorySettings.errors.saveFailed") });
+    }
+  };
+  const dragProps = (cat) => ({
+    draggable: true,
+    onDragStart: (e) => { e.stopPropagation(); setDragId(cat._id); e.dataTransfer.effectAllowed = "move"; try { e.dataTransfer.setData("text/plain", cat._id); } catch { /* old browsers */ } },
+    onDragEnd: () => { setDragId(null); setDropTarget(null); },
+    onDragOver: (e) => { if (!canDropOn(cat)) return; e.preventDefault(); e.stopPropagation(); if (dropTarget !== cat._id) setDropTarget(cat._id); },
+    onDragLeave: (e) => { e.stopPropagation(); if (dropTarget === cat._id) setDropTarget(null); },
+    onDrop: (e) => { if (!canDropOn(cat)) return; e.preventDefault(); e.stopPropagation(); moveTo(cat._id); },
+  });
+  const actions = (category) => (
+    <div className={styles.categoryActions}>
+      {(category.depth || 0) < 3 && (
+        <button type="button" className="tableActionBtn" title={t("cv.addSubCategory")} onClick={() => openCreateForm(category)}>
+          <FolderPlus size={14} />
+        </button>
+      )}
+      <button type="button" className="tableActionBtn" title={t("contentTranslation.editButton")} onClick={() => setTranslatingCategory(category)}>
+        <Languages size={14} />
+      </button>
+      <button type="button" className="tableActionBtn" title={t("common.edit")} onClick={() => openEditForm(category)}>
+        <Edit size={14} />
+      </button>
+      <button type="button" className="tableActionBtn tableActionBtnDanger" title={t("common.delete")} onClick={() => askDelete(category)}>
+        <Trash2 size={14} />
+      </button>
+    </div>
+  );
+
   return (
     <div className="pageShell">
-      <Breadcrumbs items={[{ label: t("production.title"), href: "/production/inventory" }, { label: t("inventorySettings.title") }]} />
+      <Breadcrumbs items={[{ label: t("sidebar.technical"), href: "/technical/catalog" }, { label: t("inventorySettings.title") }]} />
 
       <div className="pageHeader">
         <div>
@@ -289,69 +352,83 @@ export default function InventorySettings() {
       )}
 
       {selectedCompanyId && categories.length > 0 && (
-        <div className={styles.categoryGrid}>
-          {categories.filter((c) => !c.depth).map((top) => {
-            // Articles of a category including its sub-categories.
-            const total = (cat) => categories.filter((c) => c._id === cat._id || (c.path || []).includes(cat._id)).reduce((a, c) => a + (c.productCount || 0), 0);
-            const Icon = getInventoryIcon(top.icon);
-            const branch = categories.filter((c) => (c.path || []).includes(top._id));
-            const actions = (category) => (
-              <div className={styles.categoryActions}>
-                {(category.depth || 0) < 3 && (
-                  <button type="button" className="tableActionBtn" title={t("cv.addSubCategory")} onClick={() => openCreateForm(category)}>
-                    <FolderPlus size={14} />
-                  </button>
-                )}
-                <button type="button" className="tableActionBtn" title={t("contentTranslation.editButton")} onClick={() => setTranslatingCategory(category)}>
-                  <Languages size={14} />
-                </button>
-                <button type="button" className="tableActionBtn" title={t("common.edit")} onClick={() => openEditForm(category)}>
-                  <Edit size={14} />
-                </button>
-                <button type="button" className="tableActionBtn tableActionBtnDanger" title={t("common.delete")} onClick={() => askDelete(category)}>
-                  <Trash2 size={14} />
-                </button>
-              </div>
-            );
-            return (
-              <div key={top._id} className={styles.categoryGroup}>
-                <div className={styles.categoryCard}>
-                  <div className={styles.categoryIcon} style={{ color: top.color }}>
-                    <Icon size={22} />
+        <>
+          <div className={styles.treeToolbar}>
+            <span className={styles.fieldHint}>{t("cv.dragHint")}</span>
+            <div className={styles.treeToolbarActions}>
+              <button type="button" className="btnEdit" onClick={() => setExpanded(new Set(categories.filter((c) => c.childCount > 0).map((c) => c._id)))}><ChevronsUpDown size={14} /> {t("cv.expandAll")}</button>
+              <button type="button" className="btnEdit" onClick={() => setExpanded(new Set())}><ChevronsDownUp size={14} /> {t("cv.collapseAll")}</button>
+            </div>
+          </div>
+          {/* Drop here → back to the top level */}
+          {dragId && (categories.find((c) => c._id === dragId)?.depth || 0) > 0 && (
+            <div className={`${styles.rootDrop} ${dropTarget === "root" ? styles.dropActive : ""}`}
+              onDragOver={(e) => { e.preventDefault(); setDropTarget("root"); }}
+              onDragLeave={() => setDropTarget(null)}
+              onDrop={(e) => { e.preventDefault(); moveTo(null); }}>
+              {t("cv.dropToTop")}
+            </div>
+          )}
+          <div className={styles.categoryGrid}>
+            {categories.filter((c) => !c.depth).map((top) => {
+              const Icon = getInventoryIcon(top.icon);
+              const branch = categories.filter((c) => (c.path || []).includes(top._id));
+              const open = expanded.has(top._id);
+              return (
+                <div key={top._id} className={`${styles.categoryGroup} ${dropTarget === top._id ? styles.dropActive : ""}`}>
+                  <div className={styles.categoryCard} {...dragProps(top)}>
+                    <GripVertical size={14} className={styles.grip} />
+                    {top.childCount > 0 ? (
+                      <button type="button" className={styles.toggle} aria-expanded={open} title={open ? t("cv.collapse") : t("cv.expand")} onClick={() => toggle(top._id)}>
+                        {open ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                      </button>
+                    ) : <span className={styles.togglePlaceholder} />}
+                    <div className={styles.categoryIcon} style={{ color: top.color }}>
+                      <Icon size={22} />
+                    </div>
+                    <div className={styles.categoryInfo} onClick={() => top.childCount > 0 && toggle(top._id)} style={{ cursor: top.childCount > 0 ? "pointer" : "default" }}>
+                      <span className={styles.categoryName}>
+                        <TranslatedText doc={top} field="name" />
+                      </span>
+                      <span className={styles.categoryDescription}>
+                        {top.description ? <TranslatedText doc={top} field="description" /> : null}
+                        {top.description ? " · " : ""}{t("cv.articlesCount").replace("{n}", total(top))}
+                        {branch.length > 0 ? ` · ${t("cv.subCount").replace("{n}", branch.length)}` : ""}
+                      </span>
+                    </div>
+                    {actions(top)}
                   </div>
-                  <div className={styles.categoryInfo}>
-                    <span className={styles.categoryName}>
-                      <TranslatedText doc={top} field="name" />
-                    </span>
-                    <span className={styles.categoryDescription}>
-                      {top.description ? <TranslatedText doc={top} field="description" /> : null}
-                      {top.description ? " · " : ""}{t("cv.articlesCount").replace("{n}", total(top))}
-                      {branch.length > 0 ? ` · ${t("cv.subCount").replace("{n}", branch.length)}` : ""}
-                    </span>
-                  </div>
-                  {actions(top)}
+                  {open && top.childCount > 0 && (
+                    <div className={styles.subList}>
+                      {visibleChildren(top._id).map((c) => {
+                        const subOpen = expanded.has(c._id);
+                        return (
+                          <div key={c._id} className={`${styles.subRow} ${dropTarget === c._id ? styles.dropActive : ""}`} style={{ paddingInlineStart: 10 + (c.depth - 1) * 20 }} {...dragProps(c)}>
+                            <GripVertical size={13} className={styles.grip} />
+                            {c.childCount > 0 ? (
+                              <button type="button" className={styles.toggle} aria-expanded={subOpen} onClick={() => toggle(c._id)}>
+                                {subOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                              </button>
+                            ) : <CornerDownRight size={13} className={styles.subArrow} />}
+                            <div className={styles.categoryInfo} onClick={() => c.childCount > 0 && toggle(c._id)} style={{ cursor: c.childCount > 0 ? "pointer" : "default" }}>
+                              <span className={styles.subName}><TranslatedText doc={c} field="name" /></span>
+                              <span className={styles.categoryDescription}>
+                                {c.description ? <><TranslatedText doc={c} field="description" /> · </> : null}
+                                {t("cv.articlesCount").replace("{n}", total(c))}
+                                {c.childCount > 0 ? ` · ${t("cv.subCount").replace("{n}", categories.filter((x) => (x.path || []).includes(c._id)).length)}` : ""}
+                              </span>
+                            </div>
+                            {actions(c)}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
-                {branch.length > 0 && (
-                  <div className={styles.subList}>
-                    {branch.map((c) => (
-                      <div key={c._id} className={styles.subRow} style={{ paddingInlineStart: 10 + (c.depth - 1) * 20 }}>
-                        <CornerDownRight size={13} className={styles.subArrow} />
-                        <div className={styles.categoryInfo}>
-                          <span className={styles.subName}><TranslatedText doc={c} field="name" /></span>
-                          <span className={styles.categoryDescription}>
-                            {c.description ? <><TranslatedText doc={c} field="description" /> · </> : null}
-                            {t("cv.articlesCount").replace("{n}", total(c))}
-                          </span>
-                        </div>
-                        {actions(c)}
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
+              );
+            })}
+          </div>
+        </>
       )}
 
       <ActionModal isOpen={modal.open} type={modal.type} title={modal.title} message={modal.message} loading={actionLoading}

@@ -10,20 +10,33 @@ import StatusPill from "../../components/useful/StatusPill";
 import { updateProject } from "../../services/projectService";
 import { addProjectItem, updateProjectItem, deleteProjectItem, getProjectProduction, planProjectProduction } from "../../services/productionService";
 import ChassisConfigurator from "./ChassisConfigurator";
+import LaunchProduction from "../../components/workflow/LaunchProduction";
+import MissingGlassFix from "../../components/workflow/MissingGlassFix";
+import ProjectFlow from "../../components/flow/ProjectFlow";
 import ChassisDrawing from "./ChassisDrawing";
 import useChassisData from "./useChassisData";
 import { ORDER_PILL, fmtQty, fmtMm, formatMoney, defaultParams } from "./prodShared";
 import purch from "../purchasing/Purchasing.module.css";
 import s from "../sales/Sales.module.css";
 import styles from "./Production.module.css";
+import { useDialog } from "../../components/useful/DialogProvider";
 
 const idOf = (v) => (v && typeof v === "object" ? v._id : v) || "";
 
 /** The project's ouvrages: every chassis to manufacture (from the devis, or added after the site survey). */
 export function ProjectOuvrages({ project, canEdit, reload, onError }) {
+  const dialog = useDialog();
   const { t } = useI18n();
-  const { models, finishes, articles, families } = useChassisData(project.company);
+  const { models, finishes, articles, families, glassTypes } = useChassisData(project.company);
   const [editing, setEditing] = useState(null);
+  const [missing, setMissing] = useState([]);
+  const itemsKey = (project.items || []).map((i) => `${i._id}:${JSON.stringify(i.params || {})}`).join("|");
+  useEffect(() => {
+    if (!(project.items || []).length) { setMissing([]); return; }
+    getProjectProduction(project._id).then((d) => setMissing(d.missingGlass || [])).catch(() => setMissing([]));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [project._id, itemsKey]);
+  const missingIds = new Set(missing.map((m) => String(m.item)));
   const area = (project.items || []).reduce((a, i) => a + (i.L * i.H * i.quantity) / 1e6, 0);
   const count = (project.items || []).reduce((a, i) => a + i.quantity, 0);
 
@@ -37,7 +50,7 @@ export function ProjectOuvrages({ project, canEdit, reload, onError }) {
     } catch (err) { onError(err.response?.data?.message || t("prod.errors.save")); }
   };
   const remove = async (item) => {
-    if (!window.confirm(t("prod.project.deleteItem"))) return;
+    if (!(await dialog.confirm(t("prod.project.deleteItem")))) return;
     try { await deleteProjectItem(project._id, item._id); reload(); } catch (err) { onError(err.response?.data?.message || t("prod.errors.save")); }
   };
 
@@ -54,6 +67,7 @@ export function ProjectOuvrages({ project, canEdit, reload, onError }) {
         </div>
         {canEdit && <button type="button" className="btnEdit" onClick={() => setEditing({ model: "", ref: `R${(project.items || []).length + 1}`, L: 1200, H: 1000, quantity: 1, finish: idOf(project.finish), params: {} })}><Plus size={14} /> {t("prod.project.addItem")}</button>}
       </div>
+      <MissingGlassFix project={project} missing={missing} canEdit={canEdit} onFixed={reload} />
       {(project.items || []).length === 0 ? (
         <p className={s.muted}>{t("prod.project.noItems")}</p>
       ) : (
@@ -65,7 +79,7 @@ export function ProjectOuvrages({ project, canEdit, reload, onError }) {
             <div key={it._id} className="dataTableRow" style={{ gridTemplateColumns: "60px 64px 2.4fr 1fr 60px 1fr 80px" }}>
               <span><strong>{it.ref}</strong></span>
               <span><ChassisDrawing drawing={it.model?.drawing} image={it.model?.image?.url} L={it.L} H={it.H} params={it.params} width={56} height={44} /></span>
-              <span>{it.model?.name || "?"}<small className={s.muted} style={{ display: "block" }}>{it.label}</small></span>
+              <span>{it.model?.name || "?"}<small className={s.muted} style={{ display: "block" }}>{it.label}</small>{missingIds.has(String(it._id)) && <small className={s.bad} style={{ display: "block" }}>{t("glassFix.badge")}</small>}</span>
               <span>{fmtMm(it.L)} × {fmtMm(it.H)}</span>
               <span>{it.quantity}</span>
               <span>{it.finish ? <><i className={styles.dot} style={{ background: it.finish.color }} /> {it.finish.code}</> : project.finish ? <span className={s.muted}>{project.finish.code} ({t("prod.default").toLowerCase()})</span> : "—"}</span>
@@ -81,7 +95,7 @@ export function ProjectOuvrages({ project, canEdit, reload, onError }) {
         <div className={purch.modalOverlay} role="dialog" aria-modal="true">
           <div className={styles.modalWide}>
             <h3>{editing._id ? t("prod.project.editItem") : t("prod.project.addItem")}</h3>
-            <ChassisConfigurator value={editing} onChange={setEditing} models={models} finishes={finishes} articles={articles} families={families} />
+            <ChassisConfigurator value={editing} onChange={setEditing} models={models} finishes={finishes} articles={articles} families={families} glassTypes={glassTypes} />
             <label className={purch.field}>{t("prod.project.itemLabel")}<input className={purch.input} value={editing.label || ""} onChange={(e) => setEditing({ ...editing, label: e.target.value })} /></label>
             <div className={purch.modalActions}>
               <button type="button" className="btnCancel" onClick={() => setEditing(null)}>{t("common.cancel")}</button>
@@ -95,13 +109,13 @@ export function ProjectOuvrages({ project, canEdit, reload, onError }) {
 }
 
 /** What each workshop must produce and consume, the work orders, and real vs planned consumption. */
-export function ProjectFabrication({ project, canEdit, reload, onError, onNotice }) {
+export function ProjectFabrication({ project, canEdit, reload, onError, onNotice, onShowGlassCutting }) {
   const { user } = useAuth();
   const money = canSeeFinancials(user);
   const { t } = useI18n();
   const navigate = useNavigate();
   const [data, setData] = useState(null);
-  const [busy, setBusy] = useState(false);
+  const [launching, setLaunching] = useState(false);
 
   const load = useCallback(async () => {
     try { setData(await getProjectProduction(project._id)); } catch (err) { onError(err.response?.data?.message || t("prod.errors.load")); }
@@ -127,31 +141,19 @@ export function ProjectFabrication({ project, canEdit, reload, onError, onNotice
   const { plan, orders } = data;
   const started = orders.some((o) => ["in_progress", "done"].includes(o.status));
 
-  const launch = async () => {
-    if (orders.length && !window.confirm(t("prod.project.replanConfirm"))) return;
-    setBusy(true);
-    try {
-      const r = await planProjectProduction(project._id);
-      onNotice(t("prod.project.planned").replace("{n}", r.orders.length));
-      await load();
-      reload();
-    } catch (err) {
-      const details = err.response?.data?.details;
-      onError(`${err.response?.data?.message || t("prod.errors.save")}${details?.length ? ` — ${details.slice(0, 3).map((d) => `${d.where}: ${d.message}`).join(" · ")}` : ""}`);
-    } finally { setBusy(false); }
-  };
-
   return (
     <>
       <div className={purch.sectionHeader}>
         <p className={s.muted} style={{ margin: 0 }}>{t("prod.project.fabricationHint")}</p>
         {canEdit && (project.items || []).length > 0 && !started && (
-          <button type="button" className="btnPrimary" disabled={busy || plan.errors.length > 0} onClick={launch}><Rocket size={15} /> {orders.length ? t("prod.project.replan") : t("prod.project.launch")}</button>
+          <button type="button" className="btnPrimary" disabled={plan.errors.length > 0} onClick={() => setLaunching(true)}><Rocket size={15} /> {orders.length ? t("prod.project.replan") : t("prod.project.launch")}</button>
         )}
       </div>
+      {launching && <LaunchProduction project={project} onChanged={reload} onClose={() => setLaunching(false)} onLaunched={async (r) => { setLaunching(false); onNotice(t("prod.project.planned").replace("{n}", r.orders.length)); await load(); reload(); }} />}
       {plan.errors.length > 0 && <ul className={styles.errList}>{plan.errors.slice(0, 10).map((e, i) => <li key={i}>{e.where} — {e.message}</li>)}</ul>}
       {plan.warnings.length > 0 && <ul className={styles.warnList}>{plan.warnings.slice(0, 10).map((w, i) => <li key={i}>{w.message}</li>)}</ul>}
 
+      {orders.some((o) => o.status !== "cancelled") && <ProjectFlow project={project} onChanged={() => { load(); reload(); }} onShowGlassCutting={onShowGlassCutting} />}
       {orders.length > 0 && (
         <section className={purch.section}>
           <h2>{t("prod.project.orders")}</h2>

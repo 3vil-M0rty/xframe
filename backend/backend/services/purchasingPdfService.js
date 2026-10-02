@@ -22,7 +22,7 @@ const BOTTOM_LIMIT = 90; // keep clear of the footer
 const money = (n) => `${formatAmount(n)} MAD`;
 
 /** Supplier + document info side by side, each in a light box. */
-function drawPartyBlocks(doc, { supplier, infoRows, width }) {
+function drawPartyBlocks(doc, { supplier, infoRows, width, label = "FOURNISSEUR" }) {
   const gap = 14;
   const boxWidth = (width - gap) / 2;
   const top = doc.y;
@@ -38,7 +38,7 @@ function drawPartyBlocks(doc, { supplier, infoRows, width }) {
   ].filter(Boolean);
 
   // left: supplier
-  doc.fontSize(7.5).font("Helvetica-Bold").fillColor("#777").text("FOURNISSEUR", COL_X + pad, top + pad, { width: boxWidth - pad * 2 });
+  doc.fontSize(7.5).font("Helvetica-Bold").fillColor("#777").text(label, COL_X + pad, top + pad, { width: boxWidth - pad * 2 });
   doc.fontSize(10.5).font("Helvetica-Bold").fillColor("#000").text(supplier?.name || "—", COL_X + pad, doc.y + 2, { width: boxWidth - pad * 2 });
   doc.fontSize(8.5).font("Helvetica").fillColor("#333");
   supplierLines.forEach((l) => doc.text(l, COL_X + pad, doc.y + 1, { width: boxWidth - pad * 2 }));
@@ -86,13 +86,29 @@ function drawTable(doc, columns, rows) {
     // Height = the wrapped description PLUS the reference line under
     // it (smaller font) — measuring only the description let the
     // reference spill onto the row border and into the next row.
-    doc.fontSize(8.5).font("Helvetica");
-    let firstHeight = doc.heightOfString(String(row[columns[0].key] ?? ""), { width: columns[0].width - 10 });
+    // Optional richer first cell: a figure on the left (row.figure =
+    // { width, height, draw(doc, x, y) }), a bold title and detail
+    // lines in a smaller font (row.details) — used by chassis lines.
+    const figW = row.figure ? row.figure.width + 6 : 0;
+    const firstW = columns[0].width - 10 - figW;
+    doc.fontSize(8.5).font(row.titleBold ? "Helvetica-Bold" : "Helvetica");
+    let firstHeight = doc.heightOfString(String(row[columns[0].key] ?? ""), { width: firstW });
     if (row.subtext) {
-      doc.fontSize(7);
-      firstHeight += doc.heightOfString(row.subtext, { width: columns[0].width - 10 }) + 1;
+      doc.fontSize(7).font("Helvetica");
+      firstHeight += doc.heightOfString(row.subtext, { width: firstW }) + 1;
     }
-    const rowHeight = Math.max(firstHeight + 10, 20);
+    for (const d of row.details || []) {
+      doc.fontSize(7.5).font("Helvetica");
+      firstHeight += doc.heightOfString(d, { width: firstW }) + 1;
+    }
+    if (row.figure) firstHeight = Math.max(firstHeight, row.figure.height);
+    // Any other column may wrap too (long designations…): the row is as tall as its tallest cell.
+    let otherHeight = 0;
+    for (const c of columns.slice(1)) {
+      doc.fontSize(8.5).font(c.bold ? "Helvetica-Bold" : "Helvetica");
+      otherHeight = Math.max(otherHeight, doc.heightOfString(String(row[c.key] ?? ""), { width: c.width - 10 }));
+    }
+    const rowHeight = Math.max(firstHeight + 10, otherHeight + 10, 20);
 
     if (doc.y + rowHeight > doc.page.height - BOTTOM_LIMIT) {
       doc.addPage();
@@ -106,9 +122,14 @@ function drawTable(doc, columns, rows) {
     for (const c of columns) {
       const value = row[c.key] ?? "";
       doc.fontSize(8.5).font(c.bold ? "Helvetica-Bold" : "Helvetica").fillColor("#000");
-      if (c.key === columns[0].key && row.subtext) {
-        doc.text(String(value), x + 5, y + 5, { width: c.width - 10 });
-        doc.fontSize(7).fillColor("#777").text(row.subtext, x + 5, doc.y, { width: c.width - 10 });
+      if (c.key === columns[0].key && (row.subtext || row.figure || row.details || row.titleBold)) {
+        if (row.figure) row.figure.draw(doc, x + 5, y + 5);
+        doc.fontSize(8.5).font(row.titleBold ? "Helvetica-Bold" : "Helvetica").fillColor("#000");
+        doc.text(String(value), x + 5 + figW, y + 5, { width: firstW });
+        if (row.subtext) doc.fontSize(7).font("Helvetica").fillColor("#777").text(row.subtext, x + 5 + figW, doc.y, { width: firstW });
+        for (const d of row.details || []) {
+          doc.fontSize(7.5).font("Helvetica").fillColor("#444").text(d, x + 5 + figW, doc.y + 1, { width: firstW });
+        }
       } else {
         doc.text(String(value), x + 5, y + 5, { width: c.width - 10, align: c.align || "left" });
       }
@@ -320,4 +341,13 @@ function generatePriceRequestPdf({ priceRequest, company, supplier, logoBuffer }
   return doc;
 }
 
-module.exports = { generatePurchaseOrderPdf, generatePriceRequestPdf };
+module.exports = {
+  generatePurchaseOrderPdf,
+  generatePriceRequestPdf,
+  // shared with services/salesPdfService.js
+  drawPartyBlocks,
+  drawTable,
+  ensureSpace,
+  drawWatermark,
+  COL_X,
+};

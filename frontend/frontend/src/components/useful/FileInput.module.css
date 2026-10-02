@@ -23,8 +23,8 @@
     justify-content: center;
     height: 28px;
     padding: 0 0.9rem;
-    color: #000;
-    background: #fff;
+    color: var(--color-inverse-fg);
+    background: var(--color-inverse-bg);
     border: none;
     border-radius: 7px;
     font-size: 0.8rem;
@@ -35,7 +35,7 @@
 }
 
 .trigger:hover:not(:disabled) {
-    background: #e8e8e8;
+    background: var(--color-inverse-hover);
 }
 
 .trigger:disabled {

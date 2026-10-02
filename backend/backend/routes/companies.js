@@ -1,4 +1,6 @@
 const express = require("express");
+const { tenantUsage, companyQuotaError, quotaResponse } = require("../services/tenantLimits");
+const { listOf } = require("../services/permissionService");
 const router = express.Router();
 
 const Company = require("../models/Company");
@@ -49,9 +51,24 @@ router.get("/", auth, async (req, res) => {
       req.user.role === "admin" ||
       isHRDepartment(req.user) ||
       isProductionDepartment(req.user) ||
-      isPurchasingDepartment(req.user);
+      isPurchasingDepartment(req.user) ||
+      req.user.department === "sales" ||
+      req.user.department === "logistics" ||
+      // Anyone given module permissions by their manager (the client's
+      // companies — tenant isolation still applies). Owners keep "their" companies.
+      (req.user.role !== "owner" && req.user.permissionsMode === "custom" && listOf(req.user).length > 0) ||
+      (req.user.role !== "owner" && (req.user.managedDepartments || []).length > 0);
 
-    const filter = seesAllCompanies ? {} : { owner: req.user.id };
+    // Owners see every company of their client (a client can own several
+    // companies); the query is already limited to the client (tenant scope).
+    let filter = seesAllCompanies || req.user.role === "owner" ? {} : { owner: req.user.id };
+    // Workshop managers / members (any department) see the companies of
+    // their workshops, so the workshop screens have a company to show.
+    if (!seesAllCompanies && (req.user.workshops || []).length) {
+      const Workshop = require("../models/Workshop");
+      const ids = await Workshop.distinct("company", { _id: { $in: req.user.workshops } });
+      if (ids.length) filter = { $or: [{ owner: req.user.id }, { _id: { $in: ids } }] };
+    }
 
     const companies = await Company.find(filter)
       .sort({ createdAt: -1 });
@@ -90,6 +107,16 @@ router.get("/", auth, async (req, res) => {
 // ======================================================
 // GET SINGLE COMPANY
 // ======================================================
+
+// GET /api/companies/quota — the client's quotas and usage
+// { maxCompanies, maxEmployees, companies, employees } (null = unlimited)
+router.get("/quota", auth, async (req, res) => {
+  try {
+    res.json({ success: true, data: await tenantUsage(req.user.tenant) });
+  } catch (error) {
+    res.status(500).json({ success: false, message: "Error loading the quota" });
+  }
+});
 
 router.get("/:id", auth, async (req, res) => {
   try {
@@ -134,8 +161,39 @@ router.get("/:id", auth, async (req, res) => {
 // Only admin and owner may create a company.
 // ======================================================
 
+// ======================================================
+// EMPTY UNIQUE IDENTIFIERS
+// ======================================================
+// ice / taxId / registrationNumber / cnssNumber carry unique sparse
+// indexes: a sparse index skips documents WITHOUT the field, but an
+// empty string is a value — two companies saved with ice: "" would
+// collide ("already exists"). An empty identifier is therefore left
+// out on create and $unset on update. Same for the address.region
+// enum, where "" is not a valid value.
+const UNIQUE_IDS = ["ice", "taxId", "registrationNumber", "cnssNumber"];
+
+function stripEmptyIdentifiers(body) {
+  const unset = {};
+  for (const key of UNIQUE_IDS) {
+    if (body[key] !== undefined && (body[key] === null || String(body[key]).trim() === "")) {
+      delete body[key];
+      unset[key] = 1;
+    }
+  }
+  if (body.address && typeof body.address === "object" && (body.address.region === "" || body.address.region === null)) {
+    delete body.address.region;
+  }
+  return unset;
+}
+
 router.post("/", auth, requireAdminOrOwner, async (req, res) => {
   try {
+    // Client quota (set by the platform): max companies.
+    const quotaMessage = await companyQuotaError(req.user.tenant);
+    if (quotaMessage) {
+      return quotaResponse(res, "COMPANY_QUOTA", quotaMessage);
+    }
+    stripEmptyIdentifiers(req.body);
     const company = await Company.create({
       ...req.body,
 
@@ -187,7 +245,7 @@ router.post("/", auth, requireAdminOrOwner, async (req, res) => {
 // each known key via its own dotted path instead, so only what's
 // actually sent changes. Unknown keys are ignored rather than
 // persisted.
-const ALLOWED_SETTINGS = { requireSequentialApproval: "boolean" };
+const ALLOWED_SETTINGS = { requireSequentialApproval: "boolean", purchaseApprovalThreshold: "number", purchaseDefaultAccount: "string", extraLeaveDaysPerYear: "number" };
 
 router.patch("/:id/settings", auth, requireAdminOrOwner, async (req, res) => {
   try {
@@ -202,8 +260,9 @@ router.patch("/:id/settings", auth, requireAdminOrOwner, async (req, res) => {
     const update = {};
     for (const [key, type] of Object.entries(ALLOWED_SETTINGS)) {
       if (req.body[key] === undefined) continue;
-      if (typeof req.body[key] !== type) {
-        return res.status(400).json({ success: false, message: `${key} must be a ${type}` });
+      if (typeof req.body[key] !== type || (type === "number" && (!Number.isFinite(req.body[key]) || req.body[key] < 0))
+        || (key === "purchaseDefaultAccount" && !/^\d{4,10}$/.test(req.body[key].trim()))) {
+        return res.status(400).json({ success: false, message: `${key} must be a ${type === "number" ? "positive number" : type}` });
       }
       update[`settings.${key}`] = req.body[key];
     }
@@ -253,11 +312,16 @@ router.put("/:id", auth, requireAdminOrOwner, async (req, res) => {
     // Logo has its own endpoint
     delete req.body.logo;
 
+    delete req.body.tenant;
+    delete req.body.$unset;
+    const unset = stripEmptyIdentifiers(req.body);
+
     const updated = await Company.findByIdAndUpdate(
       req.params.id,
       {
         ...req.body,
         updatedBy: req.user.id,
+        ...(Object.keys(unset).length ? { $unset: unset } : {}),
       },
       {
         new: true,

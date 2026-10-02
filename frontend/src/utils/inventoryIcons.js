@@ -6,7 +6,7 @@ import {
   Battery, Fuel, Nut, Bolt, Gem, Paperclip, Ruler, Hexagon,
   Pill, Milk, Apple, Coffee, Fish, Beef, Egg, Carrot,
   Recycle, Trash2, Dumbbell, Car, Bike, Plane, Ship, Building2,
-  Tag, Barcode, ClipboardList, Star,
+  Tag, Barcode, ClipboardList, Star, LayoutPanelTop
 } from "lucide-react";
 
 /**
@@ -25,7 +25,7 @@ export const INVENTORY_ICONS = {
   Battery, Fuel, Nut, Bolt, Gem, Paperclip, Ruler, Hexagon,
   Pill, Milk, Apple, Coffee, Fish, Beef, Egg, Carrot,
   Recycle, Trash2, Dumbbell, Car, Bike, Plane, Ship, Building2,
-  Tag, Barcode, ClipboardList, Star,
+  Tag, Barcode, ClipboardList, Star, LayoutPanelTop
 };
 
 export const INVENTORY_ICON_NAMES = Object.keys(INVENTORY_ICONS);

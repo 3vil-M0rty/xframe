@@ -9,6 +9,7 @@ import StatusPill from "../../components/useful/StatusPill";
 import { getSuppliers, createSupplier, updateSupplier, deleteSupplier } from "../../services/purchasingService";
 import { useCompanyPicker } from "./shared";
 import styles from "./Purchasing.module.css";
+import { useDialog } from "../../components/useful/DialogProvider";
 
 const FIELDS = [
   { key: "name", required: true },
@@ -28,6 +29,7 @@ const EMPTY = Object.fromEntries([...FIELDS.map((f) => [f.key, ""]), ["notes", "
 
 /** Fournisseurs. A supplier with orders is deactivated, never deleted. */
 export default function Suppliers() {
+  const dialog = useDialog();
   const { t } = useI18n();
   const { companyId, setCompanyId, options: companyOptions } = useCompanyPicker();
   const [search, setSearch] = useState("");
@@ -75,7 +77,7 @@ export default function Suppliers() {
   };
 
   const remove = async (supplier) => {
-    if (!window.confirm(t("purchasing.suppliers.deleteConfirm").replace("{name}", supplier.name))) return;
+    if (!(await dialog.confirm(t("purchasing.suppliers.deleteConfirm").replace("{name}", supplier.name)))) return;
     try {
       const res = await deleteSupplier(supplier._id);
       setNotice(res.deactivated ? t("purchasing.suppliers.deactivated") : "");

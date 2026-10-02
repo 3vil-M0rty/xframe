@@ -16,10 +16,14 @@ import {
   Building2,
   Handshake,
   Truck,
+  Sun,
+  Moon,
+  DraftingCompass,
 } from "lucide-react";
 
 import { useI18n } from "../hooks/useI18n";
 import { useAuth } from "../hooks/useAuth";
+import { useTheme } from "../hooks/useTheme";
 import styles from "./Sidebar.module.css";
 import LanguageSwitcher from "./useful/LanguageSwitcher";
 import { canAccessHR, canSelfService, canAccessProduction, canManageCompanySettings, isDepartmentManager, canAccessPurchasing, isPlatformAdmin, canAccessSales, canViewProjects, canUseWorkshops, canConfigureProduction, canAccessLogistics, can, canAny, canViewCatalog, canManageInventory, canManageTeamPermissions, isAdmin } from "../utils/permissions";
@@ -40,6 +44,7 @@ export default function Sidebar() {
   const { user, loading, logout } = useAuth();
 
   const { t } = useI18n();
+  const { theme, toggle: toggleTheme } = useTheme();
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -336,13 +341,14 @@ export default function Sidebar() {
       // Inventory stays production-only (admins + "production"
       // department); projects and planning are also visible to sales,
       // purchasing and owners. See utils/permissions.js.
-      permission: (u) => canAccessProduction(u) || canViewProjects(u) || canUseWorkshops(u) || canViewCatalog(u) || canManageInventory(u) || canConfigureProduction(u) || can(u, "production.tracking.view"),
+      permission: (u) => canAccessProduction(u) || canViewProjects(u) || canUseWorkshops(u) || canManageInventory(u) || canConfigureProduction(u) || can(u, "production.tracking.view"),
       subsections: [
         { label: t("sidebar.workshops"), href: "/production/workshops", permission: canUseWorkshops },
         { label: t("sidebar.projects"), href: "/production/projects", permission: canViewProjects },
         { label: t("sidebar.planning"), href: "/production/planning", permission: canViewProjects },
         { label: t("sidebar.tracking"), href: "/production/tracking", permission: (u) => canAny(u, ["production.tracking.view"]) || canViewProjects(u) },
-        { label: t("sidebar.chassisCatalog"), href: "/production/catalog", permission: canViewCatalog },
+        { label: t("sidebar.offcuts"), href: "/production/offcuts", permission: (u) => can(u, "production.flow.offcuts") || can(u, "production.flow.issueBars") || canUseWorkshops(u) },
+        { label: t("sidebar.glazing"), href: "/production/glazing", permission: (u) => canViewCatalog(u) || canConfigureProduction(u) || canViewProjects(u) },
         {
           label: t("sidebar.inventory"),
           href: "/production/inventory",
@@ -353,12 +359,28 @@ export default function Sidebar() {
           href: "/production/purchase-requests",
           permission: (u) => can(u, "inventory.requests.view") || canAccessProduction(u),
         },
+        { label: t("sidebar.productionConfig"), href: "/production/configuration", permission: canConfigureProduction },
+      ],
+    },
+
+    {
+      // TECHNIQUE: how the products are defined — the bureau d'études /
+      // méthodes. Production only USES these (projects, workshops, débit).
+      id: "technical",
+      label: t("sidebar.technical"),
+      icon: DraftingCompass,
+      permission: (u) => canViewCatalog(u) || canConfigureProduction(u) || canManageInventory(u) || can(u, "inventory.articles.view"),
+      subsections: [
+        { label: t("sidebar.chassisCatalog"), href: "/technical/catalog", permission: canViewCatalog },
+        { label: t("sidebar.glassTypes"), href: "/technical/glass-types", permission: (u) => canViewCatalog(u) || canConfigureProduction(u) },
+        { label: t("sidebar.techArticles"), href: "/technical/articles", permission: (u) => can(u, "inventory.articles.view") || canManageInventory(u) || canConfigureProduction(u) },
+        { label: t("sidebar.finishes"), href: "/technical/finishes", permission: canConfigureProduction },
         {
-          label: t("sidebar.inventorySettings"),
-          href: "/production/settings",
+          label: t("sidebar.articleCategories"),
+          href: "/technical/categories",
           permission: (u) => canAny(u, ["inventory.categories.create", "inventory.categories.edit", "inventory.categories.delete"]) || canAccessProduction(u),
         },
-        { label: t("sidebar.productionConfig"), href: "/production/configuration", permission: canConfigureProduction },
+        { label: t("sidebar.calcSettings"), href: "/technical/settings", permission: canConfigureProduction },
       ],
     },
 
@@ -774,6 +796,16 @@ export default function Sidebar() {
               title={t("sidebar.logout")}
             >
               <LogOut size={16} />
+            </button>
+
+            <button
+              type="button"
+              onClick={toggleTheme}
+              className={styles.footerBtn}
+              title={theme === "dark" ? t("theme.switchToLight") : t("theme.switchToDark")}
+              aria-label={theme === "dark" ? t("theme.switchToLight") : t("theme.switchToDark")}
+            >
+              {theme === "dark" ? <Sun size={16} /> : <Moon size={16} />}
             </button>
 
             {isOpen && <LanguageSwitcher />}

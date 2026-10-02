@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { Settings2, Plus, X, Pencil, Trash2, Factory, Palette, SlidersHorizontal, User } from "lucide-react";
+import { Settings2, Plus, X, Pencil, Trash2, Palette, User } from "lucide-react";
 
 import { useI18n } from "../../hooks/useI18n";
 import { useAuth } from "../../hooks/useAuth";
@@ -18,22 +18,17 @@ import purch from "../purchasing/Purchasing.module.css";
 import s from "../sales/Sales.module.css";
 import styles from "./Production.module.css";
 import { ralOptions } from "../../utils/ralColors";
+import { useDialog } from "../../components/useful/DialogProvider";
 
 const RAL_OPTIONS = ralOptions();
 /** Hourly rates, colour surcharges and pricing settings are hidden from people who don't see amounts. */
 const useMoney = () => canSeeFinancials(useAuth().user);
 
-const TABS = [
-  { key: "workshops", icon: Factory },
-  { key: "finishes", icon: Palette },
-  { key: "settings", icon: SlidersHorizontal },
-];
 
 /** Production set-up: workshops (with their manager and team), colours, calculation settings. */
 export default function ProductionConfig() {
   const { t } = useI18n();
   const { companyId, setCompanyId, options: companyOptions } = useCompanyPicker();
-  const [tab, setTab] = useState("workshops");
 
   return (
     <div className="pageShell">
@@ -50,22 +45,14 @@ export default function ProductionConfig() {
           <CustomSelect value={companyId} onSelect={setCompanyId} options={companyOptions} />
         </div>
       </div>
-      <div className={s.tabs}>
-        {TABS.map(({ key, icon: Icon }) => (
-          <button key={key} type="button" className={tab === key ? s.tabActive : s.tab} onClick={() => setTab(key)}>
-            <Icon size={14} /> {t(`prod.config.tabs.${key}`)}
-          </button>
-        ))}
-      </div>
-      {companyId && tab === "workshops" && <WorkshopsTab companyId={companyId} />}
-      {companyId && tab === "finishes" && <FinishesTab companyId={companyId} />}
-      {companyId && tab === "settings" && <SettingsTab companyId={companyId} />}
+      {companyId && <WorkshopsTab companyId={companyId} />}
     </div>
   );
 }
 
 // ------------------------------------------------------------------
 function WorkshopsTab({ companyId }) {
+  const dialog = useDialog();
   const money = useMoney();
   const { t } = useI18n();
   const [rows, setRows] = useState([]);
@@ -107,7 +94,7 @@ function WorkshopsTab({ companyId }) {
     }
   };
   const remove = async (w) => {
-    if (!window.confirm(t("prod.config.deleteWorkshop"))) return;
+    if (!(await dialog.confirm(t("prod.config.deleteWorkshop")))) return;
     try {
       const r = await deleteWorkshop(w._id);
       setNotice(r.message || t("prod.deleted"));
@@ -198,7 +185,8 @@ function WorkshopsTab({ companyId }) {
 }
 
 // ------------------------------------------------------------------
-function FinishesTab({ companyId }) {
+export function FinishesTab({ companyId }) {
+  const dialog = useDialog();
   const money = useMoney();
   const { t } = useI18n();
   const [rows, setRows] = useState([]);
@@ -237,7 +225,7 @@ function FinishesTab({ companyId }) {
     } catch (err) { setError(err.response?.data?.message || t("prod.errors.save")); }
   };
   const remove = async (f) => {
-    if (!window.confirm(t("prod.config.deleteFinish"))) return;
+    if (!(await dialog.confirm(t("prod.config.deleteFinish")))) return;
     try { const r = await deleteFinish(f._id); setNotice(r.message || t("prod.deleted")); load(); } catch (err) { setError(err.response?.data?.message || t("prod.errors.save")); }
   };
 
@@ -307,12 +295,16 @@ function FinishesTab({ companyId }) {
 }
 
 // ------------------------------------------------------------------
-const NUMBER_SETTINGS = [
-  ["defaultBarLength", "mm"], ["kerf", "mm"], ["trimAllowance", "mm"], ["minReusableOffcut", "mm"],
-  ["defaultCoverage", "kg/m²"], ["powderWastePercent", "%"], ["glassWastePercent", "%"], ["pricingProfileWaste", "%"], ["defaultCoefficient", "×"],
+// Grouped so the cutting settings (débit) are easy to find.
+const SETTING_GROUPS = [
+  { key: "bars", fields: [["defaultBarLength", "mm"], ["kerf", "mm"], ["trimAllowance", "mm"], ["barEndTrim", "mm"], ["cutSpacing", "mm"], ["minReusableOffcut", "mm"]] },
+  { key: "glass", fields: [["glassEdgeTrim", "mm"], ["glassCutGap", "mm"], ["glassWastePercent", "%"]] },
+  { key: "powder", fields: [["defaultCoverage", "kg/m²"], ["powderWastePercent", "%"]] },
+  { key: "pricing", fields: [["pricingProfileWaste", "%"], ["defaultCoefficient", "×"]] },
 ];
+const NUMBER_SETTINGS = SETTING_GROUPS.flatMap((g) => g.fields);
 const MONEY_SETTINGS = ["pricingProfileWaste", "defaultCoefficient"];
-function SettingsTab({ companyId }) {
+export function SettingsTab({ companyId }) {
   const money = useMoney();
   const { t } = useI18n();
   const [form, setForm] = useState(null);
@@ -326,7 +318,7 @@ function SettingsTab({ companyId }) {
     e.preventDefault();
     setError("");
     try {
-      const body = { powderMethod: form.powderMethod, lacquerFromStockFirst: !!form.lacquerFromStockFirst, consumeOnComplete: !!form.consumeOnComplete, deliverRequiresReady: form.deliverRequiresReady !== false };
+      const body = { powderMethod: form.powderMethod, lacquerFromStockFirst: !!form.lacquerFromStockFirst, consumeOnComplete: !!form.consumeOnComplete, deliverRequiresReady: form.deliverRequiresReady !== false, glassAllowRotation: form.glassAllowRotation !== false, mitreNesting: form.mitreNesting !== false };
       for (const [k] of NUMBER_SETTINGS) if (money || !MONEY_SETTINGS.includes(k)) body[k] = Number(form[k]);
       setForm(await saveProductionSettings(companyId, body));
       setNotice(t("prod.saved"));
@@ -336,16 +328,31 @@ function SettingsTab({ companyId }) {
     <form onSubmit={save}>
       {error && <div className="errorMessage">{error}</div>}
       {notice && <div className={purch.infoBanner}>{notice}</div>}
-      <div className={purch.formGrid}>
-        <label className={purch.field}>{t("prod.settings.powderMethod")}
-          <CustomSelect value={form.powderMethod} onSelect={(v) => setForm({ ...form, powderMethod: v })} options={["surface", "per_unit", "manual"].map((m) => ({ value: m, label: t(`prod.settings.methods.${m}`) }))} />
-        </label>
-        {NUMBER_SETTINGS.filter(([k]) => money || !MONEY_SETTINGS.includes(k)).map(([k, unit]) => (
-          <label key={k} className={purch.field}>{t(`prod.settings.${k}`)} ({unit})
-            <input className={purch.input} type="number" step="any" min="0" value={form[k] ?? ""} onChange={(e) => setForm({ ...form, [k]: e.target.value })} />
-          </label>
-        ))}
-      </div>
+      {SETTING_GROUPS.map((g) => {
+        const fields = g.fields.filter(([k]) => money || !MONEY_SETTINGS.includes(k));
+        if (!fields.length) return null;
+        return (
+          <fieldset key={g.key} className={styles.cutSettings} style={{ border: "1px solid var(--color-border)" }}>
+            <h4>{t(`cut.groups.${g.key}`)}</h4>
+            {g.key === "bars" && <p className={s.muted} style={{ fontSize: "0.76rem", margin: "0 0 8px" }}>{t("cut.barsSettingsHint")}</p>}
+            {g.key === "glass" && <p className={s.muted} style={{ fontSize: "0.76rem", margin: "0 0 8px" }}>{t("cut.glassSettingsHint")}</p>}
+            <div className={purch.formGrid}>
+              {g.key === "powder" && (
+                <label className={purch.field}>{t("prod.settings.powderMethod")}
+                  <CustomSelect value={form.powderMethod} onSelect={(v) => setForm({ ...form, powderMethod: v })} options={["surface", "per_unit", "manual"].map((m) => ({ value: m, label: t(`prod.settings.methods.${m}`) }))} />
+                </label>
+              )}
+              {fields.map(([k, unit]) => (
+                <label key={k} className={purch.field}>{t(`prod.settings.${k}`, t(`cut.settingLabels.${k}`))} ({unit})
+                  <input className={purch.input} type="number" step="any" min="0" value={form[k] ?? ""} onChange={(e) => setForm({ ...form, [k]: e.target.value })} />
+                </label>
+              ))}
+            </div>
+            {g.key === "bars" && <label className={purch.inlineCheck}><input type="checkbox" checked={form.mitreNesting !== false} onChange={(e) => setForm({ ...form, mitreNesting: e.target.checked })} /> {t("cut.fields.nest")}</label>}
+            {g.key === "glass" && <label className={purch.inlineCheck}><input type="checkbox" checked={form.glassAllowRotation !== false} onChange={(e) => setForm({ ...form, glassAllowRotation: e.target.checked })} /> {t("cut.fields.allowRotation")}</label>}
+          </fieldset>
+        );
+      })}
       <p className={s.muted}>{t(`prod.settings.methodHint.${form.powderMethod}`)}</p>
       <label className={purch.inlineCheck}><input type="checkbox" checked={!!form.lacquerFromStockFirst} onChange={(e) => setForm({ ...form, lacquerFromStockFirst: e.target.checked })} /> {t("prod.settings.lacquerFromStockFirst")}</label>
       <label className={purch.inlineCheck}><input type="checkbox" checked={!!form.consumeOnComplete} onChange={(e) => setForm({ ...form, consumeOnComplete: e.target.checked })} /> {t("prod.settings.consumeOnComplete")}</label>

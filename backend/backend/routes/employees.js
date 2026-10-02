@@ -6,11 +6,14 @@ const router = express.Router();
 const Employee = require("../models/Employee");
 const Department = require("../models/Department");
 const Company = require("../models/Company");
+const { employeeQuotaError, quotaResponse } = require("../services/tenantLimits");
 const Salary = require("../models/Salary");
 const Contract = require("../models/Contract");
 const User = require("../models/User");
 
 const auth = require("../middleware/auth");
+const { guard } = require("../middleware/permissionGuard");
+const { ROUTE_PERMISSIONS } = require("../config/routePermissions");
 const upload = require("../middleware/uploadMiddleware");
 const multer = require("multer");
 
@@ -35,11 +38,8 @@ const {
   requireHRAccess,
 } = require("../middleware/permissionMiddleware");
 
-const {
-  canAccessHRForCompany,
-  canDeleteEmployee,
-  canManageEmployeeRecords,
-} = require("../permissions/permissions");
+const { canAccessHRForCompany, canDeleteEmployee } = require("../permissions/permissions");
+const { has: hasPerm } = require("../services/permissionService");
 
 const { logAudit } = require("../services/auditLogger");
 const { createLoginForEmployee, generateWorkEmail, resetPasswordForEmployee, syncLinkedUserPermissions } = require("../services/employeeAccountService");
@@ -110,6 +110,8 @@ function duplicateKeyMessage(error) {
 // GET /api/employees
 // ======================================================
 
+// Fine-grained permissions of every endpoint: config/routePermissions.js
+router.use(auth, guard(ROUTE_PERMISSIONS.employees));
 router.get("/", auth, async (req, res) => {
   try {
     const {
@@ -530,12 +532,18 @@ router.post(
         });
       }
 
-      if (!canManageEmployeeRecords(req.user)) {
+      if (!hasPerm(req.user, "hr.employees.create")) {
         return res.status(403).json({
           success: false,
           message:
             "Creating employees requires Chargé RH authority or higher",
         });
+      }
+
+      // Client quota (set by the platform): max employees.
+      const quotaMessage = await employeeQuotaError(companyDoc.tenant);
+      if (quotaMessage) {
+        return quotaResponse(res, "EMPLOYEE_QUOTA", quotaMessage);
       }
 
       // --------------------------------------------------
@@ -744,7 +752,7 @@ router.put(
         });
       }
 
-      if (!canManageEmployeeRecords(req.user)) {
+      if (!hasPerm(req.user, "hr.employees.edit")) {
         return res.status(403).json({
           success: false,
           message:
@@ -768,6 +776,14 @@ router.put(
       // --------------------------------------------------
       // UPDATE
       // --------------------------------------------------
+
+      // Bringing a terminated employee back takes a seat again.
+      if (employee.employmentStatus === "terminated" && req.body.employmentStatus && req.body.employmentStatus !== "terminated") {
+        const quotaMessage = await employeeQuotaError(company.tenant);
+        if (quotaMessage) {
+          return quotaResponse(res, "EMPLOYEE_QUOTA", quotaMessage);
+        }
+      }
 
       const before = employee.toObject();
 
@@ -1536,7 +1552,7 @@ router.post(
       if (!canManage(req, company)) {
         return res.status(403).json({ success: false, message: "Not authorized to import employees for this company" });
       }
-      if (!canManageEmployeeRecords(req.user)) {
+      if (!hasPerm(req.user, "hr.employees.import")) {
         return res.status(403).json({
           success: false,
           message: "Importing employees requires Chargé RH authority or higher",
@@ -1569,7 +1585,7 @@ router.post("/bulk-import/commit", auth, requireHRAccess, async (req, res) => {
     if (!canManage(req, company)) {
       return res.status(403).json({ success: false, message: "Not authorized to import employees for this company" });
     }
-    if (!canManageEmployeeRecords(req.user)) {
+    if (!hasPerm(req.user, "hr.employees.import")) {
       return res.status(403).json({
         success: false,
         message: "Importing employees requires Chargé RH authority or higher",
@@ -1582,6 +1598,11 @@ router.post("/bulk-import/commit", auth, requireHRAccess, async (req, res) => {
     const importableRows = rows.filter((row) => !row.errors || row.errors.length === 0);
     if (importableRows.length === 0) {
       return res.status(400).json({ success: false, message: "No valid rows to import" });
+    }
+
+    const quotaMessage = await employeeQuotaError(company.tenant, importableRows.length);
+    if (quotaMessage) {
+      return quotaResponse(res, "EMPLOYEE_QUOTA", quotaMessage);
     }
 
     const result = await commitImport(importableRows, company, req.user.id);

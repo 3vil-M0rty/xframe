@@ -1,7 +1,10 @@
 import { useCallback, useEffect, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
-import { FolderKanban, Plus, Trash2, Pencil, Check, Clock, Package, ShoppingCart, Receipt, ListChecks, Coins, Undo2, Boxes, Factory, Radar } from "lucide-react";
+import { FolderKanban, Plus, Trash2, Pencil, Check, Clock, Package, ShoppingCart, Receipt, ListChecks, Coins, Undo2, Boxes, Factory, Radar, Scissors, Rocket } from "lucide-react";
 import { ProjectOuvrages, ProjectFabrication } from "./ProjectFabrication";
+import CuttingPlans from "./CuttingPlans";
+import WorkflowSteps, { projectSteps } from "../../components/workflow/WorkflowSteps";
+import LaunchProduction from "../../components/workflow/LaunchProduction";
 import ProjectTracking from "../logistics/ProjectTracking";
 import { getFinishes } from "../../services/productionService";
 
@@ -26,6 +29,7 @@ const TASK_STATUSES = ["todo", "in_progress", "done", "blocked"];
 const TABS = [
   { key: "ouvrages", icon: Boxes },
   { key: "fabrication", icon: Factory },
+  { key: "debit", icon: Scissors },
   { key: "suivi", icon: Radar },
   { key: "tasks", icon: ListChecks },
   { key: "hours", icon: Clock },
@@ -51,13 +55,15 @@ export default function ProjectDetail() {
   const tabs = TABS.filter(({ key }) => money || !["expenses", "invoices"].includes(key));
   const [project, setProject] = useState(null);
   const location = useLocation();
-  const [tab, setTab] = useState(location.state?.tab || "ouvrages");
+  const [tab, setTab] = useState(location.state?.tab || null);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [people, setPeople] = useState([]);
   const [form, setForm] = useState(null); // current inline form for the tab
   const [budgetForm, setBudgetForm] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [launching, setLaunching] = useState(false);
+  const [debitTab, setDebitTab] = useState("bars");
   const products = useCompanyProducts(may("projects.materials.manage") ? project?.company : "");
 
   const load = useCallback(async () => {
@@ -68,6 +74,10 @@ export default function ProjectDetail() {
     }
   }, [id, t]);
   useEffect(() => { load(); }, [load]);
+  // Once production is launched, the project opens on the workshop flow.
+  useEffect(() => {
+    if (project && !tab) setTab((project.productionOrders || []).some((o) => o.status !== "cancelled") ? "fabrication" : "ouvrages");
+  }, [project, tab]);
   useEffect(() => {
     if (project?.company && (canEdit || may("projects.tasks.manage") || may("projects.time.manage")) && !people.length) getProjectPeople(project.company).then(setPeople).catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -89,6 +99,7 @@ export default function ProjectDetail() {
   if (!project) return <div className="pageShell">{error ? <div className="errorMessage">{error}</div> : <p className={s.muted}>{t("common.loading")}</p>}</div>;
 
   const f = project.financials;
+  const activeOrders = (project.productionOrders || []).filter((o) => o.status !== "cancelled");
   const peopleOptions = people.map((p) => ({ value: p._id, label: `${p.firstName} ${p.lastName}` }));
   const counts = {
     ouvrages: (project.items || []).length, fabrication: (project.productionOrders || []).length,
@@ -125,8 +136,13 @@ export default function ProjectDetail() {
             {project.number}{project.customer ? ` · ${project.customer.name}` : ""}{project.location ? ` · ${project.location}` : ""}
           </p>
         </div>
-        {(may("projects.projects.status") || may("projects.projects.delete")) && (
+        {(may("projects.projects.status") || may("projects.projects.delete") || may("projects.production.plan")) && (
           <div className={styles.headerActions} style={{ alignItems: "center" }}>
+            {may("projects.production.plan") && project.status !== "cancelled" && (
+              <button type="button" className={activeOrders.length ? "btnEdit" : "btnPrimary"} disabled={!(project.items || []).length} title={!(project.items || []).length ? t("flow.noItems") : ""} onClick={() => setLaunching(true)}>
+                <Rocket size={15} /> {activeOrders.some((o) => ["in_progress", "done"].includes(o.status)) ? t("flow.complete") : activeOrders.length ? t("prod.project.replan") : t("prod.project.launch")}
+              </button>
+            )}
             {may("projects.projects.status") && <div style={{ width: 180 }}>
               <CustomSelect value={project.status} onSelect={(v) => run(() => setProjectStatus(id, v))}
                 options={STATUSES.map((st) => ({ value: st, label: t(`projects.statuses.${st}`) }))} />
@@ -138,6 +154,19 @@ export default function ProjectDetail() {
 
       {error && <div className="errorMessage">{error}</div>}
       {notice && <div className={styles.infoBanner}>{notice}</div>}
+
+      <WorkflowSteps steps={projectSteps(project, t, { navigate: canAccessSales(user) ? navigate : null, onTab: (k) => { setTab(k); setForm(null); } })} />
+      {activeOrders.length > 0 && (
+        <div className={s.statusBar} style={{ flexWrap: "wrap" }}>
+          <span className={s.muted}>{t("flow.workshopTasks")}</span>
+          {activeOrders.map((o) => (
+            <button key={o._id} type="button" className="btnEdit" onClick={() => navigate(`/production/orders/${o._id}`)}>
+              <span style={{ display: "inline-block", width: 8, height: 8, borderRadius: 99, background: o.workshop?.color || "#888" }} /> {o.workshop?.name} · {o.number} · {t(`prod.orderStatus.${o.status}`)}{o.progress?.total ? ` · ${o.progress.done}/${o.progress.total}` : ""}
+            </button>
+          ))}
+        </div>
+      )}
+      {launching && <LaunchProduction project={project} canEditItems={may("projects.items.manage")} onChanged={load} onClose={() => setLaunching(false)} onLaunched={async (r) => { setLaunching(false); setNotice(t("flow.launched").replace("{list}", (r.orders || []).map((o) => o.number).join(", "))); await load(); }} />}
 
       <div className={s.docMeta}>
         <div><span>{t("projects.manager")}</span>{personName(project.manager)}</div>
@@ -208,7 +237,7 @@ export default function ProjectDetail() {
       <div className={s.tabs}>
         {tabs.map(({ key, icon: Icon }) => (
           <button key={key} type="button" className={tab === key ? s.tabActive : s.tab} onClick={() => { setTab(key); setForm(null); }}>
-            <Icon size={14} /> {t(`projects.tabs.${key}`, t(`prod.project.tabs.${key}`))} <span className={s.count}>{counts[key]}</span>
+            <Icon size={14} /> {t(`projects.tabs.${key}`, t(`prod.project.tabs.${key}`))} {counts[key] !== undefined && <span className={s.count}>{counts[key]}</span>}
           </button>
         ))}
       </div>
@@ -227,7 +256,8 @@ export default function ProjectDetail() {
       )}
 
       {tab === "ouvrages" && <ProjectOuvrages project={project} canEdit={may("projects.items.manage")} reload={load} onError={setError} />}
-      {tab === "fabrication" && <ProjectFabrication project={project} canEdit={may("projects.production.plan")} reload={load} onError={setError} onNotice={setNotice} />}
+      {tab === "fabrication" && <ProjectFabrication project={project} canEdit={may("projects.production.plan")} reload={load} onError={setError} onNotice={setNotice} onShowGlassCutting={() => { setDebitTab("glass"); setTab("debit"); }} />}
+      {tab === "debit" && <CuttingPlans key={`${project._id}-${(project.productionOrders || []).length}-${debitTab}`} projectId={project._id} initialTab={debitTab} />}
       {tab === "suivi" && <ProjectTracking projectId={project._id} onChanged={load} />}
 
       {/* ---------- inline forms ---------- */}

@@ -83,12 +83,13 @@ function computeCIMR(grossSalary, employeeRate, employerRate) {
  * Professional-expenses deduction: a flat % of the salary that's
  * left after CNSS/AMO/CIMR, capped at a monthly ceiling.
  */
-function computeProfessionalExpenses(taxableBeforeExpenses) {
-  const uncapped =
-    taxableBeforeExpenses * payrollConfig.PROFESSIONAL_EXPENSES.RATE;
-  return round2(
-    Math.min(uncapped, payrollConfig.PROFESSIONAL_EXPENSES.MONTHLY_CAP)
-  );
+function computeProfessionalExpenses(grossTaxable) {
+  const fp = payrollConfig.PROFESSIONAL_EXPENSES;
+  if (grossTaxable <= 0) return 0;
+  if (grossTaxable * 12 <= fp.ANNUAL_THRESHOLD) {
+    return round2(grossTaxable * fp.RATE_UP_TO_THRESHOLD);
+  }
+  return round2(Math.min(grossTaxable * fp.RATE_ABOVE_THRESHOLD, fp.ANNUAL_CAP_ABOVE_THRESHOLD / 12));
 }
 
 /**
@@ -116,7 +117,7 @@ function computeFamilyDeduction(numberOfDependents = 0) {
     numberOfDependents,
     payrollConfig.FAMILY_DEDUCTION.MAX_DEPENDENTS
   );
-  return round2(count * payrollConfig.FAMILY_DEDUCTION.PER_DEPENDENT_MONTHLY);
+  return round2((count * payrollConfig.FAMILY_DEDUCTION.PER_DEPENDENT_ANNUAL) / 12);
 }
 
 /**
@@ -168,9 +169,9 @@ function calculatePayslip({
     grossSalary - cnssEmployee - amoEmployee - cimr.employee
   );
 
-  const professionalExpenses = computeProfessionalExpenses(
-    taxableBeforeExpenses
-  );
+  // Frais professionnels are computed on the GROSS taxable salary
+  // (CGI art. 59-I), not on the salary net of contributions.
+  const professionalExpenses = computeProfessionalExpenses(grossSalary);
 
   const monthlyTaxableIncome = round2(
     taxableBeforeExpenses - professionalExpenses

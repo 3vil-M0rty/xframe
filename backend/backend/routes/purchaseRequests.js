@@ -8,7 +8,10 @@ const PurchaseOrder = require("../models/PurchaseOrder");
 const Product = require("../models/Product");
 
 const auth = require("../middleware/auth");
-const { canAccessProduction, canAccessPurchasing, isAdmin } = require("../permissions/permissions");
+const { guard } = require("../middleware/permissionGuard");
+const { has: hasPerm, hasAny: hasAnyPerm } = require("../services/permissionService");
+const { ROUTE_PERMISSIONS } = require("../config/routePermissions");
+const { isAdmin } = require("../permissions/permissions");
 const { logAudit } = require("../services/auditLogger");
 const { attachTranslationRoutes } = require("../utils/translationRoutes");
 const {
@@ -30,9 +33,11 @@ const { OPEN, planProcessAction, NOTIFY_TITLES } = require("../services/purchase
  * ============================================================
  */
 
+// Fine-grained permissions of every endpoint: config/routePermissions.js
+router.use(auth, guard(ROUTE_PERMISSIONS.purchaseRequests));
 router.use(auth);
 
-const canView = (user) => canAccessProduction(user) || canAccessPurchasing(user);
+const canView = (user) => hasAnyPerm(user, ["inventory.requests.view", "purchasing.requests.view"]);
 const deny = (res, message) => res.status(403).json({ success: false, message });
 
 const POPULATE_PRODUCT = "name internalReference image unit quantity threshold translations";
@@ -120,7 +125,7 @@ router.get("/open-count", async (req, res) => {
 // ======================================================
 router.post("/", async (req, res) => {
   try {
-    if (!canAccessProduction(req.user)) return deny(res, "Only the production team can request a purchase");
+    if (!hasPerm(req.user, "inventory.requests.create")) return deny(res, "You can't request a purchase");
     const { company, product, requestedQuantity, notes } = req.body;
 
     if (!company || !mongoose.Types.ObjectId.isValid(company)) {
@@ -175,7 +180,7 @@ router.post("/", async (req, res) => {
 // ======================================================
 async function processRequest(req, res) {
   try {
-    if (!canAccessPurchasing(req.user)) return deny(res, "Only the purchasing team can process purchase requests");
+    if (!hasPerm(req.user, "purchasing.requests.process")) return deny(res, "You can't process purchase requests");
     if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
       return res.status(400).json({ success: false, message: "Invalid purchase request ID" });
     }

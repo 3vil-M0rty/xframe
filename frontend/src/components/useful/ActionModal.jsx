@@ -25,6 +25,9 @@ export default function ActionModal({
   onClose,
 
   loading = false,
+
+  // Optional text field (replaces the browser prompt()): shown under the message.
+  input = null, // { value, onChange, placeholder, required, multiline }
 }) {
   const [isVisible, setIsVisible] = useState(isOpen);
   const {t} = useI18n();
@@ -132,9 +135,33 @@ export default function ActionModal({
                 : t("common.somethingWentWrong"))}
           </h3>
 
-          <p>
-            {message}
-          </p>
+          {message && (
+            <p style={{ whiteSpace: "pre-line" }}>
+              {message}
+            </p>
+          )}
+
+          {input && (
+            input.multiline ? (
+              <textarea
+                className={styles.input}
+                rows={3}
+                autoFocus
+                value={input.value}
+                placeholder={input.placeholder || ""}
+                onChange={(e) => input.onChange(e.target.value)}
+              />
+            ) : (
+              <input
+                className={styles.input}
+                autoFocus
+                value={input.value}
+                placeholder={input.placeholder || ""}
+                onChange={(e) => input.onChange(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter" && (!input.required || String(input.value || "").trim())) onConfirm?.(); }}
+              />
+            )
+          )}
         </div>
 
 
@@ -158,7 +185,7 @@ export default function ActionModal({
               type="button"
               className={styles.confirmButton}
               onClick={onConfirm}
-              disabled={loading}
+              disabled={loading || (input?.required && !String(input.value || "").trim())}
             >
               {loading ? (
                 <>

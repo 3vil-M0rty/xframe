@@ -3,6 +3,16 @@ const translatable = require("../plugins/translatable");
 
 const companySchema = new mongoose.Schema(
   {
+    // The client (tenant) that owns this company — see
+    // services/tenantScope.js. Set automatically on creation from
+    // the logged-in user's client.
+    tenant: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Tenant",
+      default: null,
+      index: true,
+    },
+
     // =========================================================
     // BASIC COMPANY INFORMATION
     // =========================================================
@@ -336,6 +346,32 @@ const companySchema = new mongoose.Schema(
         type: Boolean,
         default: false,
       },
+      // Paid-leave days per year GRANTED ON TOP of the legal minimum
+      // (collective agreement / company policy). 0 = the law only
+      // (1.5 days/month + seniority). See services/leaveBalanceService.js.
+      extraLeaveDaysPerYear: {
+        type: Number,
+        default: 0,
+        min: 0,
+        max: 30,
+      },
+      // Purchase orders at or above this amount (TTC, MAD) need an
+      // approver's OK before they can be marked as ordered. 0 = off.
+      // See routes/purchaseOrders.js (status/approve/reject-approval).
+      purchaseApprovalThreshold: {
+        type: Number,
+        default: 0,
+        min: 0,
+      },
+      // Accounting account for purchases whose article category has no
+      // account of its own (and typed-in lines). PCGE: 6111 achats de
+      // marchandises, 6121 matières premières, 6125 achats non stockés...
+      purchaseDefaultAccount: {
+        type: String,
+        default: "6111",
+        trim: true,
+        match: /^\d{4,10}$/,
+      },
     },
 
     // =========================================================
@@ -529,5 +565,11 @@ companySchema.index({ industry: 1 });
 // =============================================================
 // EXPORT
 // =============================================================
+
+// Lets the request that created this company use it right away
+// (e.g. to create its default departments) — see tenantScope.js.
+companySchema.post("save", function (doc) {
+  require("../services/tenantScope").registerNewCompany(doc);
+});
 
 module.exports = mongoose.model("Company", companySchema);

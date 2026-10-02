@@ -7,12 +7,16 @@ const AuditLog = require("../models/AuditLog");
 const Company = require("../models/Company");
 
 const auth = require("../middleware/auth");
+const { guard } = require("../middleware/permissionGuard");
+const { ROUTE_PERMISSIONS } = require("../config/routePermissions");
 const {
   requireHRAccess,
   requireAdmin,
 } = require("../middleware/permissionMiddleware");
 const { canAccessHRForCompany } = require("../permissions/permissions");
 
+// Fine-grained permissions of every endpoint: config/routePermissions.js
+router.use(auth, guard(ROUTE_PERMISSIONS.auditLogs));
 router.use(auth, requireHRAccess);
 
 // ======================================================

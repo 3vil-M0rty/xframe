@@ -37,7 +37,7 @@
     margin-bottom: 14px;
     padding: 10px 14px;
     font-size: 0.82rem;
-    color: #4cc38a;
+    color: var(--tone-4cc38a);
     background: rgba(76, 195, 138, 0.08);
     border: 1px solid rgba(76, 195, 138, 0.25);
     border-radius: 8px;
@@ -56,7 +56,7 @@
 
 .dateInput {
     padding: 8px 10px;
-    color-scheme: dark;
+    color-scheme: var(--color-scheme);
 }
 
 .nameInput {
@@ -82,12 +82,12 @@
 }
 
 .previewGood {
-    color: #4cc38a;
+    color: var(--tone-4cc38a);
     font-size: 0.8rem;
 }
 
 .previewBad {
-    color: #fca5a5;
+    color: var(--tone-fca5a5);
     font-size: 0.8rem;
 }
 
@@ -100,12 +100,12 @@
     align-items: center;
     gap: 5px;
     font-size: 0.76rem;
-    color: #fca5a5;
+    color: var(--tone-fca5a5);
 }
 
 .rowWarning {
     font-size: 0.76rem;
-    color: #e8b93f;
+    color: var(--tone-e8b93f);
 }
 
 .previewActions {

@@ -112,7 +112,7 @@ export default function SupplierInvoices() {
         </div>
         <div className={d.kpi}>
           <span className={d.kpiLabel}>{t("purchasing.supplierInvoices.overdue")}</span>
-          <strong className={d.kpiValue} style={{ color: totals.overdue ? "#f87171" : undefined }}>{formatMoney(totals.overdue || 0)}</strong>
+          <strong className={d.kpiValue} style={{ color: totals.overdue ? "var(--tone-f87171)" : undefined }}>{formatMoney(totals.overdue || 0)}</strong>
           <span className={d.kpiSub}>{t("purchasing.supplierInvoices.overdueCount").replace("{count}", totals.overdueCount || 0)}</span>
         </div>
         <div className={d.kpi}>

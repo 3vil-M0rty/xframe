@@ -10,6 +10,7 @@ import { useI18n } from "../hooks/useI18n";
 import CollapsibleForm from "../components/useful/CollapsibleForm";
 import ActionModal from "../components/useful/ActionModal";
 import TwoFactorSettings from "../components/TwoFactorSettings";
+import ThemeSettings from "../components/ThemeSettings";
 import styles from "./Profile.module.css"
 import { Cog, FileUser } from "lucide-react";
 
@@ -304,6 +305,10 @@ export default function Profile() {
             newPassword: "",
           }}
         /> */}
+      </div>
+
+      <div className={styles.rows} style={{ marginTop: "1.2rem" }}>
+        <ThemeSettings />
       </div>
 
       <div className={styles.rows} style={{ marginTop: "1.2rem" }}>

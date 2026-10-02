@@ -8,14 +8,18 @@ const Employee = require("../models/Employee");
 const Company = require("../models/Company");
 
 const auth = require("../middleware/auth");
+const { guard } = require("../middleware/permissionGuard");
+const { ROUTE_PERMISSIONS } = require("../config/routePermissions");
 const documentUpload = require("../middleware/documentUploadMiddleware");
 const { requireHRAccess } = require("../middleware/permissionMiddleware");
 const { canAccessHRForCompany } = require("../permissions/permissions");
-const { uploadFile, deleteFile } = require("../services/cloudinaryService");
+const { uploadPrivateFile, deleteFile } = require("../services/cloudinaryService");
 const { logAudit } = require("../services/auditLogger");
 const { attachTranslationRoutes } = require("../utils/translationRoutes");
 const { findMatchingEmployeeIds } = require("../utils/employeeSearch");
 
+// Fine-grained permissions of every endpoint: config/routePermissions.js
+router.use(auth, guard(ROUTE_PERMISSIONS.documents));
 router.use(auth, requireHRAccess);
 
 const canManage = (req, company) => canAccessHRForCompany(req.user, company);
@@ -153,10 +157,13 @@ router.post("/", documentUpload.single("file"), async (req, res) => {
       return res.status(404).json({ success: false, message: "Employee not found in this company" });
     }
 
-    const result = await uploadFile(
+    // HR documents are private: opened only through a short-lived
+    // link (routes/files.js), never a permanent public URL.
+    const storedFile = await uploadPrivateFile(
       req.file.buffer,
       `frame/companies/${company}/employees/${employee}/documents`,
-      req.file.originalname
+      req.file.originalname,
+      req.file.mimetype
     );
 
     const document = await EmployeeDocument.create({
@@ -164,11 +171,7 @@ router.post("/", documentUpload.single("file"), async (req, res) => {
       employee,
       type,
       label,
-      file: {
-        url: result.secure_url,
-        publicId: result.public_id,
-        originalName: req.file.originalname,
-      },
+      file: storedFile,
       issueDate: issueDate || null,
       expiryDate: expiryDate || null,
       notes,
@@ -232,17 +235,12 @@ router.put("/:id", documentUpload.single("file"), async (req, res) => {
     if (req.file) {
       const oldPublicId = document.file?.publicId;
 
-      const result = await uploadFile(
+      document.file = await uploadPrivateFile(
         req.file.buffer,
         `frame/companies/${document.company._id}/employees/${document.employee}/documents`,
-        req.file.originalname
+        req.file.originalname,
+        req.file.mimetype
       );
-
-      document.file = {
-        url: result.secure_url,
-        publicId: result.public_id,
-        originalName: req.file.originalname,
-      };
 
       if (oldPublicId) {
         await deleteFile(oldPublicId);

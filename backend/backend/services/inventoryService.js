@@ -5,7 +5,7 @@ const InventoryMovement = require("../models/InventoryMovement");
  * same call — every quantity change in this file goes through
  * this one function so the two can never drift apart.
  */
-async function applyMovement({ product, type, quantity, reason, actorId }) {
+async function applyMovement({ product, type, quantity, reason, actorId, project = null, unitCost = null, productionOrder = null, workshop = null }) {
   let newQuantity = product.quantity;
   if (type === "in") newQuantity += quantity;
   else if (type === "out") newQuantity -= quantity;
@@ -25,11 +25,19 @@ async function applyMovement({ product, type, quantity, reason, actorId }) {
     resultingQuantity: newQuantity,
     reason,
     performedBy: actorId,
+    project,
+    unitCost,
+    productionOrder,
+    workshop,
   });
 
+  const previousQuantity = product.quantity;
   product.quantity = newQuantity;
   product.updatedBy = actorId;
   await product.save();
+
+  // Minimum-stock alert (never fails the movement itself).
+  await require("./businessNotifications").onStockChanged(product, previousQuantity, actorId);
 
   return product;
 }

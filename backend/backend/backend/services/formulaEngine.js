@@ -85,6 +85,11 @@ function tokenize(src) {
     if (/[A-Za-z_À-ÿ]/.test(c)) {
       let j = i;
       while (j < src.length && /[A-Za-z0-9_À-ÿ]/.test(src[j])) j += 1;
+      // Profile of the series by its code: DOR.ae, OUV.ch… (one name)
+      while (src[j] === "." && /[A-Za-z_]/.test(src[j + 1] || "")) {
+        j += 1;
+        while (j < src.length && /[A-Za-z0-9_À-ÿ]/.test(src[j])) j += 1;
+      }
       const word = src.slice(i, j);
       const lower = word.toLowerCase();
       if (lower in WORD_OPS) tokens.push({ type: "op", value: WORD_OPS[lower], pos: i });

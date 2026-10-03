@@ -1,4 +1,5 @@
 import api from "./api";
+import { downloadBlob, normalizeBlobError } from "../utils/download";
 
 // Aluminium production: workshops, colours, series, chassis catalogue,
 // work orders — see backend routes/productionConfig.js and productionOrders.js.
@@ -28,10 +29,54 @@ export const getSeries = async (companyId) => data(await api.get(`/production/se
 export const createSeries = async (body) => data(await api.post("/production/series", body));
 export const updateSeries = async (id, body) => data(await api.put(`/production/series/${id}`, body));
 export const deleteSeries = async (id) => (await api.delete(`/production/series/${id}`)).data;
-// Profile types of a series ↔ articles (Technique › Données techniques)
-export const getProfileTypeSuggestions = async (companyId) => data(await api.get(`/production/profile-types/suggestions?${qs({ companyId })}`));
-export const attachProfileTypes = async (body) => data(await api.post("/production/profile-types/attach", body));
-export const detachProfileTypes = async (body) => data(await api.post("/production/profile-types/detach", body));
+// Series = profile library (codes DOR, OUV… on the articles) + formula variables
+export const getSeriesDetail = async (id) => data(await api.get(`/production/series/${id}`));
+export const getSeriesCandidates = async (id, search = "") => data(await api.get(`/production/series/${id}/candidates?${qs({ search })}`)) || [];
+export const addSeriesProfiles = async (id, items) => data(await api.post(`/production/series/${id}/profiles`, { items }));
+export const updateSeriesProfile = async (id, productId, body) => data(await api.patch(`/production/series/${id}/profiles/${productId}`, body));
+export const removeSeriesProfile = async (id, productId) => (await api.delete(`/production/series/${id}/profiles/${productId}`)).data;
+// CAD (Technique › Conception): drawing + débit without saving
+export const previewDesign = async (body) => data(await api.post("/production/designs/preview", body));
+// ---------- profile sections (DXF) ----------
+const sectionForm = (file, opts = {}) => {
+  const f = new FormData();
+  if (file) f.append("file", file);
+  if (opts.transform) f.append("transform", JSON.stringify(opts.transform));
+  if (opts.hiddenLayers) f.append("hiddenLayers", JSON.stringify(opts.hiddenLayers));
+  if (opts.scale) f.append("scale", String(opts.scale));
+  if (opts.applyToProduct !== undefined) f.append("applyToProduct", String(!!opts.applyToProduct));
+  return f;
+};
+export const previewSection = async (file, opts) => data(await api.post("/production/profiles/section/preview", sectionForm(file, opts)));
+export const uploadSection = async (productId, file, opts) => data(await api.post(`/production/profiles/${productId}/section`, sectionForm(file, opts)));
+export const getSection = async (productId) => data(await api.get(`/production/profiles/${productId}/section`));
+export const updateSection = async (productId, body) => data(await api.patch(`/production/profiles/${productId}/section`, body));
+export const deleteSection = async (productId) => (await api.delete(`/production/profiles/${productId}/section`)).data;
+export const downloadSectionSource = async (productId, fileName) => {
+  try {
+    const res = await api.get(`/production/profiles/${productId}/section/source`, { responseType: "blob" });
+    downloadBlob(res.data, fileName || "profil.dxf");
+  } catch (err) { throw await normalizeBlobError(err); }
+};
+export const getProfile = async (productId) => data(await api.get(`/production/profiles/${productId}`));
+export const saveProfileRules = async (productId, body) => data(await api.put(`/production/profiles/${productId}/fab-rules`, body));
+export const getSeriesSections = async (seriesId) => data(await api.get(`/production/series/${seriesId}/sections`));
+// ---------- nodes ----------
+export const getSeriesNodes = async (seriesId) => data(await api.get(`/production/series/${seriesId}/nodes`));
+export const getNode = async (id) => data(await api.get(`/production/nodes/${id}`));
+export const createNode = async (seriesId, body) => data(await api.post(`/production/series/${seriesId}/nodes`, body));
+export const updateNode = async (id, body) => data(await api.put(`/production/nodes/${id}`, body));
+export const deleteNode = async (id) => (await api.delete(`/production/nodes/${id}`)).data;
+
+/** Dossier de fabrication (PDF) of a CAD design at L × H × quantity. */
+export const downloadFabricationPdf = async (body, fileName) => {
+  try {
+    const res = await api.post("/production/designs/dossier", body, { responseType: "blob" });
+    downloadBlob(res.data, `${String(fileName || "dossier-fabrication").replace(/[/\\:*?"<>|]/g, "").trim()}.pdf`);
+  } catch (err) {
+    throw await normalizeBlobError(err);
+  }
+};
 
 export const getCatalog = async () => data(await api.get("/production/catalog"));
 export const getTemplate = async (key) => data(await api.get(`/production/catalog/${key}`));

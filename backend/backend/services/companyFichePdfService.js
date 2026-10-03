@@ -1,6 +1,6 @@
 const PDFDocument = require("pdfkit");
 
-const { formatDate, buildDocumentRef, drawLetterhead, drawDocumentTitle, finalizeFooters } = require("./pdfHelpers");
+const { formatDate, buildDocumentRef, drawLetterhead, docBrand, drawDocumentTitle, finalizeFooters } = require("./pdfHelpers");
 
 /**
  * ============================================================
@@ -30,9 +30,11 @@ function line(text) {
 
 function drawSectionHeading(doc, text, { colX, width }) {
   doc.moveDown(0.9);
-  doc.fontSize(10).font("Helvetica-Bold").fillColor("#000").text(text.toUpperCase(), colX, doc.y, { width });
+  const brand = docBrand(doc);
+  doc.fontSize(10).font("Helvetica-Bold").fillColor(brand.primaryInk).text(text.toUpperCase(), colX, doc.y, { width });
   const ruleY = doc.y + 2;
-  doc.moveTo(colX, ruleY).lineTo(colX + width, ruleY).lineWidth(0.75).stroke("#999");
+  doc.moveTo(colX, ruleY).lineTo(colX + width, ruleY).lineWidth(0.75).stroke(brand.primary);
+  doc.fillColor("#000");
   doc.moveDown(0.5);
 }
 

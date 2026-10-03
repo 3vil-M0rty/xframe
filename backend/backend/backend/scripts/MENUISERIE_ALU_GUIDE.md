@@ -33,7 +33,7 @@ OF Vitrage  ─┼─► OF Aluminium : nombre de barres par profilé, accessoir
 Consommations réelles saisies par chaque atelier → coût réel du projet
 ```
 
-## 1. Configuration (Production → Configuration production)
+## 1. Configuration (menu Technique ; ateliers et équipes : Production → Ateliers & équipes)
 - **Ateliers** :
   - code, nom, type (laquage / aluminium / vitrage / autre), responsable, équipe et coût horaire ;
   - « Alimente » : Laquage et Vitrage alimentent l'Aluminium. Un OF Aluminium attend donc la fin des OF Laquage et Vitrage du projet.
@@ -48,8 +48,8 @@ Consommations réelles saisies par chaque atelier → coût réel du projet
   - calcul de la poudre : surface × kg/m², poudre par barre, ou saisie manuelle ;
   - lame de scie, recoupe, chute réutilisable, pertes de verre et de poudre, coefficient de vente.
 
-## 2. Articles (Production → Inventaire → « Données techniques »)
-**Rubriques et sous-rubriques** (Production → Paramètres) : bouton 📁+ sur une rubrique pour lui ajouter une sous-rubrique, jusqu'à 4 niveaux. Exemple :
+## 2. Articles (Technique → Données techniques, ou Production → Inventaire → « Données techniques »)
+**Rubriques et sous-rubriques** (Technique → Catégories d'articles) : bouton 📁+ sur une rubrique pour lui ajouter une sous-rubrique, jusqu'à 4 niveaux. Exemple :
 - Profilés aluminium › Série ATLAS 78 — coulissants, Série 50 — fenêtres & portes, Série garde-corps, Moustiquaires ;
 - Accessoires & joints › Joints, Quincaillerie coulissants, Quincaillerie fenêtres & portes, Visserie…
 - Verre & panneaux › Verres, Composants double vitrage, Tôles & panneaux.
@@ -63,7 +63,7 @@ Pour chaque article, indiquez :
 
 Les couleurs créent automatiquement des **articles variantes**, par exemple « Dormant haut coulissant 67 — RAL 9016 », avec leur propre stock.
 
-## 3. Catalogue (Production → Catalogue châssis)
+## 3. Catalogue (Technique → Catalogue châssis)
 - **Bibliothèque** : 55 modèles standard. Ils couvrent :
   - coulissants : 2, 3 et 4 vantaux, galandage, levant-coulissant ;
   - ouvrants : à la française, oscillo-battant, soufflet, projetant, basculant, pivotant ;
@@ -120,7 +120,7 @@ Sur la fiche du devis / de la facture et dans leurs PDF, chaque châssis s'affic
   - **Vitrage** : vitrages à fabriquer, plateaux à prendre (choisis automatiquement dans l'inventaire), plans d'imbrication de chaque plateau.
   - **Accessoires** et **Poudre** (avec les barres à laquer par couleur).
 - Chaque matériel s'imprime **sur sa propre feuille** (boutons 🖨 Barres / Vitrage / Accessoires / Poudre). API : `GET /api/projects/:id/production/pdf?section=bars|accessories|powder|glass` et `GET /api/production-orders/:id/pdf?section=…`.
-- **Réglages du débit** (Production → Configuration → Paramètres) : épaisseur de la lame, début de barre, fin de barre, espace entre chaque coupe, chute réutilisable ; pour le verre : bord de plateau, trait de coupe, rotation autorisée. On peut aussi les changer ponctuellement dans l'écran Débit (« Recalculer ») sans toucher aux paramètres enregistrés — les impressions suivent ces valeurs.
+- **Réglages du débit** (Technique → Calcul & débit) : épaisseur de la lame, début de barre, fin de barre, espace entre chaque coupe, chute réutilisable ; pour le verre : bord de plateau, trait de coupe, rotation autorisée. On peut aussi les changer ponctuellement dans l'écran Débit (« Recalculer ») sans toucher aux paramètres enregistrés — les impressions suivent ces valeurs.
 - Avant le lancement de la fabrication, l'écran affiche une **prévision** ; après, il lit les ordres de fabrication.
 - **Débit professionnel** :
   - longueurs **pointe à pointe** (cotes extérieures), angles gauche / droite, **talon** (cote aux pointes courtes) quand la *largeur du profilé* est renseignée sur l'article (Inventaire → Données techniques) ;
@@ -131,7 +131,7 @@ Sur la fiche du devis / de la facture et dans leurs PDF, chaque châssis s'affic
   - plan de coupe numéroté barre par barre (B1, B2… coupe 1, 2…), coupes d'onglet dessinées, **réglage de butée** (une longueur = un réglage, longueurs décroissantes) ;
   - **étiquettes** : une par pièce (3 × 8 par A4) avec longueur, angles, repère, n° de barre et de coupe (B2-4), et une par verre.
 
-## 7. Vitrages (Production → Vitrages)
+## 7. Vitrages (compositions : Technique → Compositions de vitrage ; débit : Production → Débit des vitrages)
 - **Compositions** : définissez par ex. « 44.2 / 10 / 6 » :
   - verre 1 : « Feuilleté 44.2 », 4 mm, **nombre 2**, plateaux autorisés : Float 4 mm 3000×1000 **ou** 2400×1000 ;
   - verre 2 : 10 mm, trois plateaux autorisés ; verre 3 : 6 mm, un plateau ;
@@ -216,7 +216,7 @@ Dans la démo (projet Villa Anfa) :
 - Les « faits » saisis sur l'OF Aluminium et la clôture de l'OF rendent fabriqués les dormants et vantaux ; la clôture de l'OF Vitrage rend fabriqués les vitrages.
 - Changer la cote, le modèle ou les options d'un ouvrage après le début de la fabrication signale le châssis **« Modifié »** (à refaire ou vérifier). Les quantités déjà livrées restent enregistrées.
 - Réduire la quantité ou supprimer un ouvrage annule les châssis en trop, et l'historique signale ceux déjà fabriqués ou livrés.
-- Paramètre (Configuration production) : seuls les éléments « prêts » peuvent partir en livraison (par défaut), sinon tout élément fabriqué.
+- Paramètre (Technique → Calcul & débit) : seuls les éléments « prêts » peuvent partir en livraison (par défaut), sinon tout élément fabriqué.
 
 ### Notifications
 | Quand | Qui est prévenu |
@@ -247,7 +247,7 @@ Dans la démo (projet Villa Anfa) :
 | Logistique | logistique@frame.test / Logistique@123 |
 
 **0. Une seule fois — l'admin / le responsable production paramètre**
-1. Configuration production → Ateliers (responsable + équipe de Laquage, Aluminium, Vitrage), Couleurs (nuancier RAL + poudre liée), Paramètres (barre 6 500, lame, chutes…).
+1. Production → Ateliers & équipes (responsable + équipe de Laquage, Aluminium, Vitrage) ; Technique → Finitions & couleurs (nuancier RAL + poudre liée) et Calcul & débit (paramètres (barre 6 500, lame, chutes…).
 2. Inventaire → articles avec leurs **Données techniques** (barres : longueur ; poudre : kg ; verre : m²…) et leur stock.
 3. Catalogue châssis → importer les modèles de la bibliothèque dans une série, relier chaque composant à un article, ajuster les variables de la série, tester (L × H) jusqu'à ce que les quantités prévues soient justes. Les prix du modèle ne sont modifiables que par qui voit les montants.
 
@@ -342,8 +342,112 @@ Chaque étape = une personne, un bouton. Tout laisse une trace (bon de transfert
 
 **Chutes** (Production → Chutes) : stock des morceaux réutilisables par article/longueur. L'OF aluminium peut « Mettre les chutes du débit en stock ».
 
-**Débit des verres par plateau** : Projet → Débit & impressions → Vitrage (ou bouton « Débit des verres » dans l'étape Vitrage), Production → Vitrages → Débit des plateaux, ou l'OF Vitrage.
+**Débit des verres par plateau** : Projet → Débit & impressions → Vitrage (ou bouton « Débit des verres » dans l'étape Vitrage), Production → Débit des vitrages, ou l'OF Vitrage.
 
-**Compositions de vitrage** : Production → Catalogue → onglet « Vitrages (compositions) » (même liste que Production → Vitrages).
+**Compositions de vitrage** : Technique → Compositions de vitrage.
 
 **Profils prêts à l'emploi** (Paramètres → Rôles) : Chef laquage, Chef aluminium, Chef vitrage, Chargé des barres, Magasinier accessoires. Le chef d'un atelier (Atelier → responsable) a tous les droits sur son atelier.
+
+## Identité visuelle et thème (Organisation → Entreprise → « Logo & couleurs »)
+
+- **Couleur principale** : trait sous l'en-tête, titres, titres de sections et en-têtes de tableaux de tous les PDF (devis, factures, BC, BL, fiches de débit, OF, bulletins, attestations…). Une couleur trop claire est automatiquement assombrie pour le texte.
+- **Couleur secondaire** : bandeau TOTAL TTC / NET À PAYER / TOTAL À PAYER et cadres de signature (y compris ceux du bon de livraison).
+- **Format de date** (« Exercice & paramètres régionaux ») : appliqué à toutes les dates des PDF.
+- **Thème sombre** : thème par défaut des utilisateurs de la société (décoché = clair). Chacun peut choisir le sien : bouton soleil/lune en bas du menu, ou Mon profil → Apparence (Comme l'entreprise / Sombre / Clair). Le choix est enregistré sur le compte.
+
+## Menu Technique (bureau d'études)
+
+Tout ce qui **définit** les produits est réuni dans le menu **Technique** ; Production ne fait que l'**utiliser** (projets, ateliers, débit, chutes, inventaire).
+
+| Page | Contenu |
+|---|---|
+| Catalogue châssis | modèles, séries de profilés, bibliothèque de modèles, formules de débit |
+| Compositions de vitrage | « 44.2 / 10 / 6 » : couches, plateaux autorisés, film, intercalaire |
+| Données techniques | tous les articles techniques avec leur géométrie (chambre + ailettes = hauteur, largeur), longueur de barre, format des plateaux, épaisseur, rendement poudre — avec « À compléter » quand une donnée manque |
+| Finitions & couleurs | RAL, anodisation, brut, poudre associée |
+| Catégories d'articles | rubriques et sous-rubriques de l'inventaire |
+| Calcul & débit | lame, début / fin de barre, espace entre coupes, bord de plateau, rotation des verres, calcul de la poudre… |
+
+Les anciennes adresses (/production/catalog, /production/settings…) redirigent vers les nouvelles.
+
+
+## Série = bibliothèque de profilés (AWS 60)
+
+1. **Technique › Catalogue châssis › Séries › Nouvelle série** « AWS 60 » → la page de la série s'ouvre.
+2. **Profilés de la série** : chaque profilé est un article de l'inventaire avec un **code** court (DOR, OUV, MEN, PAR, BAT…).
+   - depuis la série : « Ajouter des profilés » (code proposé d'après le nom) ;
+   - ou depuis l'inventaire : fiche de l'article (type Profilé) → champs « Série » et « Code dans la série ».
+   Les cotes (ch chambre, ae ailette externe, ai ailette interne, lp largeur, barre, kg/m, périmètre) sont celles de l'article : une seule source.
+3. **Variables de la série** : un nombre (`jeu = 5`) ou une formule sur les profilés (`rec = OUV.ae - 2`, `fd = DOR.ch + DOR.ai`), avec leur valeur actuelle.
+4. Dans toutes les formules : `CODE.prop` → `DOR.ae`, `OUV.ch`, `DOR.hp`, `MEN.lp`, `OUV.bar`… Un composant de modèle peut être « Profil de la série · OUV » au lieu d'un article fixe.
+5. Un profilé change (nouvelle ailette, nouvelle chambre) → tous les débits de la série suivent, sans toucher aux formules.
+
+## Conception (CAD) — dessiner un châssis une fois
+
+**Technique › Conception (CAD)** → choisir la série, nommer (« Fenêtre AWS 60 »), Nouveau dessin.
+
+- **Vue de face** : cliquez la case → Diviser (meneaux ⇆ / traverses ⇅ en 2, 3, 4), Type (Fixe / Ouvrant / 2 vantaux), Ouverture (gauche, droite, OB, soufflet, projetant, coulissant), Remplissage (verre / panneau / vide), Parclose. Cliquez le dormant → profilé, assemblage 45°/90°, parclose par défaut ; cliquez un meneau → profilé, largeur de chaque partie (vide = automatique). Les cotes (L, H, chaînes de largeurs/hauteurs) et les dimensions des verres s'affichent.
+- **Coupes** : chaque liaison entre profilés (jour du dormant, axe du meneau, recouvrement de l'ouvrant, prise du verre, bord de l'ouvrant au verre, recouvrement entre vantaux) est dessinée en coupe avec les sections des profilés. Faites glisser l'ouvrant / le verre / le jour : la cote mesurée devient la valeur de la liaison (ou tapez-la ; « Revenir au défaut » pour la formule).
+- **Débit** : barres par profilé (longueurs, angles, plan de coupe optimisé, chute), vitrages (dimensions × quantité, plateaux si une composition existe).
+- Changez **L, H, Qté** en haut : tout se recalcule. **Enregistrer** → le dessin devient un **modèle du catalogue** : utilisable dans les devis et projets (cotes et quantités de chaque ligne), rechargeable dans le CAD à tout moment.
+- Quincaillerie, accessoires, main-d'œuvre : bouton **Formules** → ajoutez-les dans le modèle ; ils sont conservés quand vous modifiez le dessin (seules les pièces « CAD » sont régénérées).
+
+## Base technique façon LogiKal : DXF des profilés et nœuds
+
+Le principe :
+- **chaque profilé a sa coupe DXF** ;
+- **chaque liaison entre deux profilés est un nœud**, mesuré une fois sur les DXF ;
+- les cotes de débit de tous les châssis de la série viennent des nœuds, et elles se mettent à jour d'elles-mêmes quand un nœud ou un DXF change. Un modèle déjà enregistré suit sans être réenregistré.
+
+### 1. La coupe DXF de chaque profilé
+On l'importe depuis la fiche article de l'inventaire (bloc « Coupe DXF du profilé »), depuis la bibliothèque de la série (vignette DXF) ou depuis la **fiche profilé** (Technique → Séries → cliquer le profilé).
+
+- Le fichier est la coupe ASCII fournie par le gammiste. Sont lus : lignes, polylignes avec arcs, arcs, cercles, ellipses, splines et blocs. Les cotes, textes et hachures sont ignorés.
+- **Orientation** : tournez ou retournez la coupe jusqu'à ce que X soit dans le plan du châssis (côté dormant ou mur à gauche) et Y la profondeur (extérieur en haut).
+- **Couches** : masquez celles qui contiennent un cartouche ou des axes. Si des lignes ne forment pas un contour fermé, l'écran le signale.
+- Valeurs lues automatiquement sur la coupe et reportées sur la fiche (case cochée par défaut) :
+  - largeur vue de face ;
+  - profondeur ;
+  - section (mm²) ;
+  - **poids au mètre** (section × 2,7 g/cm³) ;
+  - **périmètre extérieur**, utilisé pour le laquage.
+- La fiche profilé affiche la coupe à l'échelle avec ses cotes et un outil **Mesurer**, aimanté sur les sommets, qui donne la distance, ΔX et ΔY.
+- **Rôle** du profilé : dormant, ouvrant, meneau ou traverse, parclose, battement. Il sert à proposer les nœuds manquants.
+
+### 2. Les nœuds (Technique → Séries → la série → « Nœuds »)
+| Nœud | On place | Valeurs utilisées par le CAD |
+|---|---|---|
+| Dormant | les lignes COTE et JOUR sur le dormant | dormant au-delà de la cote (longueur de coupe = cote + 2 ×), cote → jour |
+| Dormant / meneau ↔ ouvrant | l'ouvrant fermé contre le dormant | recouvrement de l'ouvrant |
+| Ouvrant ↔ vitrage | le vitrage (épaisseur) et la parclose dans l'ouvrant | bord ouvrant → verre, bord ouvrant → parclose |
+| Vitrage fixe | le vitrage et la parclose dans le dormant ou le meneau | prise du verre sous le jour, parclose au-delà du jour |
+| Meneau | les lignes AXE et JOUR, l'allongement | axe → jour, allongement à chaque bout |
+| 2 vantaux | le vantail de droite contre le vantail de gauche (retourné), le battement | recouvrement entre vantaux |
+
+Dans l'éditeur de nœud :
+- on glisse les profilés, le vitrage et les lignes à la souris ;
+- ils **s'aimantent** coin sur coin, ou dans l'alignement des sommets des autres profilés (Alt pour désactiver l'aimant) ;
+- les flèches déplacent de 0,1 mm, Maj + flèches de 1 mm, et l'on peut aussi saisir X et Y ;
+- les cotes mesurées s'affichent en direct.
+
+La page de la série propose les nœuds manquants d'après les rôles des profilés. Quand un DXF change, les nœuds qui l'utilisent passent « à vérifier ».
+
+### 3. Dans le CAD
+- **Coupes** : chaque liaison mesurée par un nœud est dessinée avec les vrais DXF assemblés. Une liaison sans nœud est marquée « estimation » (calculée depuis la géométrie simplifiée ae / ch / ai) et propose de **définir le nœud**. On peut aussi forcer une valeur pour un dessin précis.
+- **Vue de face** : en sélectionnant le dormant, un meneau ou un ouvrant, on voit la coupe DXF du profilé choisi, avec ses cotes.
+
+### 4. Accessoires et usinages : sur les profilés et les nœuds
+Comme dans LogiKal, ils sont **rattachés aux profilés et aux nœuds**, et plus à la série.
+
+**Fiche profilé → « Accessoires automatiques »**, ce qui va avec le profilé :
+- **dormant** : équerres par angle, vis par châssis ;
+- **ouvrant** : équerres, joint de frappe au mètre (`long`), ferrure par vantail filtrée par ouverture, taille et poids, avec des groupes S / M / L contrôlés ;
+- **meneau** : connecteurs à chaque bout.
+
+**Fiche profilé → « Usinages »** : drainages, perçages des paumelles, fraisage de crémone, fixation des meneaux aux assemblages (calculée depuis le dessin), avec leurs positions sur la pièce.
+
+**Nœud → « Accessoires »**, ce qui va avec la combinaison :
+- le joint central de chaque vantail pour un nœud dormant ↔ ouvrant ;
+- les cales et le joint de vitrage de chaque vitrage pour un nœud de vitrage.
+
+On les retrouve dans l'onglet Fabrication du CAD, le débit, le devis, les besoins du projet, les ateliers et le dossier de fabrication (PDF).

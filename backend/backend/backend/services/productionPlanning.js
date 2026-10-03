@@ -108,6 +108,21 @@ async function loadContext(companyId, { productIds = [] } = {}) {
     for (const l of g.layers || []) for (const sh of l.sheets || []) ids.push(String(sh));
     for (const x of g.extras || []) if (x.product) ids.push(String(x.product));
   }
+  // Profile library of each series (code → article): DOR.ae… in formulas,
+  // "profil de la série" components. Loaded with their colour variants.
+  ctx.seriesProfiles = await require("./seriesLibrary").loadSeriesProfiles(companyId);
+  for (const lib of ctx.seriesProfiles.values()) for (const p of lib.values()) ids.push(String(p._id));
+  // Nodes of each series (how its profiles meet: CAD deductions) and the
+  // articles of the fabrication rules carried by the profiles and nodes
+  const nodeRows = await require("../models/ProfileNode").find({ company: companyId }).lean();
+  ctx.nodes = new Map();
+  for (const n of nodeRows) {
+    const sid = String(n.series);
+    if (!ctx.nodes.has(sid)) ctx.nodes.set(sid, []);
+    ctx.nodes.get(sid).push(n);
+  }
+  for (const lib of ctx.seriesProfiles.values()) for (const p of lib.values()) for (const r of p.fabRules?.accessories || []) ids.push(String(r.product));
+  for (const n of nodeRows) for (const r of n.rules || []) ids.push(String(r.product));
   await loadProducts(ctx, ids);
   ctx.variantFor = (base, finish) => variantFor(ctx, base, finish);
   return ctx;

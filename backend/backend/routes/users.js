@@ -4,6 +4,7 @@ const router = express.Router();
 
 const User = require("../models/User");
 const Employee = require("../models/Employee");
+const Company = require("../models/Company");
 const { computeInheritedPermissions } = require("../services/employeeAccountService");
 const auth = require("../middleware/auth");
 const {
@@ -36,6 +37,8 @@ router.get("/me", auth, async (req, res) => {
       success: true,
       data: {
         ...user.toObject(),
+        // Theme the interface opens with when the user hasn't picked one
+        companyTheme: await companyThemeFor(user),
         managedDepartments: req.user.managedDepartments || [],
         workshops: req.user.workshops || [],
         managedWorkshops: req.user.managedWorkshops || [],
@@ -49,6 +52,48 @@ router.get("/me", auth, async (req, res) => {
       message: "Error fetching user",
       error: error.message,
     });
+  }
+});
+
+// The company's default theme for this user: the company of their
+// employee record, else a company they own, else the first company of
+// their client. "dark" when nothing says otherwise (the historic look).
+async function companyThemeFor(user) {
+  try {
+    let company = null;
+    if (user.employee) {
+      const emp = await Employee.findById(user.employee).select("company").lean();
+      if (emp?.company) company = await Company.findById(emp.company).select("branding").lean();
+    }
+    if (!company) company = await Company.findOne({ owner: user._id }).select("branding").sort({ createdAt: 1 }).lean();
+    if (!company) company = await Company.findOne({}).select("branding").sort({ createdAt: 1 }).lean();
+    return company?.branding?.darkMode === false ? "light" : "dark";
+  } catch {
+    return "dark";
+  }
+}
+
+// ============================================================
+// MY DISPLAY PREFERENCES
+// PATCH /api/users/me/preferences   body: { theme: "dark" | "light" | null }
+// null = go back to the company's default.
+// ============================================================
+
+router.patch("/me/preferences", auth, async (req, res) => {
+  try {
+    const { theme } = req.body || {};
+    if (theme !== null && theme !== "dark" && theme !== "light") {
+      return res.status(400).json({ success: false, message: "Invalid theme" });
+    }
+    const user = await User.findByIdAndUpdate(
+      req.user.id,
+      { $set: { "preferences.theme": theme } },
+      { new: true, runValidators: true }
+    ).select("preferences");
+    if (!user) return res.status(404).json({ success: false, message: "User not found" });
+    res.json({ success: true, data: user.preferences });
+  } catch (error) {
+    res.status(500).json({ success: false, message: "Error saving preferences", error: error.message });
   }
 });
 

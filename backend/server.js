@@ -241,8 +241,10 @@ app.use("/api/permissions", permissionRoutes);
 app.use("/api/platform", platformRoutes);
 
 // Health check
+const BUILD = 'dxf+noeuds 2026-10-03';
 app.get('/health', (req, res) => {
-  res.json({ status: 'Server is running' });
+  // build: lets you check which version of the code is actually running
+  res.json({ status: 'Server is running', build: BUILD });
 });
 
 // Error handling
@@ -259,6 +261,14 @@ app.use((req, res) => {
 });
 
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
-  console.log(`✓ Server running on port ${PORT}`);
+const httpServer = app.listen(PORT, () => {
+  console.log(`✓ Server running on port ${PORT} — build ${BUILD}`);
+});
+httpServer.on('error', (err) => {
+  if (err.code === 'EADDRINUSE') {
+    // An older server still holds the port: it keeps answering with the old code.
+    console.error(`✗ Port ${PORT} is already used by another process (probably an older server still running). Stop it, then start again.`);
+    process.exit(1);
+  }
+  throw err;
 });

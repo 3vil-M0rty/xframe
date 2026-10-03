@@ -1,5 +1,5 @@
 const PDFDocument = require("pdfkit");
-const { formatDate, drawLetterhead, drawDocumentTitle, finalizeFooters } = require("./pdfHelpers");
+const { formatDate, drawLetterhead, docBrand, drawDocumentTitle, finalizeFooters } = require("./pdfHelpers");
 const { drawPartyBlocks, drawTable, ensureSpace, drawWatermark, COL_X } = require("./purchasingPdfService");
 
 /**
@@ -41,7 +41,8 @@ function unitLabel(n) {
 function sectionTitle(doc, text, width) {
   ensureSpace(doc, 60);
   doc.moveDown(0.8);
-  doc.fontSize(9.5).font("Helvetica-Bold").fillColor("#111").text(text, COL_X, doc.y, { width });
+  doc.fontSize(9.5).font("Helvetica-Bold").fillColor(docBrand(doc).primaryInk).text(text, COL_X, doc.y, { width });
+  doc.fillColor("#000");
   doc.moveDown(0.3);
 }
 

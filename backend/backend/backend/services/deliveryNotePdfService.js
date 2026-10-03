@@ -1,5 +1,5 @@
 const PDFDocument = require("pdfkit");
-const { formatDate, drawLetterhead, drawDocumentTitle, finalizeFooters } = require("./pdfHelpers");
+const { formatDate, drawLetterhead, docBrand, drawDocumentTitle, finalizeFooters } = require("./pdfHelpers");
 const { drawPartyBlocks, drawTable, ensureSpace, drawWatermark, COL_X } = require("./purchasingPdfService");
 
 /**
@@ -18,9 +18,12 @@ const STATUS = { draft: "Brouillon", planned: "Planifié", shipped: "En livraiso
 const qty = (n) => String(Math.round((Number(n) || 0) * 1000) / 1000).replace(".", ",");
 
 function box(doc, x, y, w, h, title, lines = []) {
-  doc.roundedRect(x, y, w, h, 4).lineWidth(0.6).strokeColor("#999").stroke();
-  doc.fontSize(7.5).font("Helvetica-Bold").fillColor("#555").text(title, x + 8, y + 7, { width: w - 16 });
-  let yy = y + 20;
+  // Signature boxes framed in the company's secondary colour
+  const brand = docBrand(doc);
+  doc.roundedRect(x, y, w, h, 4).lineWidth(0.9).strokeColor(brand.secondary).stroke();
+  doc.fontSize(7.5).font("Helvetica-Bold").fillColor(brand.secondaryInk).text(title, x + 8, y + 7, { width: w - 16 });
+  // start under the title even when it wraps onto two lines
+  let yy = Math.max(y + 20, doc.y + 4);
   for (const l of lines) {
     if (!l) continue;
     doc.fontSize(8.5).font("Helvetica").fillColor("#000").text(l, x + 8, yy, { width: w - 16 });
@@ -89,7 +92,7 @@ function generateDeliveryNotePdf({ note, company, logoBuffer }) {
   if (note.extraLines?.length) {
     ensureSpace(doc, 60);
     doc.moveDown(0.6);
-    doc.fontSize(9).font("Helvetica-Bold").fillColor("#111").text("FOURNITURES LIVRÉES", COL_X, doc.y, { width });
+    doc.fontSize(9).font("Helvetica-Bold").fillColor(docBrand(doc).primaryInk).text("FOURNITURES LIVRÉES", COL_X, doc.y, { width });
     doc.moveDown(0.3);
     drawTable(doc, [
       { key: "label", label: "DÉSIGNATION", width: 400 },

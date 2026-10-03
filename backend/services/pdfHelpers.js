@@ -11,9 +11,108 @@
  * ============================================================
  */
 
-function formatDate(date) {
+// ============================================================
+// COMPANY BRAND (colors + date format) — set by drawLetterhead
+// ============================================================
+// Every document opens with drawLetterhead(doc, company), so that is
+// where the company's branding is resolved once:
+//  - doc._brand  → read by the drawing helpers (titles, table
+//    headers, totals, signature boxes) through docBrand(doc);
+//  - an AsyncLocalStorage store → read by formatDate(), which is
+//    called from dozens of places that only have a date in hand.
+//    enterWith() scopes it to the current request's async context,
+//    so two companies printing at the same time never mix formats.
+const { AsyncLocalStorage } = require("async_hooks");
+const brandStore = new AsyncLocalStorage();
+
+const DEFAULT_INK = "#1a1a1a";
+const HEX = /^#?([0-9a-f]{3}|[0-9a-f]{6})$/i;
+
+function normalizeHex(value, fallback) {
+  const m = HEX.exec(String(value || "").trim());
+  if (!m) return fallback;
+  let h = m[1];
+  if (h.length === 3) h = h.split("").map((c) => c + c).join("");
+  return `#${h.toLowerCase()}`;
+}
+
+function rgb(hex) {
+  const h = normalizeHex(hex, DEFAULT_INK).slice(1);
+  return [0, 2, 4].map((i) => parseInt(h.slice(i, i + 2), 16));
+}
+
+// WCAG relative luminance (0 = black, 1 = white)
+function luminance(hex) {
+  const [r, g, b] = rgb(hex).map((v) => {
+    const c = v / 255;
+    return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+  });
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+
+function contrast(a, b) {
+  const [l1, l2] = [luminance(a), luminance(b)].sort((x, y) => y - x);
+  return (l1 + 0.05) / (l2 + 0.05);
+}
+
+/** Black or white, whichever reads better on `background`. */
+function textOn(background) {
+  return contrast(background, "#ffffff") >= contrast(background, "#000000") ? "#ffffff" : "#000000";
+}
+
+/**
+ * The colour itself when it is readable as text/lines on white paper,
+ * otherwise a darkened version of it (a pale yellow brand colour
+ * still gives a legible title, in the same hue).
+ */
+function inkOnWhite(hex) {
+  let [r, g, b] = rgb(hex);
+  for (let i = 0; i < 12; i += 1) {
+    const cur = `#${[r, g, b].map((v) => v.toString(16).padStart(2, "0")).join("")}`;
+    if (contrast(cur, "#ffffff") >= 4.5) return cur;
+    [r, g, b] = [r, g, b].map((v) => Math.round(v * 0.85));
+  }
+  return DEFAULT_INK;
+}
+
+function brandFor(company) {
+  const primary = normalizeHex(company?.branding?.primaryColor, DEFAULT_INK);
+  const secondary = normalizeHex(company?.branding?.secondaryColor, primary);
+  return {
+    primary,
+    secondary,
+    onPrimary: textOn(primary),
+    onSecondary: textOn(secondary),
+    primaryInk: inkOnWhite(primary),
+    secondaryInk: inkOnWhite(secondary),
+    dateFormat: company?.localization?.dateFormat || "DD/MM/YYYY",
+  };
+}
+
+function docBrand(doc) {
+  return doc?._brand || brandFor(null);
+}
+
+/** Applies a company's brand to a document that has no letterhead (payslip). */
+function useCompanyBrand(doc, company) {
+  const brand = brandFor(company);
+  if (doc) doc._brand = brand;
+  brandStore.enterWith(brand);
+  return brand;
+}
+
+const pad2 = (n) => String(n).padStart(2, "0");
+
+/** DD/MM/YYYY by default; follows the company's "Format de date". */
+function formatDate(date, pattern) {
   if (!date) return "—";
-  return new Date(date).toLocaleDateString("fr-FR");
+  const d = new Date(date);
+  if (Number.isNaN(d.getTime())) return "—";
+  const fmt = pattern || brandStore.getStore()?.dateFormat || "DD/MM/YYYY";
+  return fmt
+    .replace("YYYY", String(d.getFullYear()))
+    .replace("MM", pad2(d.getMonth() + 1))
+    .replace("DD", pad2(d.getDate()));
 }
 
 function formatDateLong(date) {
@@ -116,7 +215,8 @@ async function fetchLogoBuffer(company) {
  */
 function drawLetterhead(doc, company, { colX = 40, pageWidth, logoBuffer } = {}) {
   const width = pageWidth ?? doc.page.width - colX * 2;
-  const accentColor = company?.branding?.primaryColor || "#1a1a1a";
+  const brand = useCompanyBrand(doc, company);
+  const accentColor = brand.primary;
 
   // Logo, top-right — sized to fit within a fixed box so a very
   // wide or very tall source image never throws off the layout.
@@ -186,10 +286,12 @@ function drawDocumentTitle(doc, title, { colX = 40, width, ref } = {}) {
   }
 
   doc.moveDown(0.6);
-  doc.fontSize(15).font("Helvetica-Bold").fillColor("#000").text(title, colX, doc.y, { align: "center", width: pageWidth });
+  const brand = docBrand(doc);
+  doc.fontSize(15).font("Helvetica-Bold").fillColor(brand.primaryInk).text(title, colX, doc.y, { align: "center", width: pageWidth });
   doc.moveDown(0.3);
   const ruleY = doc.y;
-  doc.moveTo(colX + pageWidth / 2 - 70, ruleY).lineTo(colX + pageWidth / 2 + 70, ruleY).lineWidth(1.5).stroke("#000");
+  doc.moveTo(colX + pageWidth / 2 - 70, ruleY).lineTo(colX + pageWidth / 2 + 70, ruleY).lineWidth(1.5).stroke(brand.primary);
+  doc.fillColor("#000");
   doc.moveDown(1.3);
 }
 
@@ -199,20 +301,40 @@ function drawDocumentTitle(doc, title, { colX = 40, width, ref } = {}) {
  */
 function drawSignatureBlock(doc, { city, companyName, colX = 40, width } = {}) {
   const pageWidth = width ?? doc.page.width - colX * 2;
+  const brand = docBrand(doc);
   doc.moveDown(2.5);
   const dateLine = city
     ? `Fait à ${city}, le ${formatDateLong(new Date())}`
     : `Le ${formatDateLong(new Date())}`;
+
+  // Keep the date line and its box together on one page
+  const BOX = { width: 210, height: 78 };
+  if (doc.y + 18 + BOX.height > doc.page.height - doc.page.margins.bottom) doc.addPage();
+
   doc.fontSize(9).font("Helvetica").fillColor("#000").text(dateLine, colX, doc.y, { align: "right", width: pageWidth });
-  doc.moveDown(1.6);
-  doc.fontSize(9).font("Helvetica-Bold").text(
+  doc.moveDown(0.6);
+
+  // Signature box in the company's secondary colour: a coloured band
+  // with "Pour <company>", and room underneath to sign and stamp.
+  const x = colX + pageWidth - BOX.width;
+  const top = doc.y;
+  const band = 18;
+  doc.save();
+  doc.roundedRect(x, top, BOX.width, BOX.height, 4).lineWidth(0.9).stroke(brand.secondary);
+  doc.rect(x + 0.45, top + 0.45, BOX.width - 0.9, band).fill(brand.secondary);
+  doc.restore();
+  doc.fontSize(8.5).font("Helvetica-Bold").fillColor(brand.onSecondary).text(
     companyName ? `Pour ${companyName}` : "Signature et cachet de l'entreprise",
-    colX, doc.y, { align: "right", width: pageWidth }
+    x + 8, top + 5, { width: BOX.width - 16, lineBreak: false, ellipsis: true }
   );
   if (companyName) {
-    doc.moveDown(0.2);
-    doc.fontSize(8).font("Helvetica").fillColor("#888").text("Signature et cachet", colX, doc.y, { align: "right", width: pageWidth });
+    doc.fontSize(7).font("Helvetica").fillColor("#888").text(
+      "Signature et cachet", x + 8, top + BOX.height - 13, { width: BOX.width - 16, align: "right", lineBreak: false }
+    );
   }
+  doc.fillColor("#000");
+  doc.x = colX;
+  doc.y = top + BOX.height + 6;
 }
 
 /**
@@ -257,6 +379,11 @@ function finalizeFooters(doc, company) {
 }
 
 module.exports = {
+  brandFor,
+  docBrand,
+  useCompanyBrand,
+  textOn,
+  inkOnWhite,
   formatDate,
   formatDateLong,
   formatAmount,

@@ -183,6 +183,8 @@ export default function ChassisModelEditor() {
   const knownBase = useMemo(() => (model ? [...new Set(["L", "H", "cj", ...(seriesDoc?.variables || []).map((v) => v.key), ...(model.variables || []).map((v) => v.key), ...(model.parameters || []).map((p) => p.key),
     // Profile geometry of the articles (FPPRO-like): own ae/ai/ch/hp/lp and <g>_<role> of the other components.
     "ae", "ai", "ch", "hp", "lp",
+    // Profiles of the series by their code: DOR.ae, OUV.ch…
+    ...[...new Set([...(seriesDoc?.profileCodes || []), ...(model.components || []).map((c) => c.seriesCode).filter(Boolean)])].flatMap((code) => ["ch", "ae", "ai", "hp", "lp", "bar", "kgm", "per"].map((p) => `${code}.${p}`)),
     ...(model.components || []).filter((c) => c.role && c.kind !== "model").flatMap((c) => ["ae", "ai", "ch", "hp", "lp"].map((g) => `${g}_${String(c.role).replace(/[^A-Za-z0-9_]/g, "_")}`))])] : []), [model, seriesDoc]);
   const knownAll = useMemo(() => (model ? [...knownBase, ...(model.derived || []).map((d) => d.key)] : []), [knownBase, model]);
   const articleById = useMemo(() => new Map(articles.map((a) => [String(a._id), a])), [articles]);
@@ -200,7 +202,7 @@ export default function ChassisModelEditor() {
   };
   const productParams = (model.parameters || []).filter((p) => p.type === "product");
   const modelParams = (model.parameters || []).filter((p) => p.type === "model");
-  const unmapped = model.components.filter((c) => c.kind !== "model" && !c.product && !c.productParam).length;
+  const unmapped = model.components.filter((c) => c.kind !== "model" && !c.product && !c.productParam && !c.seriesCode).length;
 
   const body = () => ({
     name: model.name, code: model.code, family: model.family, series: model.series || null, defaultWorkshop: model.defaultWorkshop,
@@ -233,8 +235,11 @@ export default function ChassisModelEditor() {
 
   const varChips = (
     <div className={styles.chips} style={{ marginBottom: 8 }}>
-      {["L", "H", ...knownAll.filter((k) => k !== "L" && k !== "H")].map((k) => (
+      {["L", "H", ...knownAll.filter((k) => k !== "L" && k !== "H" && !k.includes("."))].map((k) => (
         <button key={k} type="button" className={styles.chip} onClick={() => insertRef.current?.(k)} title={t("prod.editor.insertHint")}><span className={styles.chipCode}>{k}</span></button>
+      ))}
+      {(seriesDoc?.profileCodes || []).map((code) => (
+        <button key={`code-${code}`} type="button" className={styles.chip} onClick={() => insertRef.current?.(`${code}.`)} title={t("slib.codeChipHint")}><strong className={styles.chipCode}>{code}.</strong></button>
       ))}
       {["ceil()", "floor()", "round( , 1)", "max( , )", "min( , )", "if( , , )", " ? : "].map((f) => (
         <button key={f} type="button" className={styles.chip} onClick={() => insertRef.current?.(f)}><span className={styles.chipCode}>{f}</span></button>
@@ -372,11 +377,16 @@ export default function ChassisModelEditor() {
             {model.components.map((c, i) => {
               const measure = c.kind === "model" ? "count" : c.measure || DEFAULT_MEASURE[c.kind];
               const article = c.product ? articleById.get(String(c.product)) : null;
-              const sourceValue = c.kind === "model" ? (c.modelParam ? `param:${c.modelParam}` : "fixed") : (c.productParam ? `param:${c.productParam}` : "article");
+              const sourceValue = c.kind === "model" ? (c.modelParam ? `param:${c.modelParam}` : "fixed") : c.seriesCode ? `series:${c.seriesCode}` : (c.productParam ? `param:${c.productParam}` : "article");
+              const seriesCodes = [...new Set([...(seriesDoc?.profileCodes || []), ...(c.seriesCode ? [c.seriesCode] : [])])];
               const sourceOptions = c.kind === "model"
                 ? [{ value: "fixed", label: t("prod.editor.fixedModel") }, ...modelParams.map((p) => ({ value: `param:${p.key}`, label: `${t("prod.editor.fromParam")} « ${p.label || p.key} »` }))]
-                : [{ value: "article", label: t("prod.editor.stockArticle") }, ...productParams.map((p) => ({ value: `param:${p.key}`, label: `${t("prod.editor.fromParam")} « ${p.label || p.key} »` }))];
-              const missing = c.kind !== "model" && !c.product && !c.productParam;
+                : [
+                  ...seriesCodes.map((code) => ({ value: `series:${code}`, label: `${t("slib.fromSeries")} ${seriesDoc?.name || ""} · ${code}` })),
+                  { value: "article", label: t("prod.editor.stockArticle") },
+                  ...productParams.map((p) => ({ value: `param:${p.key}`, label: `${t("prod.editor.fromParam")} « ${p.label || p.key} »` })),
+                ];
+              const missing = c.kind !== "model" && !c.product && !c.productParam && !c.seriesCode;
               const summary = [`${t("prod.editor.qtyShort")} ${c.qty}`, measure === "length" && c.length ? `× ${c.length}` : "", measure === "area" ? `${c.width || "L"} × ${c.height || "H"}` : "", c.condition ? `${t("prod.editor.if")} ${c.condition}` : ""].filter(Boolean).join("  ");
               const materials = KIND_MATERIALS[c.kind] || [];
               const articleOptions = articles.filter((a) => !a.materialType || materials.includes(a.materialType)).map((a) => ({ value: a._id, label: articleLabel(a), searchText: `${a.name} ${a.internalReference || ""}` }));
@@ -390,7 +400,8 @@ export default function ChassisModelEditor() {
                       <strong>{c.label || t("prod.editor.untitled")}</strong>{" "}
                       {c.kind === "model"
                         ? <small>→ {c.modelParam ? `${t("prod.editor.fromParam")} ${c.modelParam}` : models.find((m) => String(m._id) === String(c.subModel))?.name || <span className={styles.unmapped}>{t("prod.editor.toDefine")}</span>}</small>
-                        : missing ? <small className={styles.unmapped}><AlertTriangle size={11} /> {t("prod.editor.noArticle")}</small> : <small>→ {c.productParam ? `${t("prod.editor.fromParam")} ${c.productParam}` : article?.name || "?"}</small>}
+                        : missing ? <small className={styles.unmapped}><AlertTriangle size={11} /> {t("prod.editor.noArticle")}</small> : <small>→ {c.seriesCode ? `${seriesDoc?.name || ""} · ${c.seriesCode}` : c.productParam ? `${t("prod.editor.fromParam")} ${c.productParam}` : article?.name || "?"}</small>}
+                      {c.generated && <small className={styles.kindBadge} style={{ marginLeft: 6 }} title={t("cad.generatedHint")}>CAD</small>}
                       <small style={{ display: "block" }} className={styles.formula}>{summary}</small>
                     </span>
                     <span className="dataTableActions" onClick={(e) => e.stopPropagation()} role="presentation">
@@ -408,12 +419,15 @@ export default function ChassisModelEditor() {
                       {c.kind !== "model" && <label>{t("prod.editor.measure")}<CustomSelect value={measure} onSelect={(v) => setComp(i, { measure: v })} options={["length", "area", "count"].map((m) => ({ value: m, label: t(`prod.measures.${m}`) }))} /></label>}
                       <label>{t("prod.editor.source")}<CustomSelect value={sourceValue} onSelect={(v) => {
                         const param = v.startsWith("param:") ? v.slice(6) : "";
-                        setComp(i, c.kind === "model" ? { modelParam: param, subModel: param ? "" : c.subModel } : { productParam: param, product: param ? "" : c.product });
+                        const code = v.startsWith("series:") ? v.slice(7) : "";
+                        setComp(i, c.kind === "model"
+                          ? { modelParam: param, subModel: param ? "" : c.subModel }
+                          : { productParam: param, seriesCode: code, product: param || code ? "" : c.product });
                       }} options={sourceOptions} /></label>
                       {c.kind === "model" && !c.modelParam && (
                         <label className={styles.wide}>{t("prod.editor.subModel")}<CustomSelect value={c.subModel || ""} onSelect={(v) => setComp(i, { subModel: v })} options={[{ value: "", label: "—" }, ...models.map((m) => ({ value: m._id, label: `${m.name} (${familyLabel(families, m.family, language)})` }))]} /></label>
                       )}
-                      {c.kind !== "model" && !c.productParam && (
+                      {c.kind !== "model" && !c.productParam && !c.seriesCode && (
                         <label className={styles.wide}>{t("prod.editor.article")}<SearchSelect value={c.product || ""} onSelect={(v) => setComp(i, { product: v })} options={articleOptions} icon={Package} placeholder={t("prod.pickArticle")} noResultsLabel={t("prod.editor.noArticleFound")} /></label>
                       )}
                       <label>{t("prod.editor.qty")}<FormulaInput value={c.qty} onChange={(v) => setComp(i, { qty: v })} known={knownAll} placeholder="1" onFocusInsert={(fn) => { insertRef.current = fn; }} /></label>

@@ -279,20 +279,69 @@ function cleanVariables(input) {
   }
   return out;
 }
+const library = require("../services/seriesLibrary");
+
+const PROFILE_SELECT = `name internalReference unit quantity materialType stockMode profileSeries seriesCode profileRole section fabRules ${library.GEOMETRY_FIELDS.join(" ")}`;
+const seriesCodesOf = async (seriesId) => (await Product.find({ profileSeries: seriesId, seriesCode: { $nin: [null, ""] }, baseProduct: null }).select("seriesCode").lean()).map((p) => p.seriesCode);
+
 router.get("/series", async (req, res) => {
   try {
     const company = await companyFrom(req, res);
     if (!company) return;
     const rows = await ProfileSeries.find({ company }).sort({ name: 1 }).lean();
-    const counts = await ChassisModel.find({ company, series: { $in: rows.map((r) => r._id) } }).select("series").lean();
-    for (const r of rows) r.modelCount = counts.filter((c) => String(c.series) === String(r._id)).length;
+    const ids = rows.map((r) => r._id);
+    const [models, profiles] = await Promise.all([
+      ChassisModel.find({ company, series: { $in: ids } }).select("series").lean(),
+      Product.find({ company, profileSeries: { $in: ids }, baseProduct: null }).select("profileSeries seriesCode").lean(),
+    ]);
+    for (const r of rows) {
+      r.modelCount = models.filter((c) => String(c.series) === String(r._id)).length;
+      // the codes of its profile library (DOR, OUV…), for the formula editors
+      r.profileCodes = profiles.filter((p) => String(p.profileSeries) === String(r._id) && p.seriesCode).map((p) => p.seriesCode).sort();
+    }
     res.json({ success: true, data: rows });
   } catch (error) { handle(res, error, "Error loading the series"); }
 });
+
+/**
+ * One series with its profile library (articles + geometry + stock), its
+ * variables WITH their current values, and its models.
+ */
+router.get("/series/:id", async (req, res) => {
+  try {
+    if (!isId(req.params.id)) return bad(res, "Invalid ID");
+    const s = await ProfileSeries.findById(req.params.id).lean();
+    if (!s) return bad(res, "Series not found", 404);
+    const [profiles, models] = await Promise.all([
+      Product.find({ profileSeries: s._id, baseProduct: null }).select(PROFILE_SELECT).sort({ seriesCode: 1, name: 1 }).lean(),
+      ChassisModel.find({ series: s._id }).select("name code family isActive components").sort({ name: 1 }).lean(),
+    ]);
+    const byCode = new Map(profiles.filter((p) => p.seriesCode).map((p) => [p.seriesCode, p]));
+    const vars = { cj: 0, ...library.profileVars(byCode) };
+    const errors = [];
+    library.resolveSeriesVariables(s, vars, errors);
+    const usedCodes = new Set(models.flatMap((m) => (m.components || []).map((c) => c.seriesCode).filter(Boolean)));
+    res.json({
+      success: true,
+      data: {
+        ...s,
+        profiles: profiles.map((p) => ({ ...p, props: library.profileProps(p) })),
+        variables: (s.variables || []).map((v) => ({ ...v, current: vars[v.key], error: errors.find((e) => e.where.endsWith(v.label || v.key))?.message || null })),
+        models: models.map((m) => ({ _id: m._id, name: m.name, code: m.code, family: m.family, isActive: m.isActive })),
+        nodeCount: await ProfileNode.countDocuments({ series: s._id }),
+        // codes the models ask for but no article carries yet
+        missingCodes: [...usedCodes].filter((c) => !byCode.has(c)).sort(),
+      },
+    });
+  } catch (error) { handle(res, error, "Error loading the series"); }
+});
+
+const fabrication = require("../services/chassisFabrication");
 async function applySeries(s, body) {
   for (const k of ["name", "supplier", "description"]) if (body[k] !== undefined) s[k] = body[k];
   if (body.families !== undefined) s.families = (Array.isArray(body.families) ? body.families : []).filter((f) => FAMILIES.some((x) => x.key === f));
-  if (body.variables !== undefined) s.variables = cleanVariables(body.variables);
+  const codes = s._id && !s.isNew ? await seriesCodesOf(s._id) : [];
+  if (body.variables !== undefined) s.variables = library.cleanSeriesVariables(body.variables, codes, isValidVariableName);
   if (body.isActive !== undefined) s.isActive = !!body.isActive;
 }
 router.post("/series", async (req, res) => {
@@ -334,9 +383,99 @@ router.delete("/series/:id", async (req, res) => {
     const s = await ProfileSeries.findById(req.params.id);
     if (!s) return bad(res, "Series not found", 404);
     if (await ChassisModel.exists({ series: s._id })) return bad(res, "Move or delete the models of this series first", 409);
+    await Product.updateMany({ profileSeries: s._id }, { $set: { profileSeries: null, seriesCode: null } });
     await s.deleteOne();
     res.json({ success: true, message: "Series deleted" });
   } catch (error) { handle(res, error, "Error deleting the series"); }
+});
+
+// ----- profile library of a series -----
+async function assertFreeCode(seriesId, code, productId = null) {
+  const clash = await Product.findOne({ profileSeries: seriesId, seriesCode: code, baseProduct: null, ...(productId ? { _id: { $ne: productId } } : {}) }).select("name").lean();
+  if (clash) throw Object.assign(new Error(`Le code ${code} est déjà celui de « ${clash.name} » dans cette série`), { status: 409 });
+}
+
+/** Profile articles not yet in this series, each with a suggested code (picker). */
+router.get("/series/:id/candidates", async (req, res) => {
+  try {
+    if (!isId(req.params.id)) return bad(res, "Invalid ID");
+    const s = await ProfileSeries.findById(req.params.id).lean();
+    if (!s) return bad(res, "Series not found", 404);
+    const filter = { company: s.company, baseProduct: null, isActive: { $ne: false }, profileSeries: { $ne: s._id }, materialType: { $in: ["profile", null] } };
+    if (req.query.search) {
+      const rx = { $regex: String(req.query.search).replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), $options: "i" };
+      filter.$or = [{ name: rx }, { internalReference: rx }];
+    }
+    const rows = await Product.find(filter).select(PROFILE_SELECT).sort({ name: 1 }).limit(200).populate("profileSeries", "name").lean();
+    const used = new Set(await seriesCodesOf(s._id));
+    res.json({
+      success: true,
+      data: rows.map((p) => {
+        const code = library.suggestCode(p.name, used);
+        used.add(code);
+        return { ...p, suggestedCode: code };
+      }),
+    });
+  } catch (error) { handle(res, error, "Error loading the articles"); }
+});
+
+/** Puts articles in the series with their code: { items: [{ product, code }] }. */
+router.post("/series/:id/profiles", async (req, res) => {
+  try {
+    if (!isId(req.params.id)) return bad(res, "Invalid ID");
+    const s = await ProfileSeries.findById(req.params.id).lean();
+    if (!s) return bad(res, "Series not found", 404);
+    const items = (Array.isArray(req.body.items) ? req.body.items : []).filter((x) => isId(x?.product));
+    const codes = items.map((x) => library.normalizeCode(x.code));
+    if (codes.some((c) => !c)) return bad(res, "Chaque profilé a besoin d'un code (lettres et chiffres, ex. DOR, OUV2)");
+    if (new Set(codes).size !== codes.length) return bad(res, "Deux profilés ont le même code", 409);
+    for (const [i, x] of items.entries()) await assertFreeCode(s._id, codes[i], x.product);
+    let added = 0;
+    for (const [i, x] of items.entries()) {
+      const art = await Product.findOne({ _id: x.product, company: s.company, baseProduct: null }).select("name profileRole").lean();
+      if (!art) continue;
+      const r = await Product.updateOne({ _id: x.product }, { $set: { profileSeries: s._id, seriesCode: codes[i], materialType: "profile", ...(art.profileRole ? {} : { profileRole: library.suggestRole(codes[i], art.name) }) } });
+      added += r.modifiedCount ?? r.nModified ?? 0;
+    }
+    res.status(201).json({ success: true, data: { added } });
+  } catch (error) { handle(res, error, "Error adding the profiles"); }
+});
+
+/** Code and geometry of one profile, edited from the series page (the article itself is updated). */
+router.patch("/series/:id/profiles/:productId", async (req, res) => {
+  try {
+    if (!isId(req.params.id) || !isId(req.params.productId)) return bad(res, "Invalid ID");
+    const p = await Product.findOne({ _id: req.params.productId, profileSeries: req.params.id });
+    if (!p) return bad(res, "This article is not a profile of the series", 404);
+    if (req.body.code !== undefined) {
+      const code = library.normalizeCode(req.body.code);
+      if (!code) return bad(res, "Code invalide (lettres et chiffres, ex. DOR, OUV2)");
+      await assertFreeCode(req.params.id, code, p._id);
+      p.seriesCode = code;
+    }
+    if (req.body.role !== undefined) {
+      if (!["frame", "sash", "mullion", "bead", "meeting", "other"].includes(req.body.role)) return bad(res, "Rôle de profilé inconnu");
+      p.profileRole = req.body.role;
+    }
+    for (const f of library.GEOMETRY_FIELDS) {
+      if (req.body[f] === undefined) continue;
+      const v = req.body[f] === "" || req.body[f] === null ? null : Number(req.body[f]);
+      if (v !== null && !(Number.isFinite(v) && v >= 0)) return bad(res, "Enter positive numbers");
+      p[f] = v;
+    }
+    p.updatedBy = req.user.id;
+    await p.save();
+    await library.syncVariants(p._id, p.toObject());
+    res.json({ success: true, data: { ...p.toObject(), props: library.profileProps(p) } });
+  } catch (error) { handle(res, error, "Error saving the profile"); }
+});
+
+router.delete("/series/:id/profiles/:productId", async (req, res) => {
+  try {
+    if (!isId(req.params.id) || !isId(req.params.productId)) return bad(res, "Invalid ID");
+    await Product.updateOne({ _id: req.params.productId, profileSeries: req.params.id }, { $set: { profileSeries: null, seriesCode: null } });
+    res.json({ success: true, message: "Profile removed from the series" });
+  } catch (error) { handle(res, error, "Error removing the profile"); }
 });
 
 // ================= catalogue (templates) =================
@@ -394,7 +533,8 @@ async function cleanModel(body, companyId, selfId = null) {
     out.family = body.family;
   }
   if (body.defaultWorkshop !== undefined) out.defaultWorkshop = String(body.defaultWorkshop || "ALU").toUpperCase();
-  if (body.drawing !== undefined) out.drawing = cleanDrawing(body.drawing);
+  if (body.drawing !== undefined) out.drawing = body.drawing?.type === "design" ? { type: "design", layout: Array.isArray(body.drawing.layout) ? body.drawing.layout.slice(0, 200) : [] } : cleanDrawing(body.drawing);
+  if (body.design !== undefined) out.design = body.design;
   if (body.vatRate !== undefined) out.vatRate = num(body.vatRate, 20);
   if (body.isActive !== undefined) out.isActive = !!body.isActive;
   if (body.limits !== undefined) out.limits = { minL: num(body.limits?.minL), maxL: num(body.limits?.maxL), minH: num(body.limits?.minH), maxH: num(body.limits?.maxH) };
@@ -422,8 +562,14 @@ async function cleanModel(body, companyId, selfId = null) {
   const variables = out.variables || existing?.variables || [];
   const seriesId = out.series !== undefined ? out.series : existing?.series;
   const series = seriesId ? await ProfileSeries.findById(seriesId).lean() : null;
+  // Profiles of the series (DOR.ae, OUV.ch…) — and the codes the components
+  // ask for, so a model can be written before every profile is in stock.
+  const libCodes = series
+    ? (await Product.find({ profileSeries: series._id, seriesCode: { $nin: [null, ""] }, baseProduct: null }).select("seriesCode").lean()).map((p) => p.seriesCode)
+    : [];
+  const compCodes = (Array.isArray(components) ? components : []).map((c) => library.normalizeCode(c?.seriesCode)).filter(Boolean);
 
-  const known = new Set(["L", "H", "cj", ...(series?.variables || []).map((v) => v.key), ...variables.map((v) => v.key)]);
+  const known = new Set(["L", "H", "cj", ...(series?.variables || []).map((v) => v.key), ...variables.map((v) => v.key), ...library.profileVarNames([...libCodes, ...compCodes])]);
   const cleanParams = [];
   for (const p of Array.isArray(parameters) ? parameters : []) {
     const key = String(p?.key || "").trim();
@@ -477,7 +623,9 @@ async function cleanModel(body, companyId, selfId = null) {
     }
     if (c.productParam && paramByKey.get(c.productParam)?.type !== "product") fail(`${n}: "${c.productParam}" is not an article parameter`);
     if (c.modelParam && paramByKey.get(c.modelParam)?.type !== "model") fail(`${n}: "${c.modelParam}" is not a model parameter`);
-    if (c.product) { if (!isId(c.product)) fail(`${n}: invalid article`); productIds.push(String(c.product)); }
+    const seriesCode = c.kind === "model" ? "" : library.normalizeCode(c.seriesCode) || "";
+    if (seriesCode && !series) fail(`${n}: « profil de la série » needs the model to belong to a series`);
+    if (c.product && !seriesCode) { if (!isId(c.product)) fail(`${n}: invalid article`); productIds.push(String(c.product)); }
     if (c.subModel) {
       if (!isId(c.subModel) || String(c.subModel) === String(selfId)) fail(`${n}: invalid sub-model`);
       modelIds.push(String(c.subModel));
@@ -485,8 +633,10 @@ async function cleanModel(body, companyId, selfId = null) {
     cleanComponents.push({
       ...(c._id && isId(c._id) ? { _id: c._id } : {}),
       role: String(c.role || `c${i + 1}`).trim().slice(0, 60), label: String(c.label).trim().slice(0, 150), kind: c.kind, measure,
-      product: c.kind === "model" ? null : c.product || null, subModel: c.kind === "model" ? c.subModel || null : null,
-      productParam: c.kind === "model" ? "" : String(c.productParam || ""), modelParam: c.kind === "model" ? String(c.modelParam || "") : "",
+      product: c.kind === "model" || seriesCode ? null : c.product || null, subModel: c.kind === "model" ? c.subModel || null : null,
+      productParam: c.kind === "model" || seriesCode ? "" : String(c.productParam || ""), modelParam: c.kind === "model" ? String(c.modelParam || "") : "",
+      seriesCode,
+      generated: !!c.generated,
       qty: String(c.qty).trim(), length: String(c.length || "").trim(), width: String(c.width || "").trim(), height: String(c.height || "").trim(),
       angle: String(c.angle || "").slice(0, 20), finish: ["project", "raw", "none"].includes(c.finish) ? c.finish : "none",
       workshop: String(c.workshop || "").toUpperCase().slice(0, 12), condition: String(c.condition || "").trim(),
@@ -546,7 +696,7 @@ router.get("/models", async (req, res) => {
       data: rows.map((m) => ({
         ...m,
         componentCount: (m.components || []).length,
-        unmapped: (m.components || []).filter((c) => c.kind !== "model" && !c.product && !c.productParam).length,
+        unmapped: (m.components || []).filter((c) => c.kind !== "model" && !c.product && !c.productParam && !c.seriesCode).length,
         components: req.query.full === "true" ? m.components : undefined,
       })),
     });
@@ -566,12 +716,157 @@ router.get("/models/:id", async (req, res) => {
   } catch (error) { handle(res, error, "Error loading the model"); }
 });
 
+// ================= CAD design → model =================
+const design = require("../services/chassisDesign");
+const nodes = require("../services/profileNodes");
+const { buildCuttingReport } = require("../services/cuttingReport");
+
+/**
+ * A body carrying `design`: the design is cleaned and turned into the
+ * model's generated parts (kept: the parts added by hand). The drawing
+ * at the preview size is stored for the catalogue thumbnail.
+ */
+async function withDesign(body, existing, company) {
+  if (body.design === undefined) return body;
+  if (body.design === null) return { ...body, design: null };
+  const d = design.cleanDesign(body.design);
+  const seriesId = body.series !== undefined ? body.series : existing?.series;
+  if (!seriesId) throw Object.assign(new Error("Choisissez la série du dessin"), { status: 400 });
+  const ctx = await loadContext(company);
+  const series = ctx.series.get(String(seriesId));
+  const gen = design.generate(d, nodes.lookupFor(series, ctx));
+  const merged = design.mergeIntoModel({
+    derived: body.derived ?? existing?.derived, components: body.components ?? existing?.components, parameters: body.parameters ?? existing?.parameters,
+  }, gen);
+  const vars = bom.buildVariables({ ...(existing || {}), ...body, ...merged }, series, d.preview.L, d.preview.H, {}, ctx).vars;
+  d.layout = design.layoutOf(gen.regions, vars).map(({ id, type, x, y, w, h, opening, slide }) => ({ id, type, x, y, w, h, opening, slide }));
+  return { ...body, ...merged, design: d, drawing: { type: "design", layout: d.layout } };
+}
+
+async function computeDesign(company, body) {
+  const d = design.cleanDesign(body.design);
+  const existing = isId(body.model) ? await ChassisModel.findOne({ _id: body.model, company }).lean() : null;
+  const ctx = await loadContext(company);
+  const seriesId = body.series || existing?.series;
+  const series = seriesId ? ctx.series.get(String(seriesId)) : null;
+  if (!series) throw Object.assign(new Error("Choisissez la série du dessin"), { status: 400 });
+  const gen = design.generate(d, nodes.lookupFor(series, ctx));
+  const merged = design.mergeIntoModel(existing || {}, gen);
+  const model = {
+    _id: "design-preview", name: body.name || existing?.name || "Dessin", series: series._id, defaultWorkshop: existing?.defaultWorkshop || "ALU",
+    variables: existing?.variables || [], limits: {}, labour: existing?.labour || [], ...merged, design: d, _gen: gen,
+  };
+  ctx.models.set("design-preview", model);
+  const L = num(body.L, d.preview.L);
+  const H = num(body.H, d.preview.H);
+  const quantity = Math.max(1, Math.round(num(body.quantity, d.preview.quantity)));
+  // default glass composition / panel: the one asked, else the first one
+  const params = { ...(body.params || {}) };
+  if (gen.parameters.some((p) => p.key === "vitrage") && !params.vitrage) params.vitrage = [...ctx.glassTypes.keys()][0] || null;
+  if (gen.parameters.some((p) => p.key === "panneau") && !params.panneau) {
+    params.panneau = [...ctx.models.values()].find((m) => m.family === "remplissage")?._id?.toString() || null;
+  }
+  await loadProducts(ctx, Object.values(params).filter((v) => typeof v === "string" && isId(v)));
+  const { vars, refs } = bom.buildVariables(model, series, L, H, params, ctx);
+  const finish = body.finish && ctx.finishes.has(String(body.finish)) ? String(body.finish) : null;
+  const r = bom.expandItem({ model: "design-preview", L, H, quantity, params, finish, ref: body.ref || "D" }, ctx);
+  const needs = bom.aggregateNeeds(r.lines, ctx).map((n) => ({ ...n, product: n.product ? ctx.products.get(String(n.product)) || null : null, finish: n.finish ? ctx.finishes.get(String(n.finish)) || null : null }));
+  const report = buildCuttingReport(needs, { settings: ctx.settings });
+  const layout = design.layoutOf(gen.regions, vars);
+  // glass / panel sizes straight from the drawing (even without a glass composition)
+  const panes = new Map();
+  for (const g of layout.filter((x) => x.type === "glass" || x.type === "panel")) {
+    const key = `${g.type}|${g.w}|${g.h}`;
+    if (!panes.has(key)) panes.set(key, { type: g.type, width: g.w, height: g.h, qty: 0, cells: [] });
+    const pane = panes.get(key);
+    pane.qty += quantity;
+    if (!pane.cells.includes(g.no)) pane.cells.push(g.no);
+  }
+  // fabrication: pieces with their machining, leaves (weight, hardware that fits), checks
+  const fab = fabrication.analyze(model, series, vars, refs, ctx);
+  const productName = (id) => (id ? ctx.products.get(String(id))?.name || null : null);
+  return {
+    ctx, series, model, L, H, quantity, params,
+    data: {
+      design: d,
+      layout,
+      panes: [...panes.values()],
+      hasGlassTypes: ctx.glassTypes.size > 0,
+      glassType: params.vitrage ? ctx.glassTypes.get(String(params.vitrage))?.name || null : null,
+      links: gen.links.map((l) => ({ ...l, value: vars[l.key] })),
+      lines: r.lines.map((l) => ({ ...l, productName: productName(l.product), seriesCode: model.components.find((c) => c.role === l.role)?.seriesCode || "" })),
+      report,
+      fabrication: fab ? {
+        pieces: fab.pieces.map((p) => ({ ...p, productName: productName(p.product), totalQty: p.qty * quantity })),
+        leaves: fab.leaves,
+        panes: fab.panes,
+        checks: fab.checks,
+        rules: (() => {
+          const lib = [...(ctx.seriesProfiles.get(String(series._id))?.values() || [])];
+          const nodeList = ctx.nodes?.get(String(series._id)) || [];
+          return {
+            accessories: lib.reduce((n, p) => n + (p.fabRules?.accessories?.length || 0), 0) + nodeList.reduce((n, x) => n + (x.rules?.length || 0), 0),
+            machining: lib.reduce((n, p) => n + (p.fabRules?.machining?.length || 0), 0),
+          };
+        })(),
+      } : null,
+      errors: r.errors,
+      warnings: r.warnings,
+      params,
+    },
+  };
+}
+
+/**
+ * CAD preview without saving: drawing (regions in mm), liaisons with their
+ * values, cut list and bar / glass plans, accessories and machining from
+ * the series' rules, for L × H × quantity.
+ * body: { company, series, design, L, H, quantity, params, model?, finish? }
+ */
+router.post("/designs/preview", async (req, res) => {
+  try {
+    const company = await companyFrom(req, res, "body");
+    if (!company) return;
+    const { data } = await computeDesign(company, req.body);
+    res.json({ success: true, data });
+  } catch (error) { handle(res, error, "Error computing the design"); }
+});
+
+/**
+ * DOSSIER DE FABRICATION (PDF) of a CAD design at L × H × quantity:
+ * plan coté, liste de débit, plans de coupe, fiche d'usinage, accessoires,
+ * vitrages. body = the preview body + { sections?: [...] }
+ */
+router.post("/designs/dossier", async (req, res) => {
+  try {
+    const company = await companyFrom(req, res, "body");
+    if (!company) return;
+    const out = await computeDesign(company, req.body);
+    const Company = require("../models/Company");
+    const comp = await Company.findById(company).lean();
+    const { fetchLogoBuffer } = require("../services/pdfHelpers");
+    const logoBuffer = await fetchLogoBuffer(comp).catch(() => null);
+    const { generateFabricationPdf } = require("../services/fabricationPdfService");
+    const finish = req.body.finish ? out.ctx.finishes.get(String(req.body.finish)) : null;
+    const doc = generateFabricationPdf({
+      company: comp, logoBuffer,
+      name: out.model.name, series: out.series, L: out.L, H: out.H, quantity: out.quantity, finish,
+      data: out.data, sections: Array.isArray(req.body.sections) ? req.body.sections : null, ref: req.body.ref || "",
+    });
+    const safe = String(out.model.name || "dossier").normalize("NFD").replace(/[^A-Za-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 60) || "dossier";
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", `inline; filename="fabrication-${safe}-${Math.round(out.L)}x${Math.round(out.H)}.pdf"`);
+    doc.pipe(res);
+    doc.end();
+  } catch (error) { handle(res, error, "Error building the fabrication file"); }
+});
+
 router.post("/models", async (req, res) => {
   try {
     if (!canWrite(req, res)) return;
     const company = await companyFrom(req, res, "body");
     if (!company) return;
-    const data = await cleanModel({ family: "autre", components: [], parameters: [], derived: [], ...req.body }, company);
+    const data = await cleanModel(await withDesign({ family: "autre", components: [], parameters: [], derived: [], ...req.body }, null, company), company);
     const m = await ChassisModel.create({ ...data, company, createdBy: req.user.id, updatedBy: req.user.id });
     await logAudit(req, { company, action: "create", resourceType: "ChassisModel", resourceId: m._id, resourceLabel: m.name });
     res.status(201).json({ success: true, data: m });
@@ -605,8 +900,9 @@ router.put("/models/:id", async (req, res) => {
     if (!isId(req.params.id)) return bad(res, "Invalid ID");
     const m = await ChassisModel.findById(req.params.id);
     if (!m) return bad(res, "Model not found", 404);
-    const data = await cleanModel(req.body, m.company, m._id);
+    const data = await cleanModel(await withDesign(req.body, m.toObject(), m.company), m.company, m._id);
     Object.assign(m, data, { updatedBy: req.user.id });
+    if (data.design !== undefined) m.markModified("design");
     await m.save();
     res.json({ success: true, data: m });
   } catch (error) { handle(res, error, "Error saving the model"); }
@@ -700,7 +996,7 @@ router.post("/models/:id/test", async (req, res) => {
     const r = bom.expandItem(spec, ctx);
     const needs = bom.aggregateNeeds(r.lines, ctx);
     const price = bom.priceChassis(spec, ctx);
-    const vars = bom.buildVariables(ctx.models.get(String(m._id)), ctx.models.get(String(m._id)).series ? ctx.series.get(String(ctx.models.get(String(m._id)).series)) : null, spec.L, spec.H, params).vars;
+    const vars = bom.buildVariables(ctx.models.get(String(m._id)), ctx.models.get(String(m._id)).series ? ctx.series.get(String(ctx.models.get(String(m._id)).series)) : null, spec.L, spec.H, params, ctx).vars;
     res.json({
       success: true,
       data: {
@@ -858,6 +1154,238 @@ router.delete("/glass-types/:id", async (req, res) => {
     await logAudit(req, { company: doc.company, action: "delete", resourceType: "GlassType", resourceId: doc._id, resourceLabel: doc.name });
     res.json({ success: true });
   } catch (error) { handle(res, error, "Error deleting the glass composition"); }
+});
+
+
+// ================= profile sections (DXF) =================
+const multer = require("multer");
+const dxf = require("../services/dxfSection");
+const ProfileSection = require("../models/ProfileSection");
+const ProfileNode = require("../models/ProfileNode");
+const dxfUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 8 * 1024 * 1024 } });
+const jsonField = (v, def) => { if (v === undefined || v === null || v === "") return def; if (typeof v === "object") return v; try { return JSON.parse(v); } catch { return def; } };
+const cleanTransform = (t = {}) => ({ rot: [0, 90, 180, 270].includes(Number(t.rot)) ? Number(t.rot) : 0, flipX: t.flipX === true || t.flipX === "true", flipY: t.flipY === true || t.flipY === "true" });
+const sectionOut = (s) => (s ? { _id: s._id, product: s.product, fileName: s.fileName, units: s.units, scale: s.scale, layers: s.layers, hiddenLayers: s.hiddenLayers, transform: s.transform, paths: s.paths, metrics: s.metrics, updatedAt: s.updatedAt, hasSource: !!s.source } : null);
+async function profileOf(req, res) {
+  if (!isId(req.params.productId)) { bad(res, "Invalid ID"); return null; }
+  const p = await Product.findOne({ _id: req.params.productId, baseProduct: null });
+  if (!p) { bad(res, "Article introuvable", 404); return null; }
+  return p;
+}
+/** Fills the article from its section (in-plane / depth / kg/m / perimeter) and its colour variants. */
+async function applySectionToProduct(p, metrics, apply, actorId) {
+  p.section = { fileName: p.section?.fileName || null, width: metrics.width, height: metrics.height, area: metrics.area, updatedAt: new Date() };
+  if (apply) Object.assign(p, dxf.productFieldsFrom(metrics));
+  if (p.materialType !== "profile") p.materialType = "profile";
+  p.updatedBy = actorId;
+  await p.save();
+  if (apply) await library.syncVariants(p._id, p.toObject());
+  // nodes measured with the old drawing: to check
+  await ProfileNode.updateMany({ $or: [{ main: p._id }, { second: p._id }, { bead: p._id }] }, { $set: { stale: true } });
+}
+
+/** Parses a DXF without saving (import screen preview / orientation). multipart: file, transform, hiddenLayers, scale */
+router.post("/profiles/section/preview", dxfUpload.single("file"), async (req, res) => {
+  try {
+    if (!req.file) return bad(res, "Choisissez un fichier DXF");
+    const parsed = dxf.parse(req.file.buffer.toString("utf8"), { scale: num(req.body.scale) });
+    const built = dxf.build(parsed.pieces, { transform: cleanTransform(jsonField(req.body.transform, {})), hiddenLayers: jsonField(req.body.hiddenLayers, []) });
+    res.json({ success: true, data: { fileName: req.file.originalname, units: parsed.units, scale: parsed.scale, layers: parsed.layers, ...built } });
+  } catch (error) { handle(res, error, "Error reading the DXF"); }
+});
+
+router.get("/profiles/:productId/section", async (req, res) => {
+  try {
+    const p = await profileOf(req, res);
+    if (!p) return;
+    const s = await ProfileSection.findOne({ product: p._id }).select("-pieces -source").lean();
+    const full = s ? await ProfileSection.exists({ product: p._id, source: { $ne: null } }) : null;
+    res.json({ success: true, data: s ? { ...sectionOut(s), hasSource: !!full } : null });
+  } catch (error) { handle(res, error, "Error loading the section"); }
+});
+
+/** Imports (or replaces) the DXF of a profile. multipart: file, transform, hiddenLayers, scale, applyToProduct */
+router.post("/profiles/:productId/section", dxfUpload.single("file"), async (req, res) => {
+  try {
+    const p = await profileOf(req, res);
+    if (!p) return;
+    if (!req.file) return bad(res, "Choisissez un fichier DXF");
+    const text = req.file.buffer.toString("utf8");
+    const parsed = dxf.parse(text, { scale: num(req.body.scale) });
+    const transform = cleanTransform(jsonField(req.body.transform, {}));
+    const hiddenLayers = (jsonField(req.body.hiddenLayers, []) || []).map(String).slice(0, 200);
+    const built = dxf.build(parsed.pieces, { transform, hiddenLayers });
+    const doc = await ProfileSection.findOneAndUpdate(
+      { company: p.company, product: p._id },
+      { $set: {
+        company: p.company, product: p._id, fileName: String(req.file.originalname || "profil.dxf").slice(0, 200),
+        source: text.length <= 3 * 1024 * 1024 ? text : null, units: parsed.units, scale: parsed.scale, layers: parsed.layers, hiddenLayers,
+        pieces: dxf.packPieces(parsed.pieces), transform, paths: built.paths, metrics: built.metrics, uploadedBy: req.user.id,
+      } },
+      { upsert: true, new: true },
+    );
+    p.section = { ...(p.section || {}), fileName: doc.fileName };
+    await applySectionToProduct(p, built.metrics, req.body.applyToProduct !== "false", req.user.id);
+    await logAudit(req, { company: p.company, action: "update", resourceType: "Product", resourceId: p._id, resourceLabel: `${p.name} — coupe DXF ${doc.fileName}` });
+    res.status(201).json({ success: true, data: { section: sectionOut(doc.toObject()), product: { _id: p._id, ...dxf.productFieldsFrom(built.metrics), section: p.section } } });
+  } catch (error) { handle(res, error, "Error importing the DXF"); }
+});
+
+/** Re-orients the section / hides layers without re-importing. body: { transform, hiddenLayers, applyToProduct } */
+router.patch("/profiles/:productId/section", async (req, res) => {
+  try {
+    const p = await profileOf(req, res);
+    if (!p) return;
+    const doc = await ProfileSection.findOne({ product: p._id });
+    if (!doc) return bad(res, "Aucune coupe DXF pour cet article", 404);
+    if (req.body.transform !== undefined) doc.transform = cleanTransform(req.body.transform);
+    if (req.body.hiddenLayers !== undefined) doc.hiddenLayers = (Array.isArray(req.body.hiddenLayers) ? req.body.hiddenLayers : []).map(String).slice(0, 200);
+    const built = dxf.build(dxf.unpackPieces(doc.pieces), { transform: doc.transform, hiddenLayers: doc.hiddenLayers });
+    doc.paths = built.paths;
+    doc.metrics = built.metrics;
+    doc.markModified("paths");
+    doc.markModified("metrics");
+    await doc.save();
+    await applySectionToProduct(p, built.metrics, req.body.applyToProduct !== false, req.user.id);
+    res.json({ success: true, data: { section: sectionOut(doc.toObject()), product: { _id: p._id, ...dxf.productFieldsFrom(built.metrics) } } });
+  } catch (error) { handle(res, error, "Error saving the section"); }
+});
+
+router.delete("/profiles/:productId/section", async (req, res) => {
+  try {
+    const p = await profileOf(req, res);
+    if (!p) return;
+    await ProfileSection.deleteOne({ product: p._id });
+    p.section = { fileName: null, width: null, height: null, area: null, updatedAt: null };
+    await p.save();
+    res.json({ success: true, message: "Coupe DXF supprimée" });
+  } catch (error) { handle(res, error, "Error deleting the section"); }
+});
+
+/** The original DXF file. */
+router.get("/profiles/:productId/section/source", async (req, res) => {
+  try {
+    const p = await profileOf(req, res);
+    if (!p) return;
+    const s = await ProfileSection.findOne({ product: p._id }).select("fileName source").lean();
+    if (!s?.source) return bad(res, "Fichier d'origine non conservé", 404);
+    res.setHeader("Content-Type", "application/dxf");
+    res.setHeader("Content-Disposition", `attachment; filename="${String(s.fileName || "profil.dxf").replace(/[^\w.\- ]+/g, "_")}"`);
+    res.send(s.source);
+  } catch (error) { handle(res, error, "Error loading the DXF"); }
+});
+
+/** Fabrication rules carried by a profile: { accessories, machining }. */
+router.put("/profiles/:productId/fab-rules", async (req, res) => {
+  try {
+    const p = await profileOf(req, res);
+    if (!p) return;
+    const series = p.profileSeries ? await ProfileSeries.findById(p.profileSeries).lean() : null;
+    const codes = series ? await seriesCodesOf(series._id) : [];
+    const known = fabrication.knownNames(codes, series?.variables || []);
+    const next = { accessories: p.fabRules?.accessories || [], machining: p.fabRules?.machining || [] };
+    if (req.body.accessories !== undefined) {
+      const { rules, productIds } = fabrication.cleanAccessoryRules(req.body.accessories, known);
+      const ids = [...new Set(productIds)];
+      if (ids.length && (await Product.countDocuments({ _id: { $in: ids }, company: p.company })) !== ids.length) return bad(res, "Un article des règles n'appartient pas à cette société");
+      next.accessories = rules.map((r) => ({ ...r, codes: [] }));
+    }
+    if (req.body.machining !== undefined) next.machining = fabrication.cleanMachiningRules(req.body.machining, known, { requireTarget: false }).map((m) => ({ ...m, codes: [] }));
+    p.fabRules = next;
+    p.updatedBy = req.user.id;
+    await p.save();
+    res.json({ success: true, data: p.fabRules });
+  } catch (error) { handle(res, error, "Error saving the rules"); }
+});
+
+/** One profile with its section, rules (articles named) and the nodes it belongs to — the profile sheet. */
+router.get("/profiles/:productId", async (req, res) => {
+  try {
+    const p = await profileOf(req, res);
+    if (!p) return;
+    const [section, nodes, series] = await Promise.all([
+      ProfileSection.findOne({ product: p._id }).select("-pieces -source").lean(),
+      ProfileNode.find({ $or: [{ main: p._id }, { second: p._id }, { bead: p._id }] }).select("type name series stale values").lean(),
+      p.profileSeries ? ProfileSeries.findById(p.profileSeries).select("name").lean() : null,
+    ]);
+    const ids = [...new Set((p.fabRules?.accessories || []).map((r) => String(r.product)))];
+    const arts = new Map((ids.length ? await Product.find({ _id: { $in: ids } }).select("name internalReference unit stockMode materialType").lean() : []).map((x) => [String(x._id), x]));
+    const obj = p.toObject();
+    res.json({
+      success: true,
+      data: {
+        ...obj, props: library.profileProps(obj), series,
+        fabRules: { accessories: (obj.fabRules?.accessories || []).map((r) => ({ ...r, product: arts.get(String(r.product)) || { _id: r.product, name: "(article supprimé)" } })), machining: obj.fabRules?.machining || [] },
+        section: section ? { ...sectionOut(section), hasSource: !!(await ProfileSection.exists({ product: p._id, source: { $ne: null } })) } : null, nodes,
+      },
+    });
+  } catch (error) { handle(res, error, "Error loading the profile"); }
+});
+
+/** Sections of every profile of a series (node editor, CAD). */
+router.get("/series/:id/sections", async (req, res) => {
+  try {
+    if (!isId(req.params.id)) return bad(res, "Invalid ID");
+    const profiles = await Product.find({ profileSeries: req.params.id, baseProduct: null }).select("name seriesCode profileRole").lean();
+    const sections = await ProfileSection.find({ product: { $in: profiles.map((p) => p._id) } }).select("product paths metrics fileName").lean();
+    const byProduct = new Map(sections.map((s) => [String(s.product), s]));
+    res.json({ success: true, data: profiles.map((p) => ({ product: p._id, name: p.name, code: p.seriesCode, role: p.profileRole, section: byProduct.get(String(p._id)) ? { paths: byProduct.get(String(p._id)).paths, metrics: byProduct.get(String(p._id)).metrics, fileName: byProduct.get(String(p._id)).fileName } : null })) });
+  } catch (error) { handle(res, error, "Error loading the sections"); }
+});
+
+// ================= nodes (nœuds entre profilés) =================
+
+router.get("/series/:id/nodes", async (req, res) => {
+  try {
+    if (!isId(req.params.id)) return bad(res, "Invalid ID");
+    const rows = await ProfileNode.find({ series: req.params.id }).populate("main second bead", "name seriesCode profileRole").sort({ type: 1, createdAt: 1 }).lean();
+    res.json({ success: true, data: rows });
+  } catch (error) { handle(res, error, "Error loading the nodes"); }
+});
+
+router.get("/nodes/:nodeId", async (req, res) => {
+  try {
+    if (!isId(req.params.nodeId)) return bad(res, "Invalid ID");
+    const n = await ProfileNode.findById(req.params.nodeId).populate("main second bead", "name seriesCode profileRole").lean();
+    if (!n) return bad(res, "Nœud introuvable", 404);
+    const ids = [...new Set((n.rules || []).map((r) => String(r.product)))];
+    const arts = new Map((ids.length ? await Product.find({ _id: { $in: ids } }).select("name internalReference unit").lean() : []).map((x) => [String(x._id), x]));
+    res.json({ success: true, data: { ...n, rules: (n.rules || []).map((r) => ({ ...r, product: arts.get(String(r.product)) || { _id: r.product, name: "(article supprimé)" } })) } });
+  } catch (error) { handle(res, error, "Error loading the node"); }
+});
+
+router.post("/series/:id/nodes", async (req, res) => {
+  try {
+    if (!isId(req.params.id)) return bad(res, "Invalid ID");
+    const s = await ProfileSeries.findById(req.params.id).lean();
+    if (!s) return bad(res, "Series not found", 404);
+    const data = await nodes.cleanNode(req.body, s, { Product, fabrication, known: fabrication.knownNames(await seriesCodesOf(s._id), s.variables || []) });
+    const n = await ProfileNode.create({ ...data, company: s.company, series: s._id, updatedBy: req.user.id });
+    res.status(201).json({ success: true, data: n });
+  } catch (error) { handle(res, error, "Error saving the node"); }
+});
+
+router.put("/nodes/:nodeId", async (req, res) => {
+  try {
+    if (!isId(req.params.nodeId)) return bad(res, "Invalid ID");
+    const n = await ProfileNode.findById(req.params.nodeId);
+    if (!n) return bad(res, "Nœud introuvable", 404);
+    const s = await ProfileSeries.findById(n.series).lean();
+    const data = await nodes.cleanNode({ type: n.type, ...req.body }, s, { Product, fabrication, known: fabrication.knownNames(await seriesCodesOf(s._id), s.variables || []), partial: true, existing: n.toObject() });
+    Object.assign(n, data, { stale: false, updatedBy: req.user.id });
+    n.markModified("placements");
+    n.markModified("values");
+    await n.save();
+    res.json({ success: true, data: n });
+  } catch (error) { handle(res, error, "Error saving the node"); }
+});
+
+router.delete("/nodes/:nodeId", async (req, res) => {
+  try {
+    if (!isId(req.params.nodeId)) return bad(res, "Invalid ID");
+    await ProfileNode.deleteOne({ _id: req.params.nodeId });
+    res.json({ success: true, message: "Nœud supprimé" });
+  } catch (error) { handle(res, error, "Error deleting the node"); }
 });
 
 module.exports = router;

@@ -32,6 +32,7 @@ import {
   deleteProduct,
 } from "../../services/productService";
 import { getInventoryCategories } from "../../services/inventoryCategoryService";
+import { getSeries } from "../../services/productionService";
 import { createPurchaseRequest } from "../../services/purchaseRequestService";
 import { getCompanies } from "../../services/companyService";
 import { getInventoryIcon } from "../../utils/inventoryIcons";
@@ -91,9 +92,12 @@ export default function Inventory({ readOnly = false }) {
 
   // ---------- Categories ----------
   const [categories, setCategories] = useState([]);
+  const [seriesOptions, setSeriesOptions] = useState([]);
   useEffect(() => {
-    if (!selectedCompanyId) { setCategories([]); return; }
+    if (!selectedCompanyId) { setCategories([]); setSeriesOptions([]); return; }
     getInventoryCategories(selectedCompanyId).then(setCategories).catch(console.error);
+    // profile series (bibliothèques) for the "Série / code" fields of a profile
+    getSeries(selectedCompanyId).then((list) => setSeriesOptions(list.map((x) => ({ value: x._id, label: x.name })))).catch(() => setSeriesOptions([]));
   }, [selectedCompanyId]);
 
   // Sub-categories show their path ("Profilés aluminium › Série ATLAS 78"); picking
@@ -592,7 +596,7 @@ export default function Inventory({ readOnly = false }) {
           <details className={styles.pricesSection} open={!!formTech.materialType}>
             <summary style={{ cursor: "pointer", fontSize: "0.85rem", fontWeight: 600 }}>{t("prod.tech.title")}</summary>
             <p style={{ fontSize: "0.78rem", color: "var(--color-text-secondary)" }}>{t("prod.tech.hint")}</p>
-            <ProductTechFields value={formTech} onChange={setFormTech} fieldClass={styles.formField} inputClass={styles.textInput} gridClass={styles.formGrid} />
+            <ProductTechFields value={formTech} onChange={setFormTech} fieldClass={styles.formField} inputClass={styles.textInput} gridClass={styles.formGrid} seriesOptions={seriesOptions} productId={editingProduct?._id || null} productName={editingProduct?.name || ""} />
           </details>
 
           <div className={styles.pricesSection}>

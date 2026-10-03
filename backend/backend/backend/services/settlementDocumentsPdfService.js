@@ -9,6 +9,7 @@ const {
   drawLetterhead,
   drawDocumentTitle,
   drawSignatureBlock,
+  docBrand,
   finalizeFooters,
 } = require("./pdfHelpers");
 
@@ -76,7 +77,8 @@ function drawParagraph(doc, { colX, width, text, bold = false }) {
 
 function drawArticleHeading(doc, text, { colX, width }) {
   doc.moveDown(0.7);
-  doc.fontSize(10.5).font("Helvetica-Bold").fillColor("#000").text(text, colX, doc.y, { width });
+  doc.fontSize(10.5).font("Helvetica-Bold").fillColor(docBrand(doc).primaryInk).text(text, colX, doc.y, { width });
+  doc.fillColor("#000");
   doc.moveDown(0.2);
 }
 
@@ -260,9 +262,14 @@ function generateSoldeToutCompte({ employee, company, salary, leaveBalance, term
   doc.moveTo(colX, doc.y).lineTo(colX + width, doc.y).lineWidth(0.75).stroke("#999");
   doc.moveDown(0.5);
 
+  // Total in a box filled with the company's secondary colour
+  const brand = docBrand(doc);
   const totalY = doc.y;
-  doc.fontSize(11).font("Helvetica-Bold").fillColor("#000").text("TOTAL À PAYER", colX, totalY, { width: width * 0.65 });
-  doc.fontSize(11).font("Helvetica-Bold").text(`${formatAmount(total)} ${currency}`, colX + width * 0.65, totalY, { width: width * 0.35, align: "right" });
+  doc.rect(colX, totalY - 5, width, 24).fill(brand.secondary);
+  doc.fontSize(11).font("Helvetica-Bold").fillColor(brand.onSecondary).text("TOTAL À PAYER", colX + 8, totalY + 1, { width: width * 0.6 });
+  doc.fontSize(11).font("Helvetica-Bold").text(`${formatAmount(total)} ${currency}`, colX + width * 0.6, totalY + 1, { width: width * 0.4 - 8, align: "right" });
+  doc.fillColor("#000");
+  doc.y = totalY + 22;
 
   doc.moveDown(1.2);
   doc.fontSize(8.5).font("Helvetica").fillColor("#555").text(

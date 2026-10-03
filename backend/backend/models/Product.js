@@ -1,6 +1,7 @@
 // Must load before the schema is compiled — registers the client-isolation plugin.
 require("../services/tenantScope");
 const mongoose = require("mongoose");
+const { ruleSchema, machiningSchema } = require("./fabricationRuleSchemas");
 const translatable = require("../plugins/translatable");
 
 /**
@@ -161,6 +162,28 @@ const productSchema = new mongoose.Schema(
     // the Laquage workshop produces lacquered variants. When empty, the
     // cheapest supplier price is used.
     standardCost: { type: Number, default: null, min: 0 },
+    // Profile of a series (its library): "AWS 60", code "OUV". Formulas
+    // read its geometry as OUV.ae, OUV.ch… and models may use "the OUV of
+    // the series" instead of a fixed article. One code per series.
+    profileSeries: { type: mongoose.Schema.Types.ObjectId, ref: "ProfileSeries", default: null, index: true },
+    seriesCode: { type: String, trim: true, uppercase: true, default: null, maxlength: 12 },
+    // Role of the profile in its system (filters the node editor's slots):
+    // dormant, ouvrant, meneau / traverse, parclose, battement, other.
+    profileRole: { type: String, enum: ["frame", "sash", "mullion", "bead", "meeting", "other", null], default: null },
+    // DXF cross-section (geometry in models/ProfileSection) — summary for lists
+    section: {
+      fileName: { type: String, default: null },
+      width: { type: Number, default: null }, // in-plane (mm)
+      height: { type: Number, default: null }, // depth (mm)
+      area: { type: Number, default: null }, // mm²
+      updatedAt: { type: Date, default: null },
+    },
+    // Fabrication rules carried by the profile (LogiKal: articles and
+    // machining linked to the profile) — services/chassisFabrication.js
+    fabRules: {
+      accessories: { type: [ruleSchema], default: [] },
+      machining: { type: [machiningSchema], default: [] },
+    },
     // Colour variant of a raw article ("Profilé 4020 — RAL 9016").
     baseProduct: { type: mongoose.Schema.Types.ObjectId, ref: "Product", default: null, index: true },
     finish: { type: mongoose.Schema.Types.ObjectId, ref: "Finish", default: null },

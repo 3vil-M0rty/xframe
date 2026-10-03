@@ -1,5 +1,5 @@
 const PDFDocument = require("pdfkit");
-const { formatDate, drawLetterhead, drawDocumentTitle, finalizeFooters } = require("./pdfHelpers");
+const { formatDate, drawLetterhead, docBrand, drawDocumentTitle, finalizeFooters } = require("./pdfHelpers");
 const { drawPartyBlocks, drawTable, ensureSpace, COL_X } = require("./purchasingPdfService");
 
 /**
@@ -36,7 +36,7 @@ const finishText = (f) => (f ? `${f.code}${f.name ? ` ${f.name}` : ""}` : "");
 function sectionTitle(doc, text, width, subtitle) {
   ensureSpace(doc, 70);
   doc.moveDown(0.8);
-  doc.fontSize(10).font("Helvetica-Bold").fillColor("#111").text(text, COL_X, doc.y, { width });
+  doc.fontSize(10).font("Helvetica-Bold").fillColor(docBrand(doc).primaryInk).text(text, COL_X, doc.y, { width });
   if (subtitle) doc.fontSize(7.5).font("Helvetica").fillColor("#666").text(subtitle, COL_X, doc.y + 1, { width });
   doc.moveDown(0.35);
 }
@@ -100,6 +100,27 @@ function drawBar(doc, pattern, barLength, s, width, depth) {
   doc.y = Math.max(doc.y, y0 + h + 10) + 6;
 }
 
+// ------------------------------------------------------------------
+// Machining (usinages) of the cut pieces — from the series' rules
+// ------------------------------------------------------------------
+const OP_LABELS = { drain: "Drainage", drill: "Perçage", mill: "Fraisage", slot: "Lumière", notch: "Entaille", other: "Usinage" };
+const FACE_LABELS = { ext: "face ext.", int: "face int.", top: "dessus", bottom: "dessous", side: "chant" };
+const opText = (o) => [o.label || OP_LABELS[o.kind] || "Usinage", o.size, FACE_LABELS[o.face]].filter(Boolean).join(" · ");
+
+function machiningTable(doc, cuts, width) {
+  const rows = [];
+  for (const c of cuts) for (const o of c.ops || []) rows.push({ r: c.ref || "", d: `${fmt(c.length)} — ${c.label || ""}`, o: opText(o), p: o.positions.map((x) => fmt(x)).join(" · "), t: o.tool || "" });
+  if (!rows.length) return;
+  sectionTitle(doc, "USINAGES (cotes depuis l'extrémité gauche de la pièce)", width);
+  drawTable(doc, [
+    { key: "r", label: "REPÈRE", width: 45 },
+    { key: "d", label: "PIÈCE", width: 160 },
+    { key: "o", label: "OPÉRATION", width: 130 },
+    { key: "p", label: "POSITIONS (mm)", width: 125 },
+    { key: "t", label: "OUTIL", width: 55 },
+  ], rows);
+}
+
 function barsSection(doc, report, width) {
   const s = report.settings;
   doc.moveDown(0.4);
@@ -138,6 +159,7 @@ function barsSection(doc, report, width) {
       { key: "a", label: "ANGLES", width: 75, align: "center" },
       { key: "q", label: "QTÉ", width: 55, align: "right", bold: true },
     ], b.cuts.map((c) => ({ r: c.ref || "", d: c.label || "", l: fmt(c.length), t: c.heel !== null && c.heel !== undefined ? fmt(c.heel) : "—", a: angleText(c), q: qty(c.qty) })));
+    machiningTable(doc, b.cuts, width);
     if (b.plan) {
       sectionTitle(doc, "PLAN DE COUPE (ordre des coupes de gauche à droite)", width);
       for (const p of b.plan.patterns) drawBar(doc, p, b.plan.barLength, b.plan.settings, width, b.depth);
@@ -209,12 +231,13 @@ function accessoriesSection(doc, report, width) {
   }
   for (const [type, rows] of groups) {
     sectionTitle(doc, TYPE_LABELS[type].toUpperCase(), width);
+    // the article first: its reference line (subtext) goes under the first column
     drawTable(doc, [
-      { key: "c", label: "OK", width: 25, align: "center" },
       { key: "p", label: "ARTICLE", width: 270 },
       { key: "q", label: "QUANTITÉ", width: 70, align: "right", bold: true },
       { key: "u", label: "UNITÉ", width: 70 },
-      { key: "s", label: "STOCK", width: 80, align: "right" },
+      { key: "s", label: "STOCK", width: 70, align: "right" },
+      { key: "c", label: "OK", width: 35, align: "center" },
     ], rows.map((a) => ({
       c: "[   ]",
       p: a.name,
@@ -391,4 +414,8 @@ function generateCuttingPdf({ section, report, header = {}, company, logoBuffer 
   return doc;
 }
 
-module.exports = { generateCuttingPdf, SECTIONS };
+module.exports = {
+  generateCuttingPdf, SECTIONS,
+  // building blocks reused by the CAD fabrication file (services/fabricationPdfService.js)
+  barsSection, glassSection, accessoriesSection, sectionTitle, emptyNote, machiningTable, piecePolygon, OP_LABELS, FACE_LABELS, opText, fmt,
+};

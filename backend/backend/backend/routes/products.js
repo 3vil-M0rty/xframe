@@ -14,6 +14,8 @@ const { guard } = require("../middleware/permissionGuard");
 const { ROUTE_PERMISSIONS } = require("../config/routePermissions");
 const upload = require("../middleware/uploadMiddleware");
 const { requireProductionAccess, requireInventoryViewAccess } = require("../middleware/permissionMiddleware");
+const library = require("../services/seriesLibrary");
+const ProfileSeries = require("../models/ProfileSeries");
 const { canAccessProduction } = require("../permissions/permissions");
 const { uploadImage, deleteImage } = require("../services/cloudinaryService");
 const { logAudit } = require("../services/auditLogger");
@@ -42,6 +44,8 @@ router.get("/", requireInventoryViewAccess, async (req, res) => {
       search,
       lowStockOnly,
       asOfDate,
+      materialType,
+      profileSeries,
       page = 1,
       limit = 24,
     } = req.query;
@@ -59,6 +63,16 @@ router.get("/", requireInventoryViewAccess, async (req, res) => {
       const ids = await withDescendants(companyId, category);
       filter.category = { $in: (ids.length ? ids : [category]).map((id) => new mongoose.Types.ObjectId(id)) };
     }
+
+    // Technique → Données techniques: "any" = every article that has a
+    // technical type (profile, glass, accessory…), "none" = those that
+    // don't yet, or one specific type.
+    if (materialType === "any") filter.materialType = { $nin: [null, ""] };
+    else if (materialType === "none") filter.materialType = { $in: [null, ""] };
+    else if (materialType) filter.materialType = materialType;
+    // Attached to a series profile type ("none" = not attached yet)
+    if (profileSeries === "none") filter.profileSeries = null;
+    else if (profileSeries && mongoose.Types.ObjectId.isValid(profileSeries)) filter.profileSeries = new mongoose.Types.ObjectId(profileSeries);
 
     if (search) {
       const regex = new RegExp(search.trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i");
@@ -265,6 +279,25 @@ function technicalFields(body) {
   return out;
 }
 
+/**
+ * Series + code of a profile (bibliothèque de la série): { profileSeries,
+ * seriesCode } — or both null to take it out of its series. One code per
+ * series; throws 400 / 409 with a clear message.
+ */
+async function seriesFields(body, company, productId = null) {
+  if (body.profileSeries === undefined && body.seriesCode === undefined) return {};
+  const sid = body.profileSeries || null;
+  if (!sid) return { profileSeries: null, seriesCode: null };
+  if (!mongoose.Types.ObjectId.isValid(sid) || !(await ProfileSeries.exists({ _id: sid, company }))) {
+    throw Object.assign(new Error("Série introuvable"), { status: 400 });
+  }
+  const code = library.normalizeCode(body.seriesCode);
+  if (!code) throw Object.assign(new Error("Donnez un code au profilé dans la série (lettres et chiffres, ex. DOR, OUV2)"), { status: 400 });
+  const clash = await Product.findOne({ profileSeries: sid, seriesCode: code, baseProduct: null, ...(productId ? { _id: { $ne: productId } } : {}) }).select("name").lean();
+  if (clash) throw Object.assign(new Error(`Le code ${code} est déjà celui de « ${clash.name} » dans cette série`), { status: 409 });
+  return { profileSeries: sid, seriesCode: code };
+}
+
 // ======================================================
 // CREATE PRODUCT
 // POST /api/products
@@ -323,6 +356,7 @@ router.post("/", requireProductionAccess, async (req, res) => {
       currency: currency || "MAD",
       notes,
       ...technicalFields(req.body),
+      ...(await seriesFields(req.body, company)),
       createdBy: req.user.id,
       updatedBy: req.user.id,
     });
@@ -358,6 +392,7 @@ router.post("/", requireProductionAccess, async (req, res) => {
     if (error.code === 11000) {
       return res.status(409).json({ success: false, message: "A product with this internal reference already exists" });
     }
+    if (error.status) return res.status(error.status).json({ success: false, message: error.message });
     console.error("POST product error:", error);
     res.status(500).json({ success: false, message: "Error creating product", error: error.message });
   }
@@ -397,9 +432,12 @@ router.put("/:id", requireProductionAccess, async (req, res) => {
     if (notes !== undefined) product.notes = notes;
     if (isActive !== undefined) product.isActive = isActive;
     Object.assign(product, technicalFields(req.body));
+    Object.assign(product, await seriesFields(req.body, product.company, product._id));
 
     product.updatedBy = req.user.id;
     await product.save();
+    // Colour variants keep the geometry of their raw article
+    if (!product.baseProduct) await library.syncVariants(product._id, product.toObject());
 
     const populated = await product.populate("category");
 
@@ -417,6 +455,7 @@ router.put("/:id", requireProductionAccess, async (req, res) => {
     if (error.code === 11000) {
       return res.status(409).json({ success: false, message: "A product with this internal reference already exists" });
     }
+    if (error.status) return res.status(error.status).json({ success: false, message: error.message });
     console.error("PUT product error:", error);
     res.status(500).json({ success: false, message: "Error updating product", error: error.message });
   }

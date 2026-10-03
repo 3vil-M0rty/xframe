@@ -164,6 +164,12 @@ const userSchema = new mongoose.Schema(
       default: null,
     },
 
+    // Personal display preferences. theme null = follow the company
+    // default (Company.branding.darkMode) — see GET /users/me.
+    preferences: {
+      theme: { type: String, enum: ["dark", "light", null], default: null },
+    },
+
   },
   { timestamps: true }
 );

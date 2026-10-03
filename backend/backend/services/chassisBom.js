@@ -25,6 +25,30 @@
  *   ctx.settings  ProductionSettings
  * ============================================================
  */
+const library = require("./seriesLibrary");
+const fabrication = require("./chassisFabrication");
+const chassisDesign = require("./chassisDesign");
+const profileNodes = require("./profileNodes");
+
+/**
+ * A CAD model is regenerated from its design at every calculation, with
+ * the CURRENT nodes and profiles of its series: change a node or a DXF
+ * and every chassis of the series follows. Parts added by hand are kept.
+ */
+function designed(model, series, ctx) {
+  if (!model?.design || model._gen) return model;
+  ctx._designed = ctx._designed || new WeakMap();
+  if (ctx._designed.has(model)) return ctx._designed.get(model);
+  let out = model;
+  try {
+    const gen = chassisDesign.generate(model.design, profileNodes.lookupFor(series, ctx));
+    out = { ...model, ...chassisDesign.mergeIntoModel(model, gen), _gen: gen };
+  } catch {
+    out = model; // an invalid design: the stored parts are used
+  }
+  ctx._designed.set(model, out);
+  return out;
+}
 const { evaluate } = require("./formulaEngine");
 const { DEFAULT_MEASURE } = require("../config/chassisCatalog");
 const optimizer = require("./cuttingOptimizer");
@@ -81,11 +105,34 @@ function geometryVarNames(components = []) {
   return [...new Set(out)];
 }
 
+/** Map code → article of the series' profile library (from ctx.seriesProfiles). */
+function libraryOf(series, ctx) {
+  return series ? ctx?.seriesProfiles?.get(String(series._id || series)) || null : null;
+}
+
+/**
+ * The article a component consumes: "the profile OUV of the series"
+ * (seriesCode), else a fixed article, else the article chosen in a
+ * parameter on the quote line.
+ */
+function componentProductId(c, refs, series, ctx) {
+  if (!c || c.kind === "model") return null;
+  if (c.seriesCode) {
+    const p = libraryOf(series, ctx)?.get(c.seriesCode);
+    if (p) return String(p._id);
+  }
+  return idOf(c.product) || (c.productParam ? refs[c.productParam] : null);
+}
+
 function buildVariables(model, series, L, H, params = {}, ctx = null) {
   // Built-in: cj = couvre-joint of the frame per side (0 unless the series / model sets it).
   const vars = { cj: 0 };
   const refs = {};
-  for (const v of series?.variables || []) vars[v.key] = Number(v.value) || 0;
+  const errors = [];
+  // The series' profile library (DOR.ae, OUV.ch…) then its variables —
+  // numbers or formulas over those profiles, computed now from the articles.
+  Object.assign(vars, library.profileVars(libraryOf(series, ctx)));
+  library.resolveSeriesVariables(series, vars, errors);
   for (const v of model.variables || []) vars[v.key] = Number(v.value) || 0;
   for (const p of model.parameters || []) {
     const value = paramValue(p, params[p.key]);
@@ -105,11 +152,10 @@ function buildVariables(model, series, L, H, params = {}, ctx = null) {
   for (const g of GEOM_KEYS) vars[g] = 0;
   for (const c of model.components || []) {
     if (!c?.role || c.kind === "model") continue;
-    const pid = idOf(c.product) || (c.productParam ? refs[c.productParam] : null);
+    const pid = componentProductId(c, refs, series, ctx);
     const geo = geometryOf(pid && ctx?.products ? ctx.products.get(String(pid)) : null);
     for (const g of GEOM_KEYS) vars[`${g}_${roleVar(c.role)}`] = geo[g];
   }
-  const errors = [];
   for (const d of model.derived || []) {
     try {
       vars[d.key] = evaluate(d.formula, vars);
@@ -128,8 +174,9 @@ function buildVariables(model, series, L, H, params = {}, ctx = null) {
  */
 function expandItem(item, ctx, depth = 0, path = "", inherited = {}) {
   const out = { lines: [], assemblies: [], labour: [], errors: [], warnings: [] };
-  const model = ctx.models.get(idOf(item.model));
+  const stored = ctx.models.get(idOf(item.model));
   const where = path || item.ref || item.label || "";
+  const model = stored ? designed(stored, stored.series ? ctx.series.get(idOf(stored.series)) : null, ctx) : null;
   if (!model) {
     out.errors.push({ where, field: "model", message: "Modèle de châssis introuvable ou inactif" });
     return out;
@@ -165,7 +212,7 @@ function expandItem(item, ctx, depth = 0, path = "", inherited = {}) {
   };
 
   for (const comp of model.components || []) {
-    const ownId = comp.kind === "model" ? null : idOf(comp.product) || (comp.productParam ? refs[comp.productParam] : null);
+    const ownId = componentProductId(comp, refs, series, ctx);
     scope = ownId ? { ...vars, ...geometryOf(ctx.products?.get(String(ownId))) } : vars;
     if (comp.condition && !ev(comp.condition, "condition", comp, 1)) continue;
     const perChassis = ev(comp.qty || "1", "qty", comp, 0);
@@ -214,7 +261,10 @@ function expandItem(item, ctx, depth = 0, path = "", inherited = {}) {
     }
 
     const measure = comp.measure || DEFAULT_MEASURE[comp.kind] || "count";
-    const product = idOf(comp.product) || (comp.productParam ? refs[comp.productParam] : null);
+    const product = componentProductId(comp, refs, series, ctx);
+    if (comp.seriesCode && !product) {
+      out.errors.push({ where: `${label} › ${comp.label}`, field: "product", message: `Profil « ${comp.seriesCode} » absent de la série ${series?.name || "(aucune série)"} : donnez ce code à un article de la série` });
+    }
     const line = {
       role: comp.role, label: comp.label, kind: comp.kind, measure, product,
       finishMode: comp.finish || "none",
@@ -231,6 +281,17 @@ function expandItem(item, ctx, depth = 0, path = "", inherited = {}) {
       if (!(line.width > 0 && line.height > 0)) { out.warnings.push({ where: `${label} › ${comp.label}`, message: `« ${comp.label} » : dimension nulle` }); continue; }
     }
     out.lines.push(line);
+  }
+
+  // CAD models: the series' accessory rules (ferrures, équerres, joints…)
+  // and the machining of each profile piece (drainages, perçages…).
+  if (model.design) {
+    const fab = fabrication.applyToItem(model, series, vars, refs, ctx, { qty, label, itemRef, itemKey, finish, workshop: defaultWorkshop });
+    if (fab) {
+      for (const l of out.lines) if (l.path === label && fab.opsByRole[l.role]) l.ops = fab.opsByRole[l.role];
+      out.lines.push(...fab.lines);
+      out.warnings.push(...fab.warnings);
+    }
   }
 
   scope = vars;
@@ -410,7 +471,7 @@ function aggregateNeeds(lines, ctx, resolveProduct = (l) => l.product) {
     if (l.measure === "length") {
       g.totalLength += l.length * l.pieces;
       const existing = g.cuts.find((c) => c.length === l.length && c.angle === l.angle && c.ref === l.itemRef && c.label === l.label);
-      if (existing) existing.qty += l.pieces; else g.cuts.push({ length: l.length, qty: l.pieces, angle: l.angle, label: l.label, ref: l.itemRef });
+      if (existing) existing.qty += l.pieces; else g.cuts.push({ length: l.length, qty: l.pieces, angle: l.angle, label: l.label, ref: l.itemRef, ...(l.ops?.length ? { ops: l.ops } : {}) });
     } else if (l.measure === "area") {
       g.area += (l.width * l.height * l.pieces) / 1e6;
       const existing = g.pieceList.find((c) => c.width === l.width && c.height === l.height && c.ref === l.itemRef && c.label === l.label);
@@ -603,6 +664,6 @@ function describeChassis(spec, ctx) {
 }
 
 module.exports = {
-  buildVariables, geometryOf, geometryVarNames, GEOM_KEYS, expandItem, expandItems, expandGlassType, optimizeBars, barOptions, sheetOptions, toStockQuantity, aggregateNeeds,
+  designed, buildVariables, componentProductId, geometryOf, geometryVarNames, GEOM_KEYS, expandItem, expandItems, expandGlassType, optimizeBars, barOptions, sheetOptions, toStockQuantity, aggregateNeeds,
   unitCostOf, costPerMeasure, paintAreaPerMeasure, priceChassis, describeChassis, describeChassisParts, stockUnitLabel, paramValue, round, idOf,
 };

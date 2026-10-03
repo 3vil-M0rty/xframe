@@ -371,6 +371,7 @@ export default function Sidebar() {
       icon: DraftingCompass,
       permission: (u) => canViewCatalog(u) || canConfigureProduction(u) || canManageInventory(u) || can(u, "inventory.articles.view"),
       subsections: [
+        { label: t("sidebar.cad"), href: "/technical/designer", permission: canViewCatalog },
         { label: t("sidebar.chassisCatalog"), href: "/technical/catalog", permission: canViewCatalog },
         { label: t("sidebar.glassTypes"), href: "/technical/glass-types", permission: (u) => canViewCatalog(u) || canConfigureProduction(u) },
         { label: t("sidebar.techArticles"), href: "/technical/articles", permission: (u) => can(u, "inventory.articles.view") || canManageInventory(u) || canConfigureProduction(u) },

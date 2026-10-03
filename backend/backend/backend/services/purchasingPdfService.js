@@ -1,6 +1,6 @@
 const PDFDocument = require("pdfkit");
 const {
-  formatDate, formatAmount, drawLetterhead, drawDocumentTitle, drawSignatureBlock, finalizeFooters,
+  formatDate, formatAmount, drawLetterhead, docBrand, drawDocumentTitle, drawSignatureBlock, finalizeFooters,
 } = require("./pdfHelpers");
 const { amountToFrenchWords } = require("./frenchNumberWords");
 
@@ -70,9 +70,10 @@ function drawPartyBlocks(doc, { supplier, infoRows, width, label = "FOURNISSEUR"
 function drawTable(doc, columns, rows) {
   const drawHeader = () => {
     const y = doc.y;
-    doc.rect(COL_X, y, columns.reduce((s, c) => s + c.width, 0), 18).fill("#f1f1f1");
+    const brand = docBrand(doc);
+    doc.rect(COL_X, y, columns.reduce((s, c) => s + c.width, 0), 18).fill(brand.primary);
     let x = COL_X;
-    doc.fontSize(7.5).font("Helvetica-Bold").fillColor("#333");
+    doc.fontSize(7.5).font("Helvetica-Bold").fillColor(brand.onPrimary);
     for (const c of columns) {
       doc.text(c.label, x + 5, y + 5.5, { width: c.width - 10, align: c.align || "left" });
       x += c.width;
@@ -242,8 +243,9 @@ function generatePurchaseOrderPdf({ order, company, supplier, logoBuffer }) {
     doc.y = y + 14;
   }
   const ttcY = doc.y + 2;
-  doc.rect(boxX, ttcY, boxWidth, 22).fill("#1a1a1a");
-  doc.fontSize(10).font("Helvetica-Bold").fillColor("#fff").text("TOTAL TTC", boxX + 8, ttcY + 6, { width: 110 });
+  const brand = docBrand(doc);
+  doc.rect(boxX, ttcY, boxWidth, 22).fill(brand.secondary);
+  doc.fontSize(10).font("Helvetica-Bold").fillColor(brand.onSecondary).text("TOTAL TTC", boxX + 8, ttcY + 6, { width: 110 });
   doc.text(money(order.totalTTC), boxX + 110, ttcY + 6, { width: boxWidth - 118, align: "right" });
   doc.fillColor("#000");
   doc.y = ttcY + 32;

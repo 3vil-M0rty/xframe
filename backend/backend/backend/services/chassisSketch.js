@@ -17,7 +17,7 @@
  * ============================================================
  */
 
-const DRAWING_TYPES = ["sliding", "casement", "door", "folding", "fixed", "grid", "combo", "shutter", "louvre", "railing", "pergola", "glass", "garage", "panel", "cladding", "generic"];
+const DRAWING_TYPES = ["design", "sliding", "casement", "door", "folding", "fixed", "grid", "combo", "shutter", "louvre", "railing", "pergola", "glass", "garage", "panel", "cladding", "generic"];
 const OPENINGS = ["", "ob", "soufflet", "projetant", "basculant", "pivotant"];
 
 function sketchChassis({ drawing = {}, L = 1200, H = 1000, params = {}, width = 150, height = 130, pad = 6 }) {
@@ -39,6 +39,39 @@ function sketchChassis({ drawing = {}, L = 1200, H = 1000, params = {}, width = 
   const outer = () => rect(x0, y0, w, h, { sw: 1.6 });
 
   switch (type) {
+    // CAD design (Technique › Conception): its regions in mm, scaled into the box
+    case "design": {
+      const lay = Array.isArray(d.layout) ? d.layout : [];
+      const fr = lay.find((r) => r.type === "frame");
+      if (!fr) { outer(); break; }
+      const sx = w / (fr.w || 1);
+      const sy = h / (fr.h || 1);
+      const X = (v) => x0 + (v - fr.x) * sx;
+      const Y = (v) => y0 + (v - fr.y) * sy;
+      const box = (r, o) => rect(X(r.x), Y(r.y), r.w * sx, r.h * sy, o);
+      for (const r of lay) {
+        if (r.type === "frame") box(r, { sw: 1.6 });
+        else if (r.type === "jour") box(r, { sw: 0.8 });
+        else if (r.type === "mullion" || r.type === "transom") box(r, { sw: 0.9 });
+        else if (r.type === "glass") box(r, { fill: "glass", sw: 0.6 });
+        else if (r.type === "panel") box(r, { fill: "solid", sw: 0.6 });
+      }
+      for (const r of lay.filter((x) => x.type === "leaf")) {
+        box(r, { sw: 1 });
+        const l = X(r.x); const t = Y(r.y); const rr = X(r.x + r.w); const b = Y(r.y + r.h);
+        const side = String(r.opening || "");
+        if (r.slide) { line(l + (rr - l) * 0.3, (t + b) / 2, l + (rr - l) * 0.7, (t + b) / 2); continue; }
+        if (side.endsWith("left") || side.endsWith("right")) {
+          const hinge = side.endsWith("left") ? l : rr;
+          const free = side.endsWith("left") ? rr : l;
+          line(free, t, hinge, (t + b) / 2, dash);
+          line(free, b, hinge, (t + b) / 2, dash);
+        }
+        if (side.startsWith("tilt") || side === "bottom") { line(l, t, (l + rr) / 2, b, dash); line(rr, t, (l + rr) / 2, b, dash); }
+        if (side === "top") { line(l, b, (l + rr) / 2, t, dash); line(rr, b, (l + rr) / 2, t, dash); }
+      }
+      break;
+    }
     case "sliding": {
       outer();
       const lw = (w - 2 * f) / n;

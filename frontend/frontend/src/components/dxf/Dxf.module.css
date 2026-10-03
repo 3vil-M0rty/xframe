@@ -1,0 +1,61 @@
+/* DXF sections and node editor — dark and light themes */
+.viewer, .canvasWrap {
+  --dxf-bg: var(--color-bg-secondary);
+  --dxf-matter: rgba(var(--overlay-rgb), 0.16);
+  --dxf-stroke: var(--color-text-primary);
+  --dxf-moving: rgba(59, 130, 246, 0.32);
+  --dxf-moving-stroke: #4c8dff;
+  --dxf-bead: rgba(76, 195, 138, 0.3);
+  --dxf-bead-stroke: #3fb27f;
+  --dxf-glass: rgba(110, 168, 254, 0.18);
+  --dxf-glass-stroke: #6ea8fe;
+  --dxf-dim: #e8b93f;
+  --dxf-ref: #f87171;
+  --dxf-measure: #c084fc;
+  --dxf-grid: rgba(var(--overlay-rgb), 0.06);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  background: var(--dxf-bg);
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  overflow: hidden;
+}
+:global(:root[data-theme="light"]) .viewer, :global(:root[data-theme="light"]) .canvasWrap { --dxf-dim: #b7791f; --dxf-ref: #dc2626; --dxf-measure: #9333ea; }
+.mini { border-radius: 6px; background: transparent; border-color: transparent; }
+.svg { flex: 1; width: 100%; min-height: 0; touch-action: none; user-select: none; }
+.matter { fill: var(--dxf-matter); stroke: var(--dxf-stroke); stroke-linejoin: round; }
+.open { stroke: var(--dxf-stroke); opacity: 0.7; }
+.moving { fill: var(--dxf-moving); stroke: var(--dxf-moving-stroke); cursor: move; }
+.movingSel { fill: rgba(59, 130, 246, 0.45); stroke: #93c5fd; cursor: move; }
+.bead { fill: var(--dxf-bead); stroke: var(--dxf-bead-stroke); cursor: move; }
+.glass { fill: var(--dxf-glass); stroke: var(--dxf-glass-stroke); cursor: move; }
+.fixed { fill: var(--dxf-matter); stroke: var(--dxf-stroke); }
+.ghost { fill: rgba(var(--overlay-rgb), 0.08); stroke: var(--color-text-tertiary); stroke-dasharray: 4 3; }
+.empty { display: flex; align-items: center; justify-content: center; color: var(--color-text-tertiary); font-size: 0.8rem; border: 1px dashed var(--color-border); border-radius: 10px; }
+.tools { position: absolute; top: 6px; left: 6px; right: 6px; z-index: 2; display: flex; gap: 4px; align-items: center; flex-wrap: wrap; pointer-events: none; }
+.tools > * { pointer-events: auto; }
+.tools button {
+  display: inline-flex; align-items: center; gap: 4px; padding: 3px 7px;
+  font-size: 0.72rem; font-weight: 600; color: var(--color-text-secondary);
+  background: var(--color-bg-primary); border: 1px solid var(--color-border); border-radius: 6px; cursor: pointer;
+}
+.tools button:hover { color: var(--color-text-primary); }
+.tools .toolOn { color: var(--color-inverse-fg); background: var(--color-inverse-bg); }
+.title { margin-right: auto; padding: 2px 6px; font-size: 0.75rem; font-weight: 700; color: var(--color-text-secondary); background: var(--color-bg-primary); border-radius: 6px; }
+.snapDot { fill: none; stroke: #fbbf24; }
+
+/* import modal */
+.importGrid { display: grid; grid-template-columns: minmax(0, 1fr) 260px; gap: 14px; }
+@media (max-width: 800px) { .importGrid { grid-template-columns: 1fr; } }
+.metrics { display: grid; grid-template-columns: 1fr auto; gap: 4px 10px; font-size: 0.8rem; color: var(--color-text-secondary); }
+.metrics strong { color: var(--color-text-primary); text-align: right; font-variant-numeric: tabular-nums; }
+.orient { display: flex; flex-wrap: wrap; gap: 4px; }
+.orient button { display: inline-flex; align-items: center; gap: 4px; padding: 5px 8px; font-size: 0.75rem; color: var(--color-text-secondary); background: var(--color-bg-tertiary); border: 1px solid var(--color-border); border-radius: 6px; cursor: pointer; }
+.orient button:hover { color: var(--color-text-primary); }
+.hint { font-size: 0.74rem; color: var(--color-text-tertiary); line-height: 1.4; }
+.drop { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; height: 220px; color: var(--color-text-tertiary); border: 2px dashed var(--color-border); border-radius: 10px; cursor: pointer; }
+.drop:hover { border-color: #6ea8fe; color: var(--color-text-secondary); }
+.layers { display: flex; flex-direction: column; gap: 3px; max-height: 120px; overflow: auto; font-size: 0.76rem; }
+.layers label { display: flex; gap: 6px; align-items: center; }
+.axis { display: flex; gap: 10px; font-size: 0.72rem; color: var(--color-text-tertiary); }

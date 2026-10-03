@@ -1,5 +1,5 @@
 const PDFDocument = require("pdfkit");
-const { formatDate, formatAmount, drawLetterhead, drawDocumentTitle, drawSignatureBlock, finalizeFooters } = require("./pdfHelpers");
+const { formatDate, formatAmount, drawLetterhead, docBrand, drawDocumentTitle, drawSignatureBlock, finalizeFooters } = require("./pdfHelpers");
 const { drawPartyBlocks, drawTable, ensureSpace, drawWatermark, COL_X } = require("./purchasingPdfService");
 const { amountToFrenchWords } = require("./frenchNumberWords");
 const { lineHT } = require("./salesCalc");
@@ -104,8 +104,9 @@ function totalsBox(doc, width, rows, ttcLabel, ttc) {
     doc.y = y + 14;
   }
   const ttcY = doc.y + 2;
-  doc.rect(boxX, ttcY, boxWidth, 22).fill("#1a1a1a");
-  doc.fontSize(10).font("Helvetica-Bold").fillColor("#fff").text(ttcLabel, boxX + 8, ttcY + 6, { width: 140 });
+  const brand = docBrand(doc);
+  doc.rect(boxX, ttcY, boxWidth, 22).fill(brand.secondary);
+  doc.fontSize(10).font("Helvetica-Bold").fillColor(brand.onSecondary).text(ttcLabel, boxX + 8, ttcY + 6, { width: 140 });
   doc.text(money(ttc), boxX + 140, ttcY + 6, { width: boxWidth - 148, align: "right" });
   doc.fillColor("#000");
   doc.y = ttcY + 32;

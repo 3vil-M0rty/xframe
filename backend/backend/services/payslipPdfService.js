@@ -1,5 +1,6 @@
 const PDFDocument = require("pdfkit");
 const payrollConfig = require("../config/payrollConfig");
+const { useCompanyBrand, formatDate: brandedDate } = require("./pdfHelpers");
 
 /**
  * ============================================================
@@ -33,9 +34,9 @@ function formatAmount(amount) {
   return `${withSpaces},${decPart}`;
 }
 
+// Follows the company's "Format de date" (set by useCompanyBrand below)
 function formatDate(date) {
-  if (!date) return "—";
-  return new Date(date).toLocaleDateString("fr-FR");
+  return brandedDate(date);
 }
 
 const MONTHS_FR = [
@@ -71,6 +72,7 @@ function generatePayslipPdf({ payslip, employee, company, ytdGross = 0, ytdNet =
 
   const pageWidth = doc.page.width - 80;
   const colX = 40;
+  const brand = useCompanyBrand(doc, company);
 
   // ---------- Header: company + document title ----------
   doc.fontSize(14).font("Helvetica-Bold").text(company?.name || "—", colX, 40);
@@ -90,13 +92,16 @@ function generatePayslipPdf({ payslip, employee, company, ytdGross = 0, ytdNet =
   if (employerIds.length) doc.text(employerIds.join("   |   "));
 
   doc.fillColor("#000");
+  doc.moveDown(0.3);
+  doc.moveTo(colX, doc.y).lineTo(colX + pageWidth, doc.y).lineWidth(2).stroke(brand.primary);
   doc.moveDown(0.5);
-  doc.fontSize(13).font("Helvetica-Bold").text(
+  doc.fontSize(13).font("Helvetica-Bold").fillColor(brand.primaryInk).text(
     `BULLETIN DE PAIE — ${MONTHS_FR[payslip.month - 1]} ${payslip.year}`,
     colX,
     doc.y,
     { align: "center", width: pageWidth }
   );
+  doc.fillColor("#000");
   doc.moveDown(0.8);
 
   // ---------- Employee identity block ----------
@@ -120,7 +125,8 @@ function generatePayslipPdf({ payslip, employee, company, ytdGross = 0, ytdNet =
   doc.y = boxTop + 86;
 
   // ---------- Earnings table ----------
-  doc.fontSize(9).font("Helvetica-Bold").text("GAINS", colX, doc.y);
+  doc.fontSize(9).font("Helvetica-Bold").fillColor(brand.primaryInk).text("GAINS", colX, doc.y);
+  doc.fillColor("#000");
   doc.moveDown(0.3);
 
   const tableLeft = colX;
@@ -146,7 +152,7 @@ function generatePayslipPdf({ payslip, employee, company, ytdGross = 0, ytdNet =
     doc.y = y + rowHeight + 4;
   }
 
-  doc.fontSize(8).font("Helvetica-Bold").fillColor("#555");
+  doc.fontSize(8).font("Helvetica-Bold").fillColor(brand.primaryInk);
   tableRow("Rubrique", "Taux / Base", "Montant (MAD)", { bold: true });
   doc.fillColor("#000");
   doc.moveTo(tableLeft, doc.y).lineTo(tableLeft + pageWidth, doc.y).stroke("#ccc");
@@ -173,10 +179,11 @@ function generatePayslipPdf({ payslip, employee, company, ytdGross = 0, ytdNet =
   doc.moveDown(0.6);
 
   // ---------- Deductions table ----------
-  doc.fontSize(9).font("Helvetica-Bold").text("RETENUES", colX, doc.y);
+  doc.fontSize(9).font("Helvetica-Bold").fillColor(brand.primaryInk).text("RETENUES", colX, doc.y);
+  doc.fillColor("#000");
   doc.moveDown(0.3);
 
-  doc.fontSize(8).font("Helvetica-Bold").fillColor("#555");
+  doc.fontSize(8).font("Helvetica-Bold").fillColor(brand.primaryInk);
   tableRow("Rubrique", "Taux / Base", "Montant (MAD)", { bold: true });
   doc.fillColor("#000");
   doc.moveTo(tableLeft, doc.y).lineTo(tableLeft + pageWidth, doc.y).stroke("#ccc");
@@ -223,13 +230,14 @@ function generatePayslipPdf({ payslip, employee, company, ytdGross = 0, ytdNet =
 
   // ---------- Net to pay (highlighted) ----------
   const netBoxTop = doc.y;
-  doc.rect(colX, netBoxTop, pageWidth, 32).fill("#f0f0f0");
-  doc.fillColor("#000").fontSize(11).font("Helvetica-Bold");
+  doc.rect(colX, netBoxTop, pageWidth, 32).fill(brand.secondary);
+  doc.fillColor(brand.onSecondary).fontSize(11).font("Helvetica-Bold");
   doc.text("NET À PAYER", colX + 10, netBoxTop + 9);
   doc.fontSize(13).text(`${formatAmount(payslip.netSalary)} MAD`, colX, netBoxTop + 8, {
     width: pageWidth - 10,
     align: "right",
   });
+  doc.fillColor("#000");
   doc.y = netBoxTop + 40;
 
   // ---------- Payment method + cumulative + leave balance ----------

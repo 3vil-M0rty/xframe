@@ -85,6 +85,11 @@ const GlassTypesPage = lazy(() => import('./pages/technical/GlassTypesPage'))
 const TechDataPage = lazy(() => import('./pages/technical/TechDataPage'))
 const FinishesPage = lazy(() => import('./pages/technical/FinishesPage'))
 const CalcSettingsPage = lazy(() => import('./pages/technical/CalcSettingsPage'))
+const SeriesPage = lazy(() => import('./pages/technical/SeriesPage'))
+const DesignsList = lazy(() => import('./pages/technical/designer/DesignsList'))
+const DesignerPage = lazy(() => import('./pages/technical/designer/DesignerPage'))
+const ProfilePage = lazy(() => import('./pages/technical/ProfilePage'))
+const NodeEditorPage = lazy(() => import('./pages/technical/nodes/NodeEditorPage'))
 
 // Old Production addresses of the technical pages (bookmarks, links)
 function OldModelRedirect() {
@@ -305,6 +310,12 @@ export default function App() {
 
                 {/* TECHNIQUE */}
                 <Route path="/technical/catalog" element={<ProtectedRoute permission={canViewCatalog}><Catalog /></ProtectedRoute>} />
+                <Route path="/technical/series/:id" element={<ProtectedRoute permission={canViewCatalog}><SeriesPage /></ProtectedRoute>} />
+                <Route path="/technical/series/:id/nodes/new" element={<ProtectedRoute permission={canViewCatalog}><NodeEditorPage /></ProtectedRoute>} />
+                <Route path="/technical/nodes/:nodeId" element={<ProtectedRoute permission={canViewCatalog}><NodeEditorPage /></ProtectedRoute>} />
+                <Route path="/technical/profiles/:id" element={<ProtectedRoute permission={canViewCatalog}><ProfilePage /></ProtectedRoute>} />
+                <Route path="/technical/designer" element={<ProtectedRoute permission={canViewCatalog}><DesignsList /></ProtectedRoute>} />
+                <Route path="/technical/designer/:id" element={<ProtectedRoute permission={canViewCatalog}><DesignerPage /></ProtectedRoute>} />
                 <Route path="/technical/catalog/models/:id" element={<ProtectedRoute permission={canViewCatalog}><ChassisModelEditor /></ProtectedRoute>} />
                 <Route path="/technical/glass-types" element={<ProtectedRoute permission={(u) => canViewCatalog(u) || canConfigureProduction(u)}><GlassTypesPage /></ProtectedRoute>} />
                 <Route path="/technical/articles" element={<ProtectedRoute permission={(u) => can(u, "inventory.articles.view") || canManageInventory(u) || canConfigureProduction(u)}><TechDataPage /></ProtectedRoute>} />
